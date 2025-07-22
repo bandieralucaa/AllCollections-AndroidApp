@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "413727307808",
+    "project_id": "allcollections-androidapp",
+    "storage_bucket": "allcollections-androidapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:413727307808:android:bfaeb11214e77d4c1ea445",
+        "android_client_info": {
+          "package_name": "com.example.allcollections"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDuc0NJU9X4OuntBpro7dguGuwGKSz6VGs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
