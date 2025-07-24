@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.rememberNavController
+import com.cloudinary.android.MediaManager
 import com.example.allcollections.navigation.AppNavigation
 import com.example.allcollections.navigation.Screens
 import com.example.allcollections.ui.theme.AllCollectionsTheme
@@ -32,6 +33,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Firebase.initialize(this)
+        val config = hashMapOf("cloud_name" to "dqtr2napz", "secure" to "true")
+        MediaManager.init(this, config)
         setContent {
             val navController = rememberNavController()
             val profileViewModel: ProfileViewModel = ViewModelProvider(this).get(ProfileViewModel::class.java)

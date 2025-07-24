@@ -1,5 +1,6 @@
 package com.example.allcollections.login
 
+import android.net.Uri
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -36,6 +37,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.allcollections.navigation.Screens
 import com.example.allcollections.viewModel.ProfileViewModel
+import com.example.allcollections.viewModel.UserData
 import com.google.firebase.auth.FirebaseAuth
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -44,8 +46,7 @@ import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 
 @Composable
-fun Register(navController: NavController) {
-    val profileViewModel: ProfileViewModel = viewModel()
+fun Register(navController: NavController, profileViewModel: ProfileViewModel) {
 
     var name by remember { mutableStateOf("") }
     var surname by remember { mutableStateOf("") }
@@ -55,6 +56,10 @@ fun Register(navController: NavController) {
     var gender by remember { mutableStateOf("Maschio") }
     var username by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    val context = LocalContext.current
+
 
 
     Column(
@@ -121,25 +126,30 @@ fun Register(navController: NavController) {
         Spacer(modifier = Modifier.height(20.dp))
 
         Button(onClick = {
-            profileViewModel.registerUser(
-                name = name,
-                surname = surname,
-                dateOfBirth = dateOfBirth,
-                email = email,
-                password = password,
-                gender = gender,
-                username = username
-            ) { success, error ->
-                if (success) {
-                    val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-                    navController.navigate("${Screens.PhotoProfile.name}/$userId")
-                } else {
-                    errorMessage = error
+            FirebaseAuth.getInstance()
+                .createUserWithEmailAndPassword(email, password)
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        profileViewModel.pendingUserData = UserData(
+                            name = name,
+                            surname = surname,
+                            dateOfBirth = dateOfBirth,
+                            email = email,
+                            password = password,
+                            gender = gender,
+                            username = username
+                        )
+
+                        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                        navController.navigate("${Screens.PhotoProfile.name}/$userId")
+                    } else {
+                        errorMessage = "Errore nella registrazione: ${task.exception?.message}"
+                    }
                 }
-            }
         }) {
             Text("Prosegui")
         }
+
 
         errorMessage?.let { message ->
             Text(
@@ -239,4 +249,3 @@ fun GenderSelector(
         }
     }
 }
-

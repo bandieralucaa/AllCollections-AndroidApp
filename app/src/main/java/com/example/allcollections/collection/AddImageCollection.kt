@@ -16,6 +16,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -34,9 +38,15 @@ import com.example.allcollections.viewModel.CollectionViewModel
 fun AddImageCollection(navController: NavController, collectionId: String) {
     val collectionViewModel: CollectionViewModel = viewModel()
 
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+
+
     val ctx = LocalContext.current
 
-    val cameraLauncher = rememberCameraLauncher()
+    val cameraLauncher = rememberCameraLauncher { capturedUri ->
+        selectedImageUri = capturedUri
+    }
+
 
     val cameraPermission = rememberPermission(Manifest.permission.CAMERA) { status ->
         if (status.isGranted) {

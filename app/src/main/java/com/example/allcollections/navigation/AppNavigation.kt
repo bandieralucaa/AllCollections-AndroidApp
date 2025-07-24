@@ -11,6 +11,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -33,6 +34,7 @@ import com.example.allcollections.screens.ChooseTheme
 import com.example.allcollections.screens.Home
 import com.example.allcollections.screens.Search
 import com.example.allcollections.screens.Settings
+import com.example.allcollections.viewModel.ProfileViewModel
 import com.example.allcollections.viewModel.ThemeState
 import com.example.allcollections.viewModel.ViewModelContainer
 
@@ -47,6 +49,8 @@ fun AppNavigation(
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    val profileViewModel: ProfileViewModel = viewModel()
+
 
     Scaffold(
         bottomBar = {
@@ -103,7 +107,7 @@ fun AppNavigation(
                 Settings(navController, viewModelContainer.profileViewModel)
             }
             composable(route = Screens.Register.name) {
-                Register(navController)
+                Register(navController, profileViewModel)
             }
             composable(route = Screens.AddCollection.name) {
                 AddCollection(navController)
@@ -121,7 +125,7 @@ fun AppNavigation(
             }
             composable(route = "${Screens.PhotoProfile.name}/{userId}") { backStackEntry ->
                 val userId = backStackEntry.arguments?.getString("userId") ?: ""
-                PhotoProfile(navController, userId)
+                PhotoProfile(navController, userId, profileViewModel)
             }
             composable(route = Screens.ObjectCollection.name) {
                 ObjectCollection(navController)

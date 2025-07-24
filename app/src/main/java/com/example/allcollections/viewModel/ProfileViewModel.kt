@@ -1,16 +1,18 @@
 package com.example.allcollections.viewModel
 
+import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.State
 import androidx.lifecycle.ViewModel
+import com.cloudinary.android.MediaManager
+import com.cloudinary.android.callback.ErrorInfo
+import com.cloudinary.android.callback.UploadCallback
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
-import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.ktx.Firebase
-import com.google.firebase.storage.ktx.storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -27,6 +29,9 @@ class ProfileViewModel : ViewModel() {
     private val _profileImageUrl = mutableStateOf<String?>(null)
     val profileImageUrl: State<String?> = _profileImageUrl
 
+    var pendingUserData: UserData? = null
+
+
 
     fun registerUser(
         name: String,
@@ -36,6 +41,8 @@ class ProfileViewModel : ViewModel() {
         password: String,
         gender: String,
         username: String,
+        profileImageUri: Uri, // 👈 nuovo parametro
+        context: Context,
         callback: (Boolean, String?) -> Unit
     ) {
         if (name.isBlank() || surname.isBlank() || email.isBlank() || password.isBlank() || gender.isBlank() || username.isBlank()) {
@@ -46,16 +53,22 @@ class ProfileViewModel : ViewModel() {
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    val currentUser = auth.currentUser
-                    if (currentUser != null) {
+                    val currentUser = auth.currentUser ?: return@addOnCompleteListener
+
+                    saveProfilePicture(profileImageUri, context) { imageUrl ->
+                        if (imageUrl == null) {
+                            callback(false, "Errore nel caricamento dell'immagine")
+                            return@saveProfilePicture
+                        }
+
                         val user = hashMapOf(
                             "name" to name,
                             "surname" to surname,
                             "dateOfBirth" to dateOfBirth.toString(),
                             "email" to email,
-                            "password" to password,
                             "gender" to gender,
-                            "username" to username
+                            "username" to username,
+                            "profileImageUrl" to imageUrl
                         )
 
                         db.collection("users")
@@ -104,37 +117,25 @@ class ProfileViewModel : ViewModel() {
         callback()
     }
 
-    fun saveProfilePicture(imageUri: Uri, callback: (Boolean, String?) -> Unit) {
-        val userId = auth.currentUser?.uid ?: return
-
-        val storageRef = Firebase.storage.reference
-        val imageRef = storageRef.child("$userId/profile_images/image.jpg")
-
-        imageRef.putFile(imageUri)
-            .addOnSuccessListener { _ ->
-                imageRef.downloadUrl.addOnSuccessListener { uri ->
-                    val userData = hashMapOf(
-                        "profileImageUrl" to uri.toString()
-                    )
-
-                    val userDataJava = hashMapOf<String, Any>().apply {
-                        putAll(userData)
-                    }
-
-                    db.collection("users")
-                        .document(userId)
-                        .update(userDataJava)
-                        .addOnSuccessListener {
-                            callback(true, null)
-                        }
-                        .addOnFailureListener { e ->
-                            callback(false, e.message)
-                        }
+    fun saveProfilePicture(uri: Uri, context: Context, onComplete: (String?) -> Unit) {
+        MediaManager.get().upload(uri)
+            .unsigned("android_unsigned_upload") // nome del tuo preset
+            .callback(object : UploadCallback {
+                override fun onSuccess(requestId: String, resultData: Map<*, *>) {
+                    val imageUrl = resultData["secure_url"] as? String
+                    onComplete(imageUrl)
                 }
-            }
-            .addOnFailureListener { e ->
-                callback(false, e.message)
-            }
+
+                override fun onError(requestId: String, error: ErrorInfo) {
+                    Log.e("Cloudinary", "Errore upload: ${error.description}")
+                    onComplete(null)
+                }
+
+                override fun onStart(requestId: String) {}
+                override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}
+                override fun onReschedule(requestId: String, error: ErrorInfo) {}
+            })
+            .dispatch()
     }
 
     suspend fun getUsername(): String {
@@ -184,7 +185,6 @@ class ProfileViewModel : ViewModel() {
             "surname" to surname,
             "dateOfBirth" to dateOfBirth.toString(),
             "email" to email,
-            "password" to password,  // Evita di memorizzare le password in chiaro nel database
             "gender" to gender,
             "username" to username
         )
@@ -199,6 +199,7 @@ class ProfileViewModel : ViewModel() {
                 callback(false, "Errore durante l'aggiornamento dei dati: ${e.message}")
             }
     }
+
 
 
 }

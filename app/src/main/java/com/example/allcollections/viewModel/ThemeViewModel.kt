@@ -2,7 +2,6 @@ package com.example.allcollections.viewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.allcollections.apptheme.ThemeMode
 import com.example.allcollections.repositories.ThemeRepository
 import com.example.allcollections.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.SharingStarted

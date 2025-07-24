@@ -19,28 +19,26 @@ interface CameraLauncher {
 }
 
 @Composable
-fun rememberCameraLauncher(): CameraLauncher {
+fun rememberCameraLauncher(onImageCaptured: (Uri) -> Unit): CameraLauncher {
     val ctx = LocalContext.current
     val imageUri = remember {
         val imageFile = File.createTempFile("tmp_image", ".jpg", ctx.externalCacheDir)
         FileProvider.getUriForFile(ctx, ctx.packageName + ".provider", imageFile)
     }
-    var capturedImageUri by remember { mutableStateOf(Uri.EMPTY) }
+
     val cameraActivityLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { pictureTaken ->
             if (pictureTaken) {
-                capturedImageUri = imageUri
-                saveImageToStorage(capturedImageUri, ctx.applicationContext.contentResolver)
+                saveImageToStorage(imageUri, ctx.applicationContext.contentResolver)
+                onImageCaptured(imageUri) // 👈 restituisce l'immagine
             }
         }
 
-    val cameraLauncher by remember {
-        derivedStateOf {
-            object : CameraLauncher {
-                override val capturedImageUri = capturedImageUri
-                override fun captureImage() = cameraActivityLauncher.launch((imageUri))
-            }
-        }
+    val cameraLauncher = object : CameraLauncher {
+        override val capturedImageUri: Uri = imageUri
+        override fun captureImage() = cameraActivityLauncher.launch(imageUri)
     }
+
     return cameraLauncher
 }
+

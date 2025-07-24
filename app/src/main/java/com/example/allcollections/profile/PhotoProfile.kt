@@ -1,21 +1,13 @@
 package com.example.allcollections.profile
 
 import android.Manifest
-import android.app.Activity
-import android.content.Intent
 import android.net.Uri
-import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -29,94 +21,192 @@ import com.example.allcollections.navigation.Screens
 import com.example.allcollections.utils.rememberCameraLauncher
 import com.example.allcollections.utils.rememberPermission
 import com.example.allcollections.viewModel.ProfileViewModel
+import com.cloudinary.android.MediaManager
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+
 
 @Composable
-fun PhotoProfile(navController: NavController, userId: String) {
-    val profileViewModel: ProfileViewModel = viewModel()
+fun PhotoProfile(navController: NavController, userId: String, profileViewModel: ProfileViewModel) {
+    val context = LocalContext.current
+    val userData = profileViewModel.pendingUserData
 
-    val ctx = LocalContext.current
 
-    val cameraLauncher = rememberCameraLauncher()
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    var uploadSuccess by remember { mutableStateOf(false) }
 
-    val cameraPermission = rememberPermission(Manifest.permission.CAMERA) { status ->
-        if (status.isGranted) {
-            cameraLauncher.captureImage()
-        } else {
-            Toast.makeText(ctx, "Permission denied", Toast.LENGTH_SHORT).show()
-        }
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        selectedImageUri = uri
     }
 
-    fun takePicture() {
-        if (cameraPermission.status.isGranted) {
-            cameraLauncher.captureImage()
-        } else {
-            cameraPermission.launchPermissionRequest()
-        }
+    val cameraLauncher = rememberCameraLauncher {
+        selectedImageUri = it
     }
 
+    val cameraPermission = rememberPermission(Manifest.permission.CAMERA) {
+        if (it.isGranted) {
+            cameraLauncher.captureImage()
+        } else {
+            Toast.makeText(context, "Permesso fotocamera negato", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ){
-        Text(text = "Scegli la tua foto profilo", fontSize = 28.sp)
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("Scegli la tua foto profilo", fontSize = 22.sp)
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Button(onClick = ::takePicture) {
-            Text(text = "Scatta una foto")
+        Button(onClick = { galleryLauncher.launch("image/*") }) {
+            Text("Scegli dalla galleria")
         }
 
-        if (cameraLauncher.capturedImageUri.path?.isNotEmpty() == true) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(onClick = {
+            if (cameraPermission.status.isGranted) {
+                cameraLauncher.captureImage()
+            } else {
+                cameraPermission.launchPermissionRequest()
+            }
+        }) {
+            Text("Scatta una foto")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        selectedImageUri?.let { uri ->
             AsyncImage(
-                ImageRequest.Builder(ctx)
-                    .data(cameraLauncher.capturedImageUri)
+                model = ImageRequest.Builder(context)
+                    .data(uri)
                     .crossfade(true)
                     .build(),
-                "Captured imae"
+                contentDescription = "Foto selezionata",
+                modifier = Modifier.size(180.dp)
             )
-        }
 
-        Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                val data: Intent? = result.data
-                val selectedImageUri: Uri? = data?.data
-                if (selectedImageUri != null) {
-                    profileViewModel.saveProfilePicture(selectedImageUri) { success, error ->
-                        if (success) {
-                            navController.navigate(Screens.Profile.name)
-                        } else {
-                            Toast.makeText(ctx, "Errore durante il salvataggio dell'immagine: $error", Toast.LENGTH_SHORT).show()
-                        }
+            if (isLoading) {
+                CircularProgressIndicator()
+                Spacer(modifier = Modifier.height(8.dp))
+            } else if (uploadSuccess) {
+                Text("✅ Foto salvata con successo!", color = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            Button(onClick = {
+                if (selectedImageUri == null) {
+                    Toast.makeText(context, "Seleziona una foto prima di confermare", Toast.LENGTH_SHORT).show()
+                    return@Button
+                }
+
+                isLoading = true
+                uploadSuccess = false
+
+                val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+
+                if (currentUserId == null || userData == null) {
+                    isLoading = false
+                    Toast.makeText(context, "Errore: dati mancanti", Toast.LENGTH_SHORT).show()
+                    return@Button
+                }
+
+                profileViewModel.saveProfilePicture(uri, context) { rawUrl ->
+                    if (rawUrl != null) {
+                        val publicId = rawUrl.substringAfter("upload/").substringBeforeLast(".")
+                        val finalImageUrl = MediaManager.get().url().generate(publicId)
+
+                        val user = hashMapOf(
+                            "name" to userData.name,
+                            "surname" to userData.surname,
+                            "dateOfBirth" to userData.dateOfBirth.toString(),
+                            "email" to userData.email,
+                            "password" to userData.password,
+                            "gender" to userData.gender,
+                            "username" to userData.username,
+                            "profileImageUrl" to finalImageUrl
+                        )
+
+                        FirebaseFirestore.getInstance()
+                            .collection("users")
+                            .document(currentUserId)
+                            .set(user)
+                            .addOnSuccessListener {
+                                isLoading = false
+                                uploadSuccess = true
+                                Toast.makeText(context, "✅ Utente registrato con successo!", Toast.LENGTH_SHORT).show()
+                                FirebaseAuth.getInstance().signOut()
+                                profileViewModel.pendingUserData = null
+                                navController.navigate(Screens.Login.name) {
+                                    popUpTo(0)
+                                }
+
+                            }
+                            .addOnFailureListener {
+                                isLoading = false
+                                Toast.makeText(context, "Errore durante salvataggio", Toast.LENGTH_SHORT).show()
+                            }
+                    } else {
+                        isLoading = false
+                        Toast.makeText(context, "Errore nell'upload immagine", Toast.LENGTH_SHORT).show()
                     }
                 }
+
+
+            }) {
+                Text("Conferma foto profilo")
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
+        Button(onClick = {
+            val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
 
-        Button(onClick = { galleryLauncher.launch(Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)) }) {
-            Text(text = "Scegli dalla galleria")
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Button(onClick = { navController.navigate(Screens.Profile.name) }) {
-            Text(text = "Non ora")
-        }
-    }
-
-    if (cameraLauncher.capturedImageUri.path?.isNotEmpty() == true) {
-        profileViewModel.saveProfilePicture(cameraLauncher.capturedImageUri) { success, error ->
-            if (success) {
-                navController.navigate(Screens.Profile.name)
-            } else {
-                Toast.makeText(ctx, "Errore durante il salvataggio dell'immagine: $error", Toast.LENGTH_SHORT).show()
+            if (userData == null || currentUserId == null) {
+                Toast.makeText(context, "Errore: dati mancanti", Toast.LENGTH_SHORT).show()
+                return@Button
             }
-        }
-    }
 
+            val defaultImageUrl = "https://res.cloudinary.com/demo/image/upload/v123456789/default_profile.png" // ✨ metti qui il tuo URL di default
+
+            val user = hashMapOf(
+                "name" to userData.name,
+                "surname" to userData.surname,
+                "dateOfBirth" to userData.dateOfBirth.toString(),
+                "email" to userData.email,
+                "password" to userData.password, // ⚠️ da evitare se non criptata
+                "gender" to userData.gender,
+                "username" to userData.username,
+                "profileImageUrl" to defaultImageUrl
+            )
+
+            FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(currentUserId)
+                .set(user)
+                .addOnSuccessListener {
+                    FirebaseAuth.getInstance().signOut()
+                    profileViewModel.pendingUserData = null // 🧹 pulizia
+                    navController.navigate(Screens.Login.name) {
+                        popUpTo(0)
+                    }
+                }
+                .addOnFailureListener {
+                    Toast.makeText(context, "Errore durante la registrazione", Toast.LENGTH_SHORT).show()
+                }
+        }) {
+            Text("Salta")
+        }
+
+    }
 }
