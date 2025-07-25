@@ -18,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -32,25 +33,55 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.rememberImagePainter
+import com.example.allcollections.login.RequireLogin
 import com.example.allcollections.navigation.Screens
 import com.example.allcollections.viewModel.ProfileViewModel
-
-
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun Profile(navController: NavController) {
+    RequireLogin(navController) {
+        // Qui dentro metti tutto il contenuto che vuoi mostrare solo se loggato
+        ProfileContent(navController = navController)
+    }
+}
+
+
+@Composable
+fun ProfileContent(navController: NavController) {
 
     val viewModel: ProfileViewModel = viewModel()
+
+    var currentUser by remember { mutableStateOf(FirebaseAuth.getInstance().currentUser) }
 
     var username by remember { mutableStateOf("") }
 
     val profileImageUrl by remember { viewModel.profileImageUrl }
 
-
-    LaunchedEffect(key1 = Unit) {
-        username = viewModel.getUsername()
-        viewModel.getProfileImage()
+    DisposableEffect(Unit) {
+        val listener = FirebaseAuth.AuthStateListener { auth ->
+            currentUser = auth.currentUser
+        }
+        FirebaseAuth.getInstance().addAuthStateListener(listener)
+        onDispose {
+            FirebaseAuth.getInstance().removeAuthStateListener(listener)
+        }
     }
+
+    LaunchedEffect(currentUser) {
+        if (currentUser == null) {
+            navController.navigate(Screens.Login.name) {
+                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                launchSingleTop = true
+            }
+        } else {
+            username = withContext(Dispatchers.IO) { viewModel.getUsername() }
+            viewModel.getProfileImage()
+        }
+    }
+
 
     Column(
         modifier = Modifier.fillMaxSize(),

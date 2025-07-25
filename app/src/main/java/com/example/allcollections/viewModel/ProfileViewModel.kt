@@ -3,12 +3,16 @@ package com.example.allcollections.viewModel
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.State
 import androidx.lifecycle.ViewModel
+import androidx.navigation.NavController
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
+import com.example.allcollections.navigation.Screens
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
@@ -97,6 +101,8 @@ class ProfileViewModel : ViewModel() {
         auth.signInWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
+                    Log.d("LOGIN", "Login effettuato con successo: ${FirebaseAuth.getInstance().currentUser?.uid}")
+
                     _isLoggedIn.value = true
                     _loginErrorMessage.value = null
                     callback(true, null)
@@ -209,7 +215,6 @@ class ProfileViewModel : ViewModel() {
                 callback(false, "Errore durante l'aggiornamento dei dati: ${e.message}")
             }
     }
-
 
 
 }

@@ -29,6 +29,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import com.example.allcollections.viewModel.ProfileViewModel
 
 @Composable
@@ -39,12 +40,16 @@ fun Login(navController: NavController, viewModel: ProfileViewModel) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val currentUser = Firebase.auth.currentUser
+
+
     LaunchedEffect(currentUser) {
         if (currentUser != null) {
-            // Se l'utente è ancora autenticato, rimandalo alla home (o logout forzato)
-            Firebase.auth.signOut()
+            navController.navigate(Screens.Home.name) {
+                popUpTo(Screens.Login.name) { inclusive = true }
+            }
         }
     }
+
 
 
     Column(
@@ -78,7 +83,11 @@ fun Login(navController: NavController, viewModel: ProfileViewModel) {
             onValueChange = { password = it },
             label = { Text(text = "Password") },
             singleLine = true,
-            visualTransformation = PasswordVisualTransformation()
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Password,
+                autoCorrect = false
+            )
         )
 
         Spacer(modifier = Modifier.height(20.dp))
