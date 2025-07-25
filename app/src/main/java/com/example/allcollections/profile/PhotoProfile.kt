@@ -2,6 +2,7 @@ package com.example.allcollections.profile
 
 import android.Manifest
 import android.net.Uri
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,6 +31,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 fun PhotoProfile(navController: NavController, userId: String, profileViewModel: ProfileViewModel) {
     val context = LocalContext.current
     val userData = profileViewModel.pendingUserData
+    var shouldNavigateToLogin by remember { mutableStateOf(false) }
+
 
 
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
@@ -65,21 +68,26 @@ fun PhotoProfile(navController: NavController, userId: String, profileViewModel:
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(onClick = { galleryLauncher.launch("image/*") }) {
-            Text("Scegli dalla galleria")
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Button(onClick = {
-            if (cameraPermission.status.isGranted) {
-                cameraLauncher.captureImage()
-            } else {
-                cameraPermission.launchPermissionRequest()
+        if (selectedImageUri == null) {
+            Button(onClick = { galleryLauncher.launch("image/*") }) {
+                Text("Scegli dalla galleria")
             }
-        }) {
-            Text("Scatta una foto")
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(onClick = {
+                if (cameraPermission.status.isGranted) {
+                    cameraLauncher.captureImage()
+                } else {
+                    cameraPermission.launchPermissionRequest()
+                }
+            }) {
+                Text("Scatta una foto")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
+
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -121,6 +129,9 @@ fun PhotoProfile(navController: NavController, userId: String, profileViewModel:
                 }
 
                 profileViewModel.saveProfilePicture(uri, context) { rawUrl ->
+
+                    Log.d("PhotoProfile", "Callback upload triggered, rawUrl=$rawUrl")
+
                     if (rawUrl != null) {
                         val publicId = rawUrl.substringAfter("upload/").substringBeforeLast(".")
                         val finalImageUrl = MediaManager.get().url().generate(publicId)
@@ -141,21 +152,27 @@ fun PhotoProfile(navController: NavController, userId: String, profileViewModel:
                             .document(currentUserId)
                             .set(user)
                             .addOnSuccessListener {
+                                Log.d("PhotoProfile", "Firestore upload success")
+
                                 isLoading = false
                                 uploadSuccess = true
-                                Toast.makeText(context, "✅ Utente registrato con successo!", Toast.LENGTH_SHORT).show()
-                                FirebaseAuth.getInstance().signOut()
                                 profileViewModel.pendingUserData = null
-                                navController.navigate(Screens.Login.name) {
-                                    popUpTo(0)
-                                }
+                                FirebaseAuth.getInstance().signOut()
+                                Toast.makeText(context, "Registrazione completata! Accedi ora 🎉", Toast.LENGTH_LONG).show()
 
+                                shouldNavigateToLogin = true  // <-- attiva la navigazione
                             }
+
+
                             .addOnFailureListener {
+                                Log.d("PhotoProfile", "Firestore upload failure")
+
                                 isLoading = false
                                 Toast.makeText(context, "Errore durante salvataggio", Toast.LENGTH_SHORT).show()
                             }
                     } else {
+                        Log.d("PhotoProfile", "Upload immagine fallito")
+
                         isLoading = false
                         Toast.makeText(context, "Errore nell'upload immagine", Toast.LENGTH_SHORT).show()
                     }
@@ -169,44 +186,72 @@ fun PhotoProfile(navController: NavController, userId: String, profileViewModel:
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        Button(onClick = {
-            val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+        if (selectedImageUri == null) {
 
-            if (userData == null || currentUserId == null) {
-                Toast.makeText(context, "Errore: dati mancanti", Toast.LENGTH_SHORT).show()
-                return@Button
-            }
+            Button(onClick = {
+                val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
 
-            val defaultImageUrl = "https://res.cloudinary.com/demo/image/upload/v123456789/default_profile.png" // ✨ metti qui il tuo URL di default
+                if (userData == null || currentUserId == null) {
+                    Toast.makeText(context, "Errore: dati mancanti", Toast.LENGTH_SHORT).show()
+                    return@Button
+                }
 
-            val user = hashMapOf(
-                "name" to userData.name,
-                "surname" to userData.surname,
-                "dateOfBirth" to userData.dateOfBirth.toString(),
-                "email" to userData.email,
-                "password" to userData.password, // ⚠️ da evitare se non criptata
-                "gender" to userData.gender,
-                "username" to userData.username,
-                "profileImageUrl" to defaultImageUrl
-            )
+                val defaultImageUrl =
+                    "https://res.cloudinary.com/demo/image/upload/v123456789/default_profile.png" // ✨ metti qui il tuo URL di default
 
-            FirebaseFirestore.getInstance()
-                .collection("users")
-                .document(currentUserId)
-                .set(user)
-                .addOnSuccessListener {
-                    FirebaseAuth.getInstance().signOut()
-                    profileViewModel.pendingUserData = null // 🧹 pulizia
-                    navController.navigate(Screens.Login.name) {
-                        popUpTo(0)
+                val user = hashMapOf(
+                    "name" to userData.name,
+                    "surname" to userData.surname,
+                    "dateOfBirth" to userData.dateOfBirth.toString(),
+                    "email" to userData.email,
+                    "password" to userData.password, // ⚠️ da evitare se non criptata
+                    "gender" to userData.gender,
+                    "username" to userData.username,
+                    "profileImageUrl" to defaultImageUrl
+                )
+
+                FirebaseFirestore.getInstance()
+                    .collection("users")
+                    .document(currentUserId)
+                    .set(user)
+                    .addOnSuccessListener {
+                        isLoading = false
+                        uploadSuccess = true
+                        profileViewModel.pendingUserData = null
+                        FirebaseAuth.getInstance().signOut()
+                        Toast.makeText(
+                            context,
+                            "Registrazione completata! Accedi ora 🎉",
+                            Toast.LENGTH_LONG
+                        ).show()
+
+                        shouldNavigateToLogin = true  // <-- attiva la navigazione
                     }
-                }
-                .addOnFailureListener {
-                    Toast.makeText(context, "Errore durante la registrazione", Toast.LENGTH_SHORT).show()
-                }
-        }) {
-            Text("Salta")
+                    .addOnFailureListener {
+                        Toast.makeText(
+                            context,
+                            "Errore durante la registrazione",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+            }) {
+                Text("Salta")
+            }
         }
 
     }
+
+    LaunchedEffect(shouldNavigateToLogin) {
+        if (shouldNavigateToLogin) {
+            navController.navigate(Screens.Login.name) {
+                popUpTo(navController.graph.startDestinationId) {
+                    inclusive = true
+                }
+                launchSingleTop = true
+            }
+            shouldNavigateToLogin = false  // resettiamo il flag per sicurezza
+        }
+    }
+
+
 }

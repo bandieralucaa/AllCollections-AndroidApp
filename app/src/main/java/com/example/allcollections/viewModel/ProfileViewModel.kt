@@ -118,22 +118,32 @@ class ProfileViewModel : ViewModel() {
     }
 
     fun saveProfilePicture(uri: Uri, context: Context, onComplete: (String?) -> Unit) {
+        Log.d("ProfileViewModel", "Inizio upload immagine")
         MediaManager.get().upload(uri)
-            .unsigned("android_unsigned_upload") // nome del tuo preset
+            .unsigned("android_unsigned_upload")
             .callback(object : UploadCallback {
                 override fun onSuccess(requestId: String, resultData: Map<*, *>) {
                     val imageUrl = resultData["secure_url"] as? String
+                    Log.d("ProfileViewModel", "Upload successo: $imageUrl")
                     onComplete(imageUrl)
                 }
 
                 override fun onError(requestId: String, error: ErrorInfo) {
-                    Log.e("Cloudinary", "Errore upload: ${error.description}")
+                    Log.e("ProfileViewModel", "Errore upload: ${error.description}")
                     onComplete(null)
                 }
 
-                override fun onStart(requestId: String) {}
-                override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}
-                override fun onReschedule(requestId: String, error: ErrorInfo) {}
+                override fun onStart(requestId: String) {
+                    Log.d("ProfileViewModel", "Upload iniziato")
+                }
+
+                override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {
+                    Log.d("ProfileViewModel", "Upload in progresso: $bytes/$totalBytes")
+                }
+
+                override fun onReschedule(requestId: String, error: ErrorInfo) {
+                    Log.d("ProfileViewModel", "Upload rimandato: ${error.description}")
+                }
             })
             .dispatch()
     }

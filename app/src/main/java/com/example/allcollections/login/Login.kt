@@ -27,6 +27,7 @@ import com.google.firebase.ktx.Firebase
 import android.util.Log
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.text.input.ImeAction
 import com.example.allcollections.viewModel.ProfileViewModel
 
@@ -36,6 +37,15 @@ fun Login(navController: NavController, viewModel: ProfileViewModel) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val currentUser = Firebase.auth.currentUser
+    LaunchedEffect(currentUser) {
+        if (currentUser != null) {
+            // Se l'utente è ancora autenticato, rimandalo alla home (o logout forzato)
+            Firebase.auth.signOut()
+        }
+    }
+
 
     Column(
         modifier = Modifier.fillMaxSize(),
