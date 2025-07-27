@@ -23,6 +23,9 @@ fun Settings(navController: NavController, viewModel: ProfileViewModel) {
         "Modifica profilo" to {
             navController.navigate(Screens.EditProfile.name)
         },
+        "Cambia immagine del profilo" to {
+            navController.navigate(Screens.EditPhotoProfile.name)
+        },
         "Cambia tema" to {
             navController.navigate(Screens.ChooseTheme.name)
         },

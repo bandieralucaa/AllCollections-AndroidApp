@@ -91,7 +91,6 @@ fun AddCollection(navController: NavController) {
                 name = name,
                 category = category,
                 description = description,
-                iduser = iduser,
                 onSuccess = { collectionId ->
                     navController.navigate("${Screens.AddImageCollection.name}/$collectionId")
                 },

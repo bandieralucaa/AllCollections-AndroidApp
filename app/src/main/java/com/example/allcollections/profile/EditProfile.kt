@@ -35,6 +35,9 @@ import com.example.allcollections.login.ShowDatePicker
 import com.example.allcollections.viewModel.ProfileViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 
 @Composable
 fun EditProfile(navController: NavController) {
@@ -48,6 +51,7 @@ fun EditProfile(navController: NavController) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    val scrollState = rememberScrollState()
 
     LaunchedEffect(true) {
         val userData = profileViewModel.getUserData()
@@ -57,12 +61,14 @@ fun EditProfile(navController: NavController) {
         email = userData.email
         gender = userData.gender
         username = userData.username
-        password = userData.password
     }
 
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Row(
@@ -148,7 +154,6 @@ fun EditProfile(navController: NavController) {
                 email = email,
                 gender = gender,
                 username = username,
-                password = password
             ) { success, error ->
                 if (success) {
                     navController.navigateUp()

@@ -41,6 +41,9 @@ fun Login(navController: NavController, viewModel: ProfileViewModel) {
 
     val currentUser = Firebase.auth.currentUser
 
+    val cleanedEmail = email.trim()
+    val cleanedPassword = password.trim()
+
 
     LaunchedEffect(currentUser) {
         if (currentUser != null) {
@@ -93,7 +96,8 @@ fun Login(navController: NavController, viewModel: ProfileViewModel) {
         Spacer(modifier = Modifier.height(20.dp))
 
         Button(onClick = {
-            viewModel.login(email, password) { success, error ->
+            viewModel.login(cleanedEmail, cleanedPassword) { success, error ->
+                Log.d("LOGIN", "Tentativo con email: '$cleanedEmail' e password: '$cleanedPassword'")
                 if (success) {
                     navController.navigate(Screens.Home.name) {
                         popUpTo(Screens.Login.name) {

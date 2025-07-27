@@ -26,6 +26,7 @@ import com.example.allcollections.collection.ObjectCollection
 import com.example.allcollections.collection.UserCollection
 import com.example.allcollections.login.Login
 import com.example.allcollections.login.Register
+import com.example.allcollections.profile.EditPhotoProfile
 import com.example.allcollections.profile.EditProfile
 import com.example.allcollections.profile.PhotoProfile
 import com.example.allcollections.profile.Profile
@@ -115,13 +116,9 @@ fun AppNavigation(
             composable(route = Screens.MyCollections.name) {
                 MyCollections(navController, viewModelContainer.collectionViewModel)
             }
-            composable(route = "${Screens.CollectionDetail.name}/{iduser}/{name}/{category}/{description}") { backStackEntry ->
-                val iduser = backStackEntry.arguments?.getString("iduser") ?: ""
-                val name = backStackEntry.arguments?.getString("name") ?: ""
-                val category = backStackEntry.arguments?.getString("category") ?: ""
-                val description = backStackEntry.arguments?.getString("description") ?: ""
-                val userCollection = UserCollection(name, category, description, iduser)
-                CollectionDetail(navController, userCollection)
+            composable(route = "${Screens.CollectionDetail.name}/{collectionId}") { backStackEntry ->
+                val collectionId = backStackEntry.arguments?.getString("collectionId") ?: ""
+                CollectionDetail(navController, collectionId, viewModelContainer.collectionViewModel)
             }
             composable(route = "${Screens.PhotoProfile.name}/{userId}") { backStackEntry ->
                 val userId = backStackEntry.arguments?.getString("userId") ?: ""
@@ -138,8 +135,12 @@ fun AppNavigation(
             }
             composable(route = "${Screens.AddImageCollection.name}/{collectionId}") { backStackEntry ->
                 val collectionId = backStackEntry.arguments?.getString("collectionId") ?: ""
-                AddImageCollection(navController, collectionId)
+                AddImageCollection(collectionId, navController, viewModelContainer.collectionViewModel)
             }
+            composable(route = Screens.EditPhotoProfile.name) {
+                EditPhotoProfile(navController, viewModelContainer.profileViewModel)
+            }
+
         }
     }
 }

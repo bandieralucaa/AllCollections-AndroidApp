@@ -44,16 +44,21 @@ import kotlinx.coroutines.launch
 fun MyCollections(navController: NavController, viewModel: CollectionViewModel) {
     val collections = remember { mutableStateOf(emptyList<UserCollection>()) }
     val iduser = Firebase.auth.currentUser?.uid
-
     val snackbarHostState = remember { SnackbarHostState() }
+    val errorMessage = remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(key1 = Unit) {
+    LaunchedEffect(errorMessage.value) {
+        errorMessage.value?.let { error ->
+            snackbarHostState.showSnackbar("Errore: $error")
+            errorMessage.value = null
+        }
+    }
+
+    LaunchedEffect(Unit) {
         viewModel.getCollections(iduser,
             onSuccess = { collections.value = it },
             onFailure = { error ->
-                launch {
-                    snackbarHostState.showSnackbar("Errore: $error")
-                }
+                errorMessage.value = error
             }
         )
     }
@@ -90,7 +95,7 @@ fun MyCollections(navController: NavController, viewModel: CollectionViewModel) 
                         .padding(8.dp)
                         .aspectRatio(1f)
                         .clickable {
-                            navController.navigate("${Screens.CollectionDetail.name}/$iduser/${collection.name}/${collection.category}/${collection.description}")
+                            navController.navigate("${Screens.CollectionDetail.name}/${collection.id}")
                         }
                 ) {
                     Column(
@@ -98,23 +103,18 @@ fun MyCollections(navController: NavController, viewModel: CollectionViewModel) 
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Image(
-                            painter = rememberImagePainter(
-                                data = collection.collectionImageUrl ?: "",
-                                builder = {
-                                    transformations(CircleCropTransformation())
-                                }
-                            ),
-                            contentDescription = null,
+                        AsyncImage(
+                            model = collection.collectionImageUrl ?: "",
+                            contentDescription = "Collection image",
                             modifier = Modifier.size(80.dp),
-                            contentScale = ContentScale.Crop, // Scala l'immagine per adattarla alla dimensione
+                            contentScale = ContentScale.Crop
                         )
                         Text(text = collection.name)
                     }
                 }
-
             }
         }
     }
+
     SnackbarHost(hostState = snackbarHostState)
 }

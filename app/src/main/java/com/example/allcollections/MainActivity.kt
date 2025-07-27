@@ -1,6 +1,7 @@
 package com.example.allcollections
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -25,6 +26,7 @@ import com.google.firebase.ktx.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.ktx.initialize
 import org.koin.androidx.compose.koinViewModel
+import com.example.allcollections.BuildConfig
 
 
 
@@ -33,8 +35,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Firebase.initialize(this)
-        val config = hashMapOf("cloud_name" to "dqtr2napz", "secure" to "true")
-        MediaManager.init(this, config)
+
+
         setContent {
             val navController = rememberNavController()
             val profileViewModel: ProfileViewModel = ViewModelProvider(this).get(ProfileViewModel::class.java)

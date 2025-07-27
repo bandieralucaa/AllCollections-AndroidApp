@@ -15,5 +15,6 @@ enum class Screens {
     ObjectCollection,
     ChooseTheme,
     EditProfile,
-    AddImageCollection
+    AddImageCollection,
+    EditPhotoProfile
 }

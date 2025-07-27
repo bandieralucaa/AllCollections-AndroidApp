@@ -1,5 +1,6 @@
 package com.example.allcollections.utils
 
+import android.annotation.SuppressLint
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,6 +28,7 @@ interface PermissionHandler {
     fun launchPermissionRequest()
 }
 
+@SuppressLint("ContextCastToActivity")
 @Composable
 fun rememberPermission(
     permission: String,

@@ -45,7 +45,7 @@ class ProfileViewModel : ViewModel() {
         password: String,
         gender: String,
         username: String,
-        profileImageUri: Uri, // 👈 nuovo parametro
+        profileImageUri: Uri,
         context: Context,
         callback: (Boolean, String?) -> Unit
     ) {
@@ -177,7 +177,6 @@ class ProfileViewModel : ViewModel() {
                 surname = userDocument.getString("surname") ?: "",
                 dateOfBirth = LocalDate.parse(userDocument.getString("dateOfBirth") ?: ""),
                 email = userDocument.getString("email") ?: "",
-                password = userDocument.getString("password") ?: "",  // Avoid storing plain passwords in the database
                 gender = userDocument.getString("gender") ?: "",
                 username = userDocument.getString("username") ?: ""
             )
@@ -191,7 +190,6 @@ class ProfileViewModel : ViewModel() {
         email: String,
         gender: String,
         username: String,
-        password: String,
         callback: (Boolean, String?) -> Unit
     ) {
         val userId = auth.currentUser?.uid ?: return
@@ -224,7 +222,6 @@ data class UserData(
     val surname: String,
     val dateOfBirth: LocalDate,
     val email: String,
-    val password: String,
     val gender: String,
     val username: String
 )

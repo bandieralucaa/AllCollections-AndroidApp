@@ -14,5 +14,7 @@ class AllCollections : Application() {
             androidContext(this@AllCollections)
             modules(appModule)
         }
+
+        CloudinaryManager.init(this)
     }
 }

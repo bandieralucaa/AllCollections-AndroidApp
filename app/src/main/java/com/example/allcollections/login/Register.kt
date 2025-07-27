@@ -45,6 +45,9 @@ import java.time.format.DateTimeFormatter
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 
 @Composable
 fun Register(navController: NavController, profileViewModel: ProfileViewModel) {
@@ -57,15 +60,16 @@ fun Register(navController: NavController, profileViewModel: ProfileViewModel) {
     var gender by remember { mutableStateOf("Maschio") }
     var username by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     val context = LocalContext.current
-
-
+    val scrollState = rememberScrollState()
 
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         OutlinedTextField(
@@ -140,7 +144,6 @@ fun Register(navController: NavController, profileViewModel: ProfileViewModel) {
                             surname = surname,
                             dateOfBirth = dateOfBirth,
                             email = email,
-                            password = password,
                             gender = gender,
                             username = username
                         )
