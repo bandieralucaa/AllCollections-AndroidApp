@@ -1,5 +1,7 @@
 package com.example.allcollections.profile
 
+import android.Manifest
+import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
@@ -18,10 +20,14 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.cloudinary.android.MediaManager
+import com.example.allcollections.utils.PermissionStatus
 import com.example.allcollections.utils.rememberCameraLauncher
+import com.example.allcollections.utils.rememberPermission
 import com.example.allcollections.viewModel.ProfileViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import android.provider.Settings
+
 
 @Composable
 fun EditPhotoProfile(navController: NavController, profileViewModel: ProfileViewModel) {
@@ -31,12 +37,22 @@ fun EditPhotoProfile(navController: NavController, profileViewModel: ProfileView
     var isLoading by remember { mutableStateOf(false) }
     var uploadSuccess by remember { mutableStateOf(false) }
 
-    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
         selectedImageUri = uri
     }
 
     val cameraLauncher = rememberCameraLauncher {
         selectedImageUri = it
+    }
+
+    val cameraPermission = rememberPermission(Manifest.permission.CAMERA) {
+        if (it.isGranted) {
+            cameraLauncher.captureImage()
+        } else {
+            Toast.makeText(context, "Permesso fotocamera negato", Toast.LENGTH_SHORT).show()
+        }
     }
 
     Scaffold(snackbarHost = { SnackbarHost(hostState = cameraLauncher.snackbarHostState) }) { padding ->
@@ -59,14 +75,44 @@ fun EditPhotoProfile(navController: NavController, profileViewModel: ProfileView
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
-                Button(onClick = { cameraLauncher.captureImage() }) {
-                    Text("Scatta foto")
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Button(onClick = {
+                        when (cameraPermission.status) {
+                            PermissionStatus.Granted -> cameraLauncher.captureImage()
+                            PermissionStatus.Denied -> cameraPermission.launchPermissionRequest()
+                            PermissionStatus.PermanentlyDenied -> Toast.makeText(
+                                context,
+                                "Vai nelle impostazioni per abilitare la fotocamera",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            else -> cameraPermission.launchPermissionRequest()
+                        }
+                    }) {
+                        Text("Scatta una foto")
+                    }
+
+                    if (cameraPermission.status == PermissionStatus.PermanentlyDenied) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(onClick = {
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                            }
+                            context.startActivity(intent)
+                        }) {
+                            Text("Apri Impostazioni")
+                        }
+                    }
                 }
+
                 Button(onClick = { galleryLauncher.launch("image/*") }) {
                     Text("Galleria")
                 }
             }
+
 
             Spacer(modifier = Modifier.height(16.dp))
 

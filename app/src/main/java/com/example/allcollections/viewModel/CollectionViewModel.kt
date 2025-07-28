@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
+import com.example.allcollections.collection.CollectionItem
 import com.example.allcollections.collection.UserCollection
 import com.google.firebase.auth.auth
 import com.google.firebase.auth.ktx.auth
@@ -140,4 +141,83 @@ class CollectionViewModel : ViewModel() {
             }
         }
     }
+
+    fun addItemToCollection(
+        collectionId: String,
+        imageUri: Uri,
+        description: String,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        val userId = auth.currentUser?.uid
+        if (userId == null) {
+            onFailure("Utente non autenticato")
+            return
+        }
+
+        MediaManager.get().upload(imageUri)
+            .option("folder", "$userId/collections/$collectionId/items")
+            .callback(object : UploadCallback {
+                override fun onStart(requestId: String?) {}
+                override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {}
+                override fun onSuccess(requestId: String?, resultData: MutableMap<Any?, Any?>?) {
+                    val imageUrl = resultData?.get("secure_url") as? String
+                    if (imageUrl != null) {
+                        val itemData = hashMapOf(
+                            "description" to description,
+                            "imageUrl" to imageUrl,
+                            "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                        )
+
+                        db.collection("collections")
+                            .document(collectionId)
+                            .collection("items")
+                            .add(itemData)
+                            .addOnSuccessListener { onSuccess() }
+                            .addOnFailureListener { e ->
+                                onFailure("Errore salvataggio oggetto: ${e.message}")
+                            }
+                    } else {
+                        onFailure("Errore: URL immagine mancante")
+                    }
+                }
+
+                override fun onError(requestId: String?, error: ErrorInfo?) {
+                    onFailure(error?.description ?: "Errore upload immagine")
+                }
+
+                override fun onReschedule(requestId: String?, error: ErrorInfo?) {}
+            })
+            .dispatch()
+    }
+
+
+    fun getItemsFromCollection(
+        collectionId: String,
+        onSuccess: (List<CollectionItem>) -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val querySnapshot = db.collection("collections")
+                    .document(collectionId)
+                    .collection("items")
+                    .orderBy("timestamp")
+                    .get()
+                    .await()
+
+                val items = querySnapshot.documents.mapNotNull { doc ->
+                    val item = doc.toObject(CollectionItem::class.java)
+                    item?.copy(id = doc.id)
+                }
+
+                onSuccess(items)
+            } catch (e: Exception) {
+                onFailure("Errore nel recupero degli oggetti: ${e.message}")
+            }
+        }
+    }
+
+
+
 }

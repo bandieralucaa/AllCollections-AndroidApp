@@ -25,6 +25,9 @@ import com.example.allcollections.viewModel.ProfileViewModel
 import com.cloudinary.android.MediaManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import android.content.Intent
+import android.provider.Settings
+import com.example.allcollections.utils.PermissionStatus
 
 
 @Composable
@@ -79,15 +82,35 @@ fun PhotoProfile(navController: NavController, userId: String, profileViewModel:
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Button(onClick = {
-                    if (cameraPermission.status.isGranted) {
-                        cameraLauncher.captureImage()
-                    } else {
-                        cameraPermission.launchPermissionRequest()
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Button(onClick = {
+                        when (cameraPermission.status) {
+                            PermissionStatus.Granted -> cameraLauncher.captureImage()
+                            PermissionStatus.Denied -> cameraPermission.launchPermissionRequest()
+                            PermissionStatus.PermanentlyDenied -> Toast.makeText(
+                                context,
+                                "Vai nelle impostazioni per abilitare la fotocamera",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            else -> cameraPermission.launchPermissionRequest()
+                        }
+                    }) {
+                        Text("Scatta una foto")
                     }
-                }) {
-                    Text("Scatta una foto")
+
+                    if (cameraPermission.status == PermissionStatus.PermanentlyDenied) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(onClick = {
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                            }
+                            context.startActivity(intent)
+                        }) {
+                            Text("Apri Impostazioni")
+                        }
+                    }
                 }
+
 
                 Spacer(modifier = Modifier.height(16.dp))
             }

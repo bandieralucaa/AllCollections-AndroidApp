@@ -12,7 +12,7 @@ enum class Screens {
     MyCollections,
     CollectionDetail,
     PhotoProfile,
-    ObjectCollection,
+    AddObjectCollection,
     ChooseTheme,
     EditProfile,
     AddImageCollection,

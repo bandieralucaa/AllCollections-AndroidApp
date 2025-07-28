@@ -20,10 +20,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.allcollections.collection.AddCollection
 import com.example.allcollections.collection.AddImageCollection
+import com.example.allcollections.collection.AddObjectCollection
 import com.example.allcollections.collection.CollectionDetail
 import com.example.allcollections.collection.MyCollections
-import com.example.allcollections.collection.ObjectCollection
-import com.example.allcollections.collection.UserCollection
 import com.example.allcollections.login.Login
 import com.example.allcollections.login.Register
 import com.example.allcollections.profile.EditPhotoProfile
@@ -124,8 +123,9 @@ fun AppNavigation(
                 val userId = backStackEntry.arguments?.getString("userId") ?: ""
                 PhotoProfile(navController, userId, profileViewModel)
             }
-            composable(route = Screens.ObjectCollection.name) {
-                ObjectCollection(navController)
+            composable(route = "${Screens.AddObjectCollection.name}/{collectionId}") { backStackEntry ->
+                val collectionId = backStackEntry.arguments?.getString("collectionId") ?: ""
+                AddObjectCollection(navController = navController, collectionId = collectionId, viewModelContainer.collectionViewModel)
             }
             composable(route = Screens.ChooseTheme.name) {
                 ChooseTheme(state, onThemeSelected, navController)
