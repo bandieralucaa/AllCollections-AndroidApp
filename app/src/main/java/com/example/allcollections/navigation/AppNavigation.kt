@@ -15,13 +15,17 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.navArgument
 import com.example.allcollections.collection.AddCollection
 import com.example.allcollections.collection.AddImageCollection
 import com.example.allcollections.collection.AddObjectCollection
 import com.example.allcollections.collection.CollectionDetail
+import com.example.allcollections.collection.EditCollection
+import com.example.allcollections.collection.EditObject
 import com.example.allcollections.collection.MyCollections
 import com.example.allcollections.login.Login
 import com.example.allcollections.login.Register
@@ -140,7 +144,23 @@ fun AppNavigation(
             composable(route = Screens.EditPhotoProfile.name) {
                 EditPhotoProfile(navController, viewModelContainer.profileViewModel)
             }
-
+            composable(route = "editObject/{collectionId}/{itemId}",
+                    arguments = listOf(
+                    navArgument("collectionId") { type = NavType.StringType },
+                    navArgument("itemId") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val collectionId = backStackEntry.arguments?.getString("collectionId") ?: ""
+                val itemId = backStackEntry.arguments?.getString("itemId") ?: ""
+                EditObject(navController = navController, itemId = itemId, collectionId = collectionId, viewModelContainer.collectionViewModel)
+            }
+            composable(
+                route = "editCollection/{collectionId}",
+                arguments = listOf(navArgument("collectionId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val collectionId = backStackEntry.arguments?.getString("collectionId") ?: ""
+                EditCollection(navController = navController, collectionId = collectionId, viewModelContainer.collectionViewModel)
+            }
         }
     }
 }

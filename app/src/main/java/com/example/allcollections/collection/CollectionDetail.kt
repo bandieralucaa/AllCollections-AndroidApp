@@ -1,24 +1,25 @@
 package com.example.allcollections.collection
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -43,12 +44,16 @@ fun CollectionDetail(
         viewModel.getCollectionById(
             collectionId,
             onSuccess = { collectionState.value = it },
-            onFailure = { error -> scope.launch { snackbarHostState.showSnackbar("Errore: $error") } }
+            onFailure = { error ->
+                scope.launch { snackbarHostState.showSnackbar("Errore: $error") }
+            }
         )
         viewModel.getItemsFromCollection(
             collectionId,
             onSuccess = { itemsState.value = it },
-            onFailure = { error -> scope.launch { snackbarHostState.showSnackbar("Errore oggetti: $error") } }
+            onFailure = { error ->
+                scope.launch { snackbarHostState.showSnackbar("Errore oggetti: $error") }
+            }
         )
     }
 
@@ -59,32 +64,23 @@ fun CollectionDetail(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            // Back Button
             IconButton(onClick = { navController.popBackStack() }) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Indietro",
-                    modifier = Modifier
-                        .size(32.dp)
-                        .padding(start = 8.dp)
-                )
+                Icon(Icons.Default.ArrowBack, contentDescription = "Indietro", modifier = Modifier.size(32.dp))
             }
         }
 
         item {
-            // Immagine collezione
-            if (collection?.collectionImageUrl != null) {
+            val imageUrl = collection?.collectionImageUrl
+            if (imageUrl != null) {
                 AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(collection.collectionImageUrl)
-                        .crossfade(true)
-                        .build(),
+                    model = ImageRequest.Builder(context).data(imageUrl).crossfade(true).build(),
                     contentDescription = "Immagine collezione",
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp)
-                        .clip(RoundedCornerShape(12.dp))
                         .padding(horizontal = 16.dp)
+                        .clip(MaterialTheme.shapes.medium),
+                    contentScale = ContentScale.Crop
                 )
             } else {
                 Box(
@@ -92,7 +88,7 @@ fun CollectionDetail(
                         .fillMaxWidth()
                         .height(200.dp)
                         .padding(horizontal = 16.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(MaterialTheme.shapes.medium)
                         .background(Color.Gray),
                     contentAlignment = Alignment.Center
                 ) {
@@ -102,7 +98,6 @@ fun CollectionDetail(
         }
 
         item {
-            // Dettagli collezione
             if (collection != null) {
                 Column(
                     modifier = Modifier
@@ -112,10 +107,8 @@ fun CollectionDetail(
                 ) {
                     Text("Nome:", style = MaterialTheme.typography.titleMedium)
                     Text(collection.name)
-
                     Text("Categoria:", style = MaterialTheme.typography.titleMedium)
                     Text(collection.category)
-
                     Text("Descrizione:", style = MaterialTheme.typography.titleMedium)
                     Text(collection.description)
                 }
@@ -125,7 +118,6 @@ fun CollectionDetail(
         }
 
         item {
-            // Divider
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -135,10 +127,7 @@ fun CollectionDetail(
             )
         }
 
-        item {
-            // Spazio iniziale griglia
-            Spacer(modifier = Modifier.height(8.dp))
-        }
+        item { Spacer(modifier = Modifier.height(8.dp)) }
 
         if (itemsState.value.isEmpty()) {
             item {
@@ -155,47 +144,97 @@ fun CollectionDetail(
                         .heightIn(max = 800.dp)
                         .padding(horizontal = 16.dp)
                 ) {
-                    items(itemsState.value) { item ->
-                        Column(
+                    items(itemsState.value, key = { it.id }) { item ->
+                        var expanded by remember { mutableStateOf(false) }
+
+                        Card(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFEFEFEF))
+                                .fillMaxWidth()
                                 .padding(8.dp)
+                                .aspectRatio(1f)
                         ) {
-                            AsyncImage(
-                                model = item.imageUrl,
-                                contentDescription = "Oggetto",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(120.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(item.description, style = MaterialTheme.typography.bodyMedium)
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(4.dp)
+                                ) {
+                                    IconButton(onClick = { expanded = true }) {
+                                        Icon(Icons.Default.MoreVert, contentDescription = "Opzioni")
+                                    }
+
+                                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                        DropdownMenuItem(
+                                            text = { Text("Modifica") },
+                                            onClick = {
+                                                expanded = false
+                                                navController.navigate("editObject/$collectionId/${item.id}")
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Elimina") },
+                                            onClick = {
+                                                expanded = false
+                                                viewModel.deleteItemFromCollection(
+                                                    collectionId = collectionId,
+                                                    itemId = item.id,
+                                                    onSuccess = {
+                                                        itemsState.value = itemsState.value.filter { it.id != item.id }
+                                                        scope.launch { snackbarHostState.showSnackbar("Elemento eliminato") }
+                                                    },
+                                                    onFailure = { error ->
+                                                        scope.launch { snackbarHostState.showSnackbar("Errore eliminazione: $error") }
+                                                    }
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
+
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(8.dp),
+                                    verticalArrangement = Arrangement.Bottom,
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = item.description,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 3,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    )
+
+                                    AsyncImage(
+                                        model = item.imageUrl,
+                                        contentDescription = "Immagine oggetto",
+                                        modifier = Modifier
+                                            .size(80.dp)
+                                            .clip(MaterialTheme.shapes.medium),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                            }
                         }
+
                     }
                 }
             }
         }
 
         item {
-            // Bottone aggiunta oggetto
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(end = 16.dp, top = 16.dp),
                 horizontalArrangement = Arrangement.End
             ) {
-                IconButton(
-                    onClick = {
-                        navController.navigate("${Screens.AddObjectCollection.name}/$collectionId")
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Aggiungi oggetto",
-                        modifier = Modifier.size(48.dp)
-                    )
+                IconButton(onClick = {
+                    navController.navigate("${Screens.AddObjectCollection.name}/$collectionId")
+                }) {
+                    Icon(Icons.Default.Add, contentDescription = "Aggiungi oggetto", modifier = Modifier.size(48.dp))
                 }
             }
         }
@@ -203,5 +242,3 @@ fun CollectionDetail(
 
     SnackbarHost(hostState = snackbarHostState)
 }
-
-
