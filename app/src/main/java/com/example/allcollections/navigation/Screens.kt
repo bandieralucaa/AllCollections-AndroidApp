@@ -6,7 +6,6 @@ enum class Screens {
     Settings,
     Profile,
     Register,
-    Chat,
     SearchPage,
     AddCollection,
     MyCollections,

@@ -34,7 +34,6 @@ import com.example.allcollections.profile.EditPhotoProfile
 import com.example.allcollections.profile.EditProfile
 import com.example.allcollections.profile.PhotoProfile
 import com.example.allcollections.profile.Profile
-import com.example.allcollections.screens.Chat
 import com.example.allcollections.screens.ChooseTheme
 import com.example.allcollections.screens.PublicProfileScreen
 import com.example.allcollections.screens.Settings
@@ -101,9 +100,6 @@ fun AppNavigation(
             }
             composable(route = Screens.Profile.name) {
                 Profile(navController)
-            }
-            composable(route = Screens.Chat.name) {
-                Chat()
             }
             composable(route = Screens.SearchPage.name) {
                 SearchPage(viewModelContainer.collectionViewModel, navController)

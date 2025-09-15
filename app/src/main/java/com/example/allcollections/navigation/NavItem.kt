@@ -22,10 +22,6 @@ val listOfNavItems = listOf(
         route = Screens.SearchPage.name
     ),
     NavItem(
-        icon = Icons.Default.Send,
-        route = Screens.Chat.name
-    ),
-    NavItem(
         icon = Icons.Default.Person,
         route = Screens.Profile.name
     )
