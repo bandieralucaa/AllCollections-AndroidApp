@@ -1,28 +1,12 @@
 package com.example.allcollections.profile
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -45,15 +29,18 @@ fun Profile(navController: NavController) {
     }
 }
 
-
 @Composable
 fun ProfileContent(navController: NavController) {
     val viewModel: ProfileViewModel = viewModel()
     var currentUser by remember { mutableStateOf(FirebaseAuth.getInstance().currentUser) }
+    val uid = currentUser?.uid
     var username by remember { mutableStateOf("") }
     val profileImageUrl by remember { viewModel.profileImageUrl }
     var followerCount by remember { mutableStateOf(0) }
     var followingCount by remember { mutableStateOf(0) }
+    var showFollowDialog by remember { mutableStateOf(false) }
+    var followDialogType by remember { mutableStateOf(ProfileViewModel.FollowType.FOLLOWERS) }
+    var followList by remember { mutableStateOf<List<UserData>>(emptyList()) }
 
     DisposableEffect(Unit) {
         val listener = FirebaseAuth.AuthStateListener { auth ->
@@ -74,13 +61,12 @@ fun ProfileContent(navController: NavController) {
         } else {
             username = withContext(Dispatchers.IO) { viewModel.getUsername() }
             viewModel.getProfileImage()
-        }
-        currentUser?.uid?.let { uid ->
-            viewModel.getFollowerCount(uid) { count -> followerCount = count }
-            viewModel.getFollowingCount(uid) { count -> followingCount = count }
+            uid?.let {
+                viewModel.getFollowerCount(it) { count -> followerCount = count }
+                viewModel.getFollowingCount(it) { count -> followingCount = count }
+            }
         }
     }
-
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -92,11 +78,9 @@ fun ProfileContent(navController: NavController) {
                 .padding(end = 16.dp),
             horizontalArrangement = Arrangement.End
         ) {
-            IconButton(
-                onClick = {
-                    navController.navigate(Screens.Settings.name)
-                }
-            ) {
+            IconButton(onClick = {
+                navController.navigate(Screens.Settings.name)
+            }) {
                 Icon(
                     imageVector = Icons.Default.Settings,
                     contentDescription = "Icona Impostazioni"
@@ -111,15 +95,14 @@ fun ProfileContent(navController: NavController) {
             Image(
                 painter = painter,
                 contentDescription = "Immagine del profilo",
-                modifier = Modifier
-                    .size(120.dp)
+                modifier = Modifier.size(120.dp)
             )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "$username",
+            text = username,
             fontFamily = FontFamily.Serif,
             fontSize = 20.sp
         )
@@ -130,8 +113,31 @@ fun ProfileContent(navController: NavController) {
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Follower: $followerCount", fontSize = 16.sp)
-            Text(text = "Seguiti: $followingCount", fontSize = 16.sp)
+            Text(
+                text = "Follower: $followerCount",
+                modifier = Modifier.clickable {
+                    uid?.let {
+                        followDialogType = ProfileViewModel.FollowType.FOLLOWERS
+                        viewModel.getFollowList(it, ProfileViewModel.FollowType.FOLLOWERS) { list ->
+                            followList = list
+                            showFollowDialog = true
+                        }
+                    }
+                }
+            )
+
+            Text(
+                text = "Seguiti: $followingCount",
+                modifier = Modifier.clickable {
+                    uid?.let {
+                        followDialogType = ProfileViewModel.FollowType.FOLLOWING
+                        viewModel.getFollowList(it, ProfileViewModel.FollowType.FOLLOWING) { list ->
+                            followList = list
+                            showFollowDialog = true
+                        }
+                    }
+                }
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -150,5 +156,36 @@ fun ProfileContent(navController: NavController) {
             Text(text = "Crea una nuova collezione")
         }
     }
-}
 
+    if (showFollowDialog) {
+        AlertDialog(
+            onDismissRequest = { showFollowDialog = false },
+            title = {
+                Text(text = if (followDialogType == ProfileViewModel.FollowType.FOLLOWERS) "Follower" else "Seguiti")
+            },
+            text = {
+                if (followList.isEmpty()) {
+                    Text("Nessun utente trovato.")
+                } else {
+                    Column {
+                        followList.forEach { user ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = "${user.name} ${user.surname} (@${user.username})")
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showFollowDialog = false }) {
+                    Text("Chiudi")
+                }
+            }
+        )
+    }
+}

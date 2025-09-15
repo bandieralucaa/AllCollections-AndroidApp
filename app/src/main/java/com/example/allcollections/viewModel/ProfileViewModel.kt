@@ -13,9 +13,11 @@ import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
 import com.example.allcollections.navigation.Screens
+import com.example.allcollections.profile.UserData
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
@@ -278,14 +280,59 @@ class ProfileViewModel : ViewModel() {
             }
     }
 
+    fun getFollowList(
+        userId: String,
+        type: FollowType,
+        onResult: (List<UserData>) -> Unit
+    ) {
+        val db = FirebaseFirestore.getInstance()
+        val query = when (type) {
+            FollowType.FOLLOWERS -> db.collection("follows").whereEqualTo("followedId", userId)
+            FollowType.FOLLOWING -> db.collection("follows").whereEqualTo("followerId", userId)
+        }
+
+        query.get().addOnSuccessListener { followDocs ->
+            val otherUserIds = followDocs.documents.mapNotNull { doc ->
+                when (type) {
+                    FollowType.FOLLOWERS -> doc.getString("followerId")
+                    FollowType.FOLLOWING -> doc.getString("followedId")
+                }
+            }
+
+            if (otherUserIds.isEmpty()) {
+                onResult(emptyList())
+                return@addOnSuccessListener
+            }
+
+            db.collection("users")
+                .whereIn(FieldPath.documentId(), otherUserIds)
+                .get()
+                .addOnSuccessListener { userDocs ->
+                    val users = userDocs.documents.mapNotNull { doc ->
+                        try {
+                            UserData(
+                                userId = doc.id,
+                                name = doc.getString("name") ?: "",
+                                surname = doc.getString("surname") ?: "",
+                                dateOfBirth = LocalDate.parse(doc.getString("dateOfBirth") ?: "2000-01-01"),
+                                email = doc.getString("email") ?: "",
+                                gender = doc.getString("gender") ?: "",
+                                username = doc.getString("username") ?: ""
+                            )
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    onResult(users)
+                }
+        }
+    }
+
+    enum class FollowType {
+        FOLLOWERS,
+        FOLLOWING
+    }
+
 
 }
 
-data class UserData(
-    val name: String,
-    val surname: String,
-    val dateOfBirth: LocalDate,
-    val email: String,
-    val gender: String,
-    val username: String
-)

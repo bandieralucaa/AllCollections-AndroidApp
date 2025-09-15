@@ -17,8 +17,8 @@ import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.allcollections.navigation.Screens
+import com.example.allcollections.profile.UserData
 import com.example.allcollections.viewModel.ProfileViewModel
-import com.example.allcollections.viewModel.UserData
 import com.google.firebase.auth.FirebaseAuth
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
