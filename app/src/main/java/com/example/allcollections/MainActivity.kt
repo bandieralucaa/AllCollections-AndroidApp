@@ -39,9 +39,8 @@ class MainActivity : ComponentActivity() {
             val collectionViewModel: CollectionViewModel = ViewModelProvider(this).get(CollectionViewModel::class.java)
             val themeViewModel = koinViewModel<ThemeViewModel>()
             val viewModelContainer = ViewModelContainer(profileViewModel, collectionViewModel, themeViewModel)
-
+            profileViewModel.checkUnreadNotifications()
             val themeState by themeViewModel.state.collectAsState()
-
             val currentUser = FirebaseAuth.getInstance().currentUser
 
             val startDestination = if (currentUser != null) {

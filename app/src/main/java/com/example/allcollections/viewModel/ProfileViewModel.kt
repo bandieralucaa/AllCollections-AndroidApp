@@ -25,6 +25,8 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.text.SimpleDateFormat
 import java.util.Locale
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 class ProfileViewModel : ViewModel() {
 
@@ -395,6 +397,26 @@ class ProfileViewModel : ViewModel() {
             .document(notificationId)
             .update("read", true)
     }
+
+    private val _hasUnreadNotifications = MutableStateFlow(false)
+    val hasUnreadNotifications: StateFlow<Boolean> = _hasUnreadNotifications
+
+    fun checkUnreadNotifications() {
+        val userId = auth.currentUser?.uid ?: return
+
+        db.collection("notifications")
+            .whereEqualTo("recipientId", userId)
+            .whereEqualTo("read", false)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    _hasUnreadNotifications.value = false
+                    return@addSnapshotListener
+                }
+
+                _hasUnreadNotifications.value = snapshot?.isEmpty == false
+            }
+    }
+
 
 }
 

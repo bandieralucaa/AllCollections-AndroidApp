@@ -1,15 +1,22 @@
 package com.example.allcollections.navigation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import com.example.allcollections.ui.theme.ThemeMode
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -55,7 +62,7 @@ fun AppNavigation(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val profileViewModel: ProfileViewModel = viewModel()
-
+    val hasUnreadNotifications by profileViewModel.hasUnreadNotifications.collectAsState()
 
     Scaffold(
         bottomBar = {
@@ -76,10 +83,28 @@ fun AppNavigation(
                                 }
                             },
                             icon = {
-                                Icon(
-                                    imageVector = navItem.icon,
-                                    contentDescription = null
-                                )
+                                if (navItem.route == Screens.Notifications.name) {
+                                    Box {
+                                        Icon(
+                                            imageVector = navItem.icon,
+                                            contentDescription = null
+                                        )
+                                        if (hasUnreadNotifications) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(8.dp)
+                                                    .align(Alignment.TopEnd)
+                                                    .padding(top = 2.dp, end = 2.dp)
+                                                    .background(Color.Red, shape = CircleShape)
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    Icon(
+                                        imageVector = navItem.icon,
+                                        contentDescription = null
+                                    )
+                                }
                             }
                         )
                     }

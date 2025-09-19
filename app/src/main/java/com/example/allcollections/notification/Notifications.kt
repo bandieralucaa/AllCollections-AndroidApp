@@ -41,6 +41,8 @@ fun Notifications(navController: NavController) {
 
     LaunchedEffect(userId) {
         userId?.let {
+            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+
             viewModel.getNotifications(it) { result ->
                 notifications = result
             }
@@ -62,14 +64,17 @@ fun Notifications(navController: NavController) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            // ✅ Solo segna come letta
                             viewModel.markNotificationAsRead(item.notificationId)
                             notifications = notifications.map {
                                 if (it.notificationId == item.notificationId) it.copy(read = true) else it
                             }
                         }
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 8.dp)
+                        .background(
+                            if (!read) Color(0xFFE3F2FD) else Color.Transparent
+                        ),
                     verticalAlignment = Alignment.CenterVertically
+
                 ) {
                     val painter = rememberAsyncImagePainter(user.profileImageUrl)
                     Image(
@@ -85,7 +90,6 @@ fun Notifications(navController: NavController) {
                                 fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.clickable {
-                                    // ✅ Segna come letta e naviga al profilo
                                     viewModel.markNotificationAsRead(item.notificationId)
                                     notifications = notifications.map {
                                         if (it.notificationId == item.notificationId) it.copy(read = true) else it
@@ -93,15 +97,6 @@ fun Notifications(navController: NavController) {
                                     navController.navigate("publicProfile/${user.userId}")
                                 }
                             )
-
-                            if (!read) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .padding(start = 4.dp)
-                                        .background(Color.Red, shape = CircleShape)
-                                )
-                            }
                         }
 
                         Text(text = "Ti ha seguito il $timestamp", fontSize = 12.sp)
