@@ -2,6 +2,7 @@ package com.example.allcollections.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
@@ -20,6 +21,10 @@ val listOfNavItems = listOf(
     NavItem(
         icon = Icons.Default.Search,
         route = Screens.SearchPage.name
+    ),
+    NavItem(
+        icon = Icons.Default.Notifications,
+        route = Screens.Notifications.name
     ),
     NavItem(
         icon = Icons.Default.Person,

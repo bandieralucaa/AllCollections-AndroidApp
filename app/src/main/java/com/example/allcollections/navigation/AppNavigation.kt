@@ -30,6 +30,7 @@ import com.example.allcollections.collection.Home
 import com.example.allcollections.collection.MyCollections
 import com.example.allcollections.login.Login
 import com.example.allcollections.login.Register
+import com.example.allcollections.notification.Notifications
 import com.example.allcollections.profile.EditPhotoProfile
 import com.example.allcollections.profile.EditProfile
 import com.example.allcollections.profile.PhotoProfile
@@ -161,6 +162,9 @@ fun AppNavigation(
             composable("publicProfile/{userId}") { backStackEntry ->
                 val userId = backStackEntry.arguments?.getString("userId") ?: ""
                 PublicProfileScreen(userId = userId, navController = navController)
+            }
+            composable("Notifications") {
+                Notifications(navController = navController)
             }
         }
     }

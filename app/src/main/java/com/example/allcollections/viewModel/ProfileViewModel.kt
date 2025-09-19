@@ -3,26 +3,28 @@ package com.example.allcollections.viewModel
 import android.content.Context
 import android.net.Uri
 import android.util.Log
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.State
 import androidx.lifecycle.ViewModel
-import androidx.navigation.NavController
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
-import com.example.allcollections.navigation.Screens
+import com.example.allcollections.notification.NotificationItem
+import com.example.allcollections.profile.FollowType
 import com.example.allcollections.profile.UserData
+import com.example.allcollections.utils.formatRelativeTime
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class ProfileViewModel : ViewModel() {
 
@@ -224,8 +226,24 @@ class ProfileViewModel : ViewModel() {
             .collection("follows")
             .document(docId)
             .set(data)
-            .addOnSuccessListener { onResult(true) }
-            .addOnFailureListener { onResult(false) }
+            .addOnSuccessListener {
+                val notification = mapOf(
+                    "recipientId" to followedId,
+                    "senderId" to followerId,
+                    "type" to "follow",
+                    "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                    "read" to false
+                )
+
+                FirebaseFirestore.getInstance()
+                    .collection("notifications")
+                    .add(notification)
+
+                onResult(true)
+            }
+            .addOnFailureListener {
+                onResult(false)
+            }
     }
 
     fun isFollowing(followerId: String, followedId: String, onResult: (Boolean) -> Unit) {
@@ -309,16 +327,16 @@ class ProfileViewModel : ViewModel() {
                 .get()
                 .addOnSuccessListener { userDocs ->
                     val users = userDocs.documents.mapNotNull { doc ->
-                        try {
-                            UserData(
-                                userId = doc.id,
-                                name = doc.getString("name") ?: "",
-                                surname = doc.getString("surname") ?: "",
-                                dateOfBirth = LocalDate.parse(doc.getString("dateOfBirth") ?: "2000-01-01"),
-                                email = doc.getString("email") ?: "",
-                                gender = doc.getString("gender") ?: "",
-                                username = doc.getString("username") ?: ""
-                            )
+                        try {UserData(
+                            userId = doc.id,
+                            name = doc.getString("name") ?: "",
+                            surname = doc.getString("surname") ?: "",
+                            dateOfBirth = LocalDate.parse(doc.getString("dateOfBirth") ?: "2000-01-01"),
+                            email = doc.getString("email") ?: "",
+                            gender = doc.getString("gender") ?: "",
+                            username = doc.getString("username") ?: "",
+                            profileImageUrl = doc.getString("profileImageUrl") ?: ""
+                        )
                         } catch (e: Exception) {
                             null
                         }
@@ -328,11 +346,55 @@ class ProfileViewModel : ViewModel() {
         }
     }
 
-    enum class FollowType {
-        FOLLOWERS,
-        FOLLOWING
+    fun getNotifications(userId: String, onResult: (List<NotificationItem>) -> Unit) {
+        val db = FirebaseFirestore.getInstance()
+        val formatter = SimpleDateFormat("dd MMMM yyyy 'alle' HH:mm", Locale("it", "IT"))
+        val notifications = mutableListOf<NotificationItem>()
+
+        db.collection("notifications")
+            .whereEqualTo("recipientId", userId)
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .get()
+            .addOnSuccessListener { docs ->
+                docs.documents.forEach { doc ->
+                    val senderId = doc.getString("senderId") ?: return@forEach
+                    val timestamp = doc.getTimestamp("timestamp")?.toDate()
+                    val formattedDate = timestamp?.let { formatRelativeTime(it) } ?: ""
+                    val read = doc.getBoolean("read") ?: false
+                    val notificationId = doc.id
+
+                    db.collection("users").document(senderId).get()
+                        .addOnSuccessListener { userDoc ->
+                            val user = try {
+                                UserData(
+                                    userId = userDoc.id,
+                                    name = userDoc.getString("name") ?: "",
+                                    surname = userDoc.getString("surname") ?: "",
+                                    dateOfBirth = LocalDate.parse(userDoc.getString("dateOfBirth") ?: "2000-01-01"),
+                                    email = userDoc.getString("email") ?: "",
+                                    gender = userDoc.getString("gender") ?: "",
+                                    username = userDoc.getString("username") ?: "",
+                                    profileImageUrl = userDoc.getString("profileImageUrl") ?: ""
+                                )
+                            } catch (e: Exception) {
+                                null
+                            }
+
+                            user?.let {
+                                notifications.add(NotificationItem(it, formattedDate, read, notificationId))
+                                onResult(notifications.sortedByDescending { it.timestamp })
+                            }
+                        }
+                }
+            }
     }
 
+    fun markNotificationAsRead(notificationId: String) {
+        FirebaseFirestore.getInstance()
+            .collection("notifications")
+            .document(notificationId)
+            .update("read", true)
+    }
 
 }
 

@@ -223,7 +223,7 @@ fun PhotoProfile(navController: NavController, userId: String, profileViewModel:
                     }
 
                     val defaultImageUrl =
-                        "https://res.cloudinary.com/demo/image/upload/v123456789/default_profile.png"
+                        "https://res.cloudinary.com/dqtr2napz/image/upload/v1758028769/default_image_midrqr.jpg"
 
                     val user = hashMapOf(
                         "name" to userData.name,

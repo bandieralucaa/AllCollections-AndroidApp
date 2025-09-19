@@ -9,5 +9,6 @@ data class UserData(
     val dateOfBirth: LocalDate,
     val email: String,
     val gender: String,
-    val username: String
+    val username: String,
+    val profileImageUrl: String = ""
 )
