@@ -348,6 +348,17 @@ class ProfileViewModel : ViewModel() {
         }
     }
 
+    fun getFollowedUserIds(onResult: (List<String>) -> Unit) {
+        val userId = auth.currentUser?.uid ?: return
+        db.collection("follows")
+            .whereEqualTo("followerId", userId)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val followedIds = snapshot.documents.mapNotNull { it.getString("followedId") }
+                onResult(followedIds)
+            }
+    }
+
     fun getNotifications(userId: String, onResult: (List<NotificationItem>) -> Unit) {
         val db = FirebaseFirestore.getInstance()
         val formatter = SimpleDateFormat("dd MMMM yyyy 'alle' HH:mm", Locale("it", "IT"))

@@ -122,7 +122,7 @@ fun AppNavigation(
                 Login(navController, viewModelContainer.profileViewModel)
             }
             composable(route = Screens.Home.name) {
-                Home(navController = navController,viewModelContainer.collectionViewModel)
+                Home(navController = navController, viewModelContainer.collectionViewModel, viewModelContainer.profileViewModel)
             }
             composable(route = Screens.Profile.name) {
                 Profile(navController)

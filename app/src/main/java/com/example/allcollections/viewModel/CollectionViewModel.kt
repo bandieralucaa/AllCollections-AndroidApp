@@ -667,6 +667,80 @@ class CollectionViewModel : ViewModel() {
     }
 
 
+    fun getCollectionsByUserIds(
+        userIds: List<String>,
+        onResult: (List<UserCollection>) -> Unit
+    ) {
+        val db = FirebaseFirestore.getInstance()
+
+        if (userIds.isEmpty()) {
+            onResult(emptyList())
+            return
+        }
+
+        val chunks = userIds.chunked(10)
+        val allCollections = mutableListOf<UserCollection>()
+        var completedChunks = 0
+
+        chunks.forEach { chunk ->
+            db.collection("collections")
+                .whereIn("iduser", chunk)
+                .get()
+                .addOnSuccessListener { snapshot ->
+                    val collections = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(UserCollection::class.java)?.copy(id = doc.id)
+                    }
+
+                    // 🔄 Per ogni collezione, recupera lo username
+                    val enrichedCollections = mutableListOf<UserCollection>()
+                    val pending = collections.size
+                    var done = 0
+
+                    if (pending == 0) {
+                        completedChunks++
+                        if (completedChunks == chunks.size) {
+                            onResult(allCollections)
+                        }
+                    }
+
+                    collections.forEach { collection ->
+                        db.collection("users").document(collection.iduser)
+                            .get()
+                            .addOnSuccessListener { userDoc ->
+                                val username = userDoc.getString("username") ?: "utente"
+                                enrichedCollections.add(collection.copy(username = username))
+                                done++
+                                if (done == pending) {
+                                    allCollections.addAll(enrichedCollections)
+                                    completedChunks++
+                                    if (completedChunks == chunks.size) {
+                                        onResult(allCollections)
+                                    }
+                                }
+                            }
+                            .addOnFailureListener {
+                                done++
+                                if (done == pending) {
+                                    allCollections.addAll(enrichedCollections)
+                                    completedChunks++
+                                    if (completedChunks == chunks.size) {
+                                        onResult(allCollections)
+                                    }
+                                }
+                            }
+                    }
+                }
+                .addOnFailureListener {
+                    completedChunks++
+                    if (completedChunks == chunks.size) {
+                        onResult(allCollections)
+                    }
+                }
+        }
+    }
+
+
+
 
 
 }
