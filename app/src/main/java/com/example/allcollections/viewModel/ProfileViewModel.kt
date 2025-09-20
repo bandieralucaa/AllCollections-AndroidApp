@@ -417,6 +417,24 @@ class ProfileViewModel : ViewModel() {
             }
     }
 
+    fun deleteAllNotifications(onComplete: () -> Unit) {
+        val userId = auth.currentUser?.uid ?: return
+        val db = FirebaseFirestore.getInstance()
+
+        db.collection("notifications")
+            .whereEqualTo("recipientId", userId)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val batch = db.batch()
+                snapshot.documents.forEach { doc ->
+                    batch.delete(doc.reference)
+                }
+                batch.commit().addOnSuccessListener {
+                    onComplete()
+                }
+            }
+    }
+
 
 }
 

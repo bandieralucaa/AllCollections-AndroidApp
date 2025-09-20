@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,11 +39,10 @@ fun Notifications(navController: NavController) {
     val currentUser = FirebaseAuth.getInstance().currentUser
     val userId = currentUser?.uid
     var notifications by remember { mutableStateOf<List<NotificationItem>>(emptyList()) }
+    val showDialog = remember { mutableStateOf(false) }
 
     LaunchedEffect(userId) {
         userId?.let {
-            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-
             viewModel.getNotifications(it) { result ->
                 notifications = result
             }
@@ -50,7 +50,30 @@ fun Notifications(navController: NavController) {
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Notifiche", fontSize = 24.sp, modifier = Modifier.padding(bottom = 16.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Notifiche",
+                fontSize = 24.sp,
+                modifier = Modifier.weight(1f)
+            )
+
+            if (notifications.isNotEmpty()) {
+                Text(
+                    text = "Elimina tutto",
+                    fontSize = 14.sp,
+                    color = Color.Red,
+                    modifier = Modifier
+                        .clickable { showDialog.value = true }
+                        .padding(8.dp)
+                )
+            }
+        }
 
         if (notifications.isEmpty()) {
             Text("Nessuna notifica ricevuta.")
@@ -74,7 +97,6 @@ fun Notifications(navController: NavController) {
                             if (!read) Color(0xFFE3F2FD) else Color.Transparent
                         ),
                     verticalAlignment = Alignment.CenterVertically
-
                 ) {
                     val painter = rememberAsyncImagePainter(user.profileImageUrl)
                     Image(
@@ -103,6 +125,27 @@ fun Notifications(navController: NavController) {
                     }
                 }
             }
+        }
+
+        if (showDialog.value) {
+            AlertDialog(
+                onDismissRequest = { showDialog.value = false },
+                confirmButton = {
+                    Text("Conferma", modifier = Modifier.clickable {
+                        viewModel.deleteAllNotifications {
+                            notifications = emptyList()
+                            showDialog.value = false
+                        }
+                    })
+                },
+                dismissButton = {
+                    Text("Annulla", modifier = Modifier.clickable {
+                        showDialog.value = false
+                    })
+                },
+                title = { Text("Eliminare tutte le notifiche?") },
+                text = { Text("Questa azione non può essere annullata.") }
+            )
         }
     }
 }
