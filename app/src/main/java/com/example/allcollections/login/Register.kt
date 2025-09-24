@@ -111,29 +111,15 @@ fun Register(navController: NavController, profileViewModel: ProfileViewModel) {
                 )
 
                 Button(onClick = {
-                    if (name.isBlank() || surname.isBlank() || email.isBlank() || password.isBlank() || username.isBlank()) {
-                        errorMessage = "Compila tutti i campi"
-                        return@Button
-                    }
-
-                    FirebaseAuth.getInstance()
-                        .createUserWithEmailAndPassword(email, password)
-                        .addOnCompleteListener { task ->
-                            if (task.isSuccessful) {
-                                profileViewModel.pendingUserData = UserData(
-                                    name = name,
-                                    surname = surname,
-                                    dateOfBirth = dateOfBirth,
-                                    email = email,
-                                    gender = gender,
-                                    username = username
-                                )
-                                val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-                                navController.navigate("${Screens.PhotoProfile.name}/$userId")
-                            } else {
-                                errorMessage = "Errore nella registrazione: ${task.exception?.message}"
-                            }
+                    profileViewModel.registerUser(
+                        name, surname, dateOfBirth, email, gender, username, password,
+                        onSuccess = { userId ->
+                            navController.navigate("${Screens.PhotoProfile.name}/$userId")
+                        },
+                        onFailure = { message ->
+                            errorMessage = message
                         }
+                    )
                 }) {
                     Text("Prosegui")
                 }

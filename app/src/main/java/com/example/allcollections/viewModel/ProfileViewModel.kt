@@ -38,65 +38,83 @@ class ProfileViewModel : ViewModel() {
     val loginErrorMessage: State<String?> = _loginErrorMessage
     private val _profileImageUrl = mutableStateOf<String?>(null)
     val profileImageUrl: State<String?> = _profileImageUrl
-
     var pendingUserData: UserData? = null
-
-
 
     fun registerUser(
         name: String,
         surname: String,
         dateOfBirth: LocalDate,
         email: String,
-        password: String,
         gender: String,
         username: String,
-        profileImageUri: Uri,
-        context: Context,
-        callback: (Boolean, String?) -> Unit
+        password: String,
+        onSuccess: (String) -> Unit,
+        onFailure: (String) -> Unit
     ) {
-        if (name.isBlank() || surname.isBlank() || email.isBlank() || password.isBlank() || gender.isBlank() || username.isBlank()) {
-            callback(false, "Si prega di compilare tutti i campi")
+        if (name.isBlank() || surname.isBlank() || email.isBlank() || password.isBlank() || username.isBlank()) {
+            onFailure("Compila tutti i campi")
             return
         }
 
-        auth.createUserWithEmailAndPassword(email, password)
+        FirebaseAuth.getInstance()
+            .createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    val currentUser = auth.currentUser ?: return@addOnCompleteListener
-
-                    saveProfilePicture(profileImageUri, context) { imageUrl ->
-                        if (imageUrl == null) {
-                            callback(false, "Errore nel caricamento dell'immagine")
-                            return@saveProfilePicture
-                        }
-
-                        val user = hashMapOf(
-                            "name" to name,
-                            "surname" to surname,
-                            "dateOfBirth" to dateOfBirth.toString(),
-                            "email" to email,
-                            "gender" to gender,
-                            "username" to username,
-                            "profileImageUrl" to imageUrl
-                        )
-
-                        db.collection("users")
-                            .document(currentUser.uid)
-                            .set(user)
-                            .addOnSuccessListener {
-                                callback(true, null)
-                            }
-                            .addOnFailureListener { e ->
-                                callback(false, "Errore durante la registrazione: ${e.message}")
-                            }
-                    }
+                    val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                    pendingUserData = UserData(
+                        userId = userId,
+                        name = name,
+                        surname = surname,
+                        dateOfBirth = dateOfBirth,
+                        email = email,
+                        gender = gender,
+                        username = username
+                    )
+                    onSuccess(userId)
                 } else {
-                    callback(false, "Errore durante la registrazione: ${task.exception?.message}")
+                    onFailure("Errore nella registrazione: ${task.exception?.message}")
                 }
             }
     }
 
+    fun finalizeUserRegistration(
+        imageUrl: String?,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+        val userData = pendingUserData
+
+        if (currentUserId == null || userData == null) {
+            onFailure("Errore: dati mancanti")
+            return
+        }
+
+        val finalImageUrl = imageUrl ?: "https://res.cloudinary.com/dqtr2napz/image/upload/v1758028769/default_image_midrqr.jpg"
+
+        val user = hashMapOf(
+            "name" to userData.name,
+            "surname" to userData.surname,
+            "dateOfBirth" to userData.dateOfBirth.toString(),
+            "email" to userData.email,
+            "gender" to userData.gender,
+            "username" to userData.username,
+            "profileImageUrl" to finalImageUrl
+        )
+
+        FirebaseFirestore.getInstance()
+            .collection("users")
+            .document(currentUserId)
+            .set(user)
+            .addOnSuccessListener {
+                pendingUserData = null
+                FirebaseAuth.getInstance().signOut()
+                onSuccess()
+            }
+            .addOnFailureListener {
+                onFailure("Errore durante salvataggio")
+            }
+    }
 
     fun login(email: String, password: String, callback: (Boolean, String?) -> Unit) {
         if (email.isBlank() || password.isBlank()) {
@@ -359,54 +377,85 @@ class ProfileViewModel : ViewModel() {
             }
     }
 
-    fun getNotifications(userId: String, onResult: (List<NotificationItem>) -> Unit) {
-        val db = FirebaseFirestore.getInstance()
-        val formatter = SimpleDateFormat("dd MMMM yyyy 'alle' HH:mm", Locale("it", "IT"))
-        val notifications = mutableListOf<NotificationItem>()
-
-        db.collection("notifications")
+    fun observeNotifications(userId: String, onResult: (List<NotificationItem>) -> Unit) {
+        val notificationsRef = db.collection("notifications")
             .whereEqualTo("recipientId", userId)
             .orderBy("timestamp", Query.Direction.DESCENDING)
-            .get()
-            .addOnSuccessListener { docs ->
-                docs.documents.forEach { doc ->
-                    val senderId = doc.getString("senderId") ?: return@forEach
-                    val timestamp = doc.getTimestamp("timestamp")?.toDate()
-                    val formattedDate = timestamp?.let { formatRelativeTime(it) } ?: ""
-                    val read = doc.getBoolean("read") ?: false
-                    val notificationId = doc.id
 
-                    db.collection("users").document(senderId).get()
-                        .addOnSuccessListener { userDoc ->
-                            val user = try {
-                                UserData(
-                                    userId = userDoc.id,
-                                    name = userDoc.getString("name") ?: "",
-                                    surname = userDoc.getString("surname") ?: "",
-                                    dateOfBirth = LocalDate.parse(userDoc.getString("dateOfBirth") ?: "2000-01-01"),
-                                    email = userDoc.getString("email") ?: "",
-                                    gender = userDoc.getString("gender") ?: "",
-                                    username = userDoc.getString("username") ?: "",
-                                    profileImageUrl = userDoc.getString("profileImageUrl") ?: ""
-                                )
-                            } catch (e: Exception) {
-                                null
-                            }
-
-                            user?.let {
-                                notifications.add(NotificationItem(it, formattedDate, read, notificationId))
-                                onResult(notifications.sortedByDescending { it.timestamp })
-                            }
-                        }
-                }
+        notificationsRef.addSnapshotListener { snapshot, error ->
+            if (error != null || snapshot == null) {
+                onResult(emptyList())
+                return@addSnapshotListener
             }
+
+            // mappa provvisoria: notificationId -> raw fields
+            val rawList = snapshot.documents.map { doc ->
+                val notificationId = doc.id
+                val senderId = doc.getString("senderId") ?: ""
+                val timestamp = doc.getTimestamp("timestamp")?.toDate()
+                val formattedDate = timestamp?.let { formatRelativeTime(it) } ?: ""
+                val read = doc.getBoolean("read") ?: false
+                Triple(notificationId, senderId, Pair(formattedDate, read))
+            }
+
+            // ottieni tutti gli senderId unici
+            val senderIds = rawList.map { it.second }.distinct().filter { it.isNotBlank() }
+            if (senderIds.isEmpty()) {
+                onResult(emptyList())
+                return@addSnapshotListener
+            }
+
+            // query unica per gli user profiles
+            db.collection("users")
+                .whereIn(FieldPath.documentId(), senderIds)
+                .get()
+                .addOnSuccessListener { usersSnap ->
+                    // crea mappa senderId -> UserData
+                    val usersMap = usersSnap.documents.mapNotNull { userDoc ->
+                        try {
+                            val uid = userDoc.id
+                            uid to UserData(
+                                userId = uid,
+                                name = userDoc.getString("name") ?: "",
+                                surname = userDoc.getString("surname") ?: "",
+                                dateOfBirth = LocalDate.parse(userDoc.getString("dateOfBirth") ?: "2000-01-01"),
+                                email = userDoc.getString("email") ?: "",
+                                gender = userDoc.getString("gender") ?: "",
+                                username = userDoc.getString("username") ?: "",
+                                profileImageUrl = userDoc.getString("profileImageUrl") ?: ""
+                            )
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }.toMap()
+
+                    // ricomponi la lista finale mantenendo l'ordine
+                    val notifications = rawList.mapNotNull { (notificationId, senderId, meta) ->
+                        val (formattedDate, read) = meta
+                        val user = usersMap[senderId] ?: return@mapNotNull null
+                        NotificationItem(user, formattedDate, read, notificationId)
+                    }
+
+                    onResult(notifications)
+                }
+                .addOnFailureListener {
+                    // in caso di errore user profiles, ritorna lista vuota o lista minimale
+                    onResult(emptyList())
+                }
+        }
     }
 
-    fun markNotificationAsRead(notificationId: String) {
-        FirebaseFirestore.getInstance()
-            .collection("notifications")
-            .document(notificationId)
+    fun markNotificationAsRead(notificationId: String, onComplete: (() -> Unit)? = null) {
+        db.collection("notifications").document(notificationId)
             .update("read", true)
+            .addOnSuccessListener {
+                // aggiorna il badge solo dopo il successo
+                checkUnreadNotifications()
+                onComplete?.invoke()
+            }
+            .addOnFailureListener {
+                onComplete?.invoke() // opzionale: comunica comunque il completamento
+            }
     }
 
     private val _hasUnreadNotifications = MutableStateFlow(false)
@@ -437,12 +486,32 @@ class ProfileViewModel : ViewModel() {
             .get()
             .addOnSuccessListener { snapshot ->
                 val batch = db.batch()
-                snapshot.documents.forEach { doc ->
-                    batch.delete(doc.reference)
-                }
+                snapshot.documents.forEach { doc -> batch.delete(doc.reference) }
                 batch.commit().addOnSuccessListener {
+                    // aggiorna il badge e poi notifica il caller
+                    checkUnreadNotifications()
+                    onComplete()
+                }.addOnFailureListener {
                     onComplete()
                 }
+            }
+            .addOnFailureListener {
+                onComplete()
+            }
+    }
+
+    fun getCurrentUserId(): String {
+        return FirebaseAuth.getInstance().currentUser?.uid ?: "anonimo"
+    }
+
+    fun getUserProfilePhoto(userId: String, callback: (String) -> Unit) {
+        db.collection("users").document(userId).get()
+            .addOnSuccessListener { document ->
+                val photoUrl = document.getString("profileImageUrl") ?: ""
+                callback(photoUrl)
+            }
+            .addOnFailureListener {
+                callback("") // fallback in caso di errore
             }
     }
 

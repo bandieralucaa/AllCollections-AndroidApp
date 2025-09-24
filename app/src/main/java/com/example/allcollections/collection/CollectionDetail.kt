@@ -3,37 +3,47 @@ package com.example.allcollections.collection
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.allcollections.comment.Comment
 import com.example.allcollections.navigation.Screens
 import com.example.allcollections.viewModel.CollectionViewModel
+import com.example.allcollections.viewModel.ProfileViewModel
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CollectionDetail(
     navController: NavController,
     collectionId: String,
-    viewModel: CollectionViewModel
+    viewModel: CollectionViewModel = viewModel(),
+    profileViewModel: ProfileViewModel = viewModel()
 ) {
-    val collection = remember { mutableStateOf<UserCollection?>(null) }
+    val comments = remember { mutableStateListOf<Comment>() }
+    val usernames = remember { mutableStateMapOf<String, String>() }
+    var newComment by remember { mutableStateOf("") }
+    val errorMessage = remember { mutableStateOf("") }
     val objects = remember { mutableStateOf(emptyList<CollectionItem>()) }
-    val errorMessage = remember { mutableStateOf<String?>(null) }
-    val snackbarHostState = remember { SnackbarHostState() }
-
-    val currentUserId = Firebase.auth.currentUser?.uid
-    val isOwner = collection.value?.iduser == currentUserId
+    val collection = remember { mutableStateOf<UserCollection?>(null) }
+    val currentUserId = profileViewModel.getCurrentUserId()
+    val userPhotos = remember { mutableStateMapOf<String, String>() }
 
     LaunchedEffect(collectionId) {
         viewModel.getCollectionById(
@@ -47,128 +57,233 @@ fun CollectionDetail(
             onSuccess = { objects.value = it },
             onFailure = { errorMessage.value = it }
         )
-    }
 
-    LaunchedEffect(errorMessage.value) {
-        errorMessage.value?.let { error ->
-            snackbarHostState.showSnackbar("Errore: $error")
-            errorMessage.value = null
-        }
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(collection.value?.name ?: "Dettagli collezione") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Indietro")
-                    }
-                }
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        floatingActionButton = {
-            if (isOwner) {
-                FloatingActionButton(onClick = {
-                    navController.navigate("${Screens.AddObjectCollection.name}/$collectionId")
-                }) {
-                    Icon(Icons.Default.Add, contentDescription = "Aggiungi oggetto")
-                }
-            }
-        }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(16.dp)
-        ) {
-            item {
-                AsyncImage(
-                    model = collection.value?.collectionImageUrl,
-                    contentDescription = "Immagine collezione",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .clip(MaterialTheme.shapes.medium),
-                    contentScale = ContentScale.Crop
-                )
-            }
-
-            item {
-                Text(
-                    text = "Categoria: ${collection.value?.category ?: "Nessuna"}",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-
-            item {
-                Text(
-                    text = "Descrizione: ${collection.value?.description ?: "Nessuna"}",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-
-            item {
-                Divider(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    thickness = 1.dp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-            }
-
-            if (objects.value.isEmpty()) {
-                item {
-                    Text(
-                        text = "Nessun oggetto presente in questa collezione.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            } else {
-                items(objects.value.size) { index ->
-                    val obj = objects.value[index]
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            AsyncImage(
-                                model = obj.imageUrl + "?t=${System.currentTimeMillis()}",
-                                contentDescription = "Immagine oggetto",
-                                modifier = Modifier
-                                    .size(80.dp)
-                                    .clip(MaterialTheme.shapes.small),
-                                contentScale = ContentScale.Crop
-                            )
-
-                            Spacer(modifier = Modifier.width(12.dp))
-
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = obj.description ?: "Nessuna descrizione",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 3
-                                )
-                            }
+        viewModel.getCommentsForCollection(
+            collectionId,
+            onSuccess = {
+                comments.clear()
+                comments.addAll(it)
+                loadUsernamesForComments(it, usernames, viewModel)
+                it.forEach { comment ->
+                    if (!userPhotos.containsKey(comment.userId)) {
+                        profileViewModel.getUserProfilePhoto(comment.userId) { photoUrl ->
+                            userPhotos[comment.userId] = photoUrl
                         }
                     }
                 }
+            },
+            onFailure = { errorMessage.value = it }
+        )
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        item {
+            IconButton(onClick = { navController.popBackStack() }) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Indietro")
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        collection.value?.let { col ->
+            item {
+                Text(text = col.name, style = MaterialTheme.typography.headlineMedium)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = col.description, style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                AsyncImage(
+                    model = col.collectionImageUrl,
+                    contentDescription = "Immagine collezione",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    contentScale = ContentScale.Crop
+                )
+                if (col.iduser == currentUserId) {
+                    Button(
+                        onClick = {
+                            navController.navigate("${Screens.AddObjectCollection.name}/$collectionId")
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Text("Aggiungi oggetto")
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(text = "Oggetti nella collezione", style = MaterialTheme.typography.titleMedium)
+            }
+        }
+
+        if (objects.value.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Nessun oggetto presente all'interno di questa collezione!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            items(objects.value, key = { it.id }) { item ->
+                CollectionItemCard(item = item)
+            }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(text = "Commenti", style = MaterialTheme.typography.titleMedium)
+        }
+
+        items(comments, key = { it.timestamp }) { comment ->
+            val username = usernames[comment.userId]
+            val photoUrl = userPhotos[comment.userId]
+            CommentItem(comment = comment, username = username, photoUrl = photoUrl)
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = newComment,
+                onValueChange = { newComment = it },
+                label = { Text("Scrivi un commento") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    val userId = profileViewModel.getCurrentUserId()
+                    val comment = Comment(
+                        collectionId = collectionId,
+                        userId = userId,
+                        text = newComment
+                    )
+                    viewModel.addCommentToCollection(comment) { success ->
+                        if (success) {
+                            newComment = ""
+                            loadCommentsAndUsernames(collectionId, viewModel, comments, usernames, errorMessage)
+                        } else {
+                            errorMessage.value = "Errore nell'invio del commento"
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentWidth(Alignment.End)
+            ) {
+                Text("Invia")
+            }
+
+            if (errorMessage.value.isNotEmpty()) {
+                Text(
+                    text = errorMessage.value,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        }
+    }
+}
+
+fun loadCommentsAndUsernames(
+    collectionId: String,
+    viewModel: CollectionViewModel,
+    comments: SnapshotStateList<Comment>,
+    usernames: MutableMap<String, String>,
+    errorMessage: MutableState<String>
+) {
+    viewModel.getCommentsForCollection(
+        collectionId,
+        onSuccess = { commentList ->
+            comments.clear()
+            comments.addAll(commentList)
+
+            commentList.forEach { comment ->
+                if (!usernames.containsKey(comment.userId)) {
+                    viewModel.getUsernameById(comment.userId) { username ->
+                        usernames[comment.userId] = username
+                    }
+                }
+            }
+        },
+        onFailure = { errorMessage.value = it }
+    )
+}
+
+@Composable
+fun CommentItem(comment: Comment, username: String?, photoUrl: String?) {
+    Row(modifier = Modifier.padding(vertical = 8.dp)) {
+        AsyncImage(
+            model = photoUrl,
+            contentDescription = "Foto profilo",
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(20.dp)),
+            contentScale = ContentScale.Crop
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Column {
+            Text(
+                text = username ?: comment.userId,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = comment.text,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
+
+fun loadUsernamesForComments(
+    comments: List<Comment>,
+    usernames: MutableMap<String, String>,
+    viewModel: CollectionViewModel
+) {
+    comments.forEach { comment ->
+        if (!usernames.containsKey(comment.userId)) {
+            viewModel.getUsernameById(comment.userId) { username ->
+                usernames[comment.userId] = username
+            }
+        }
+    }
+}
+
+@Composable
+fun CollectionItemCard(item: CollectionItem) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(modifier = Modifier.padding(8.dp)) {
+            AsyncImage(
+                model = item.imageUrl,
+                contentDescription = "Immagine oggetto",
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column {
+                Text(text = item.description, style = MaterialTheme.typography.bodySmall)
             }
         }
     }

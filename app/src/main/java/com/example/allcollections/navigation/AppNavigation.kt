@@ -49,7 +49,9 @@ import com.example.allcollections.search.SearchPage
 import com.example.allcollections.viewModel.ProfileViewModel
 import com.example.allcollections.viewModel.ThemeState
 import com.example.allcollections.viewModel.ViewModelContainer
-
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Badge
+import androidx.compose.runtime.LaunchedEffect
 
 @Composable
 fun AppNavigation(
@@ -61,8 +63,14 @@ fun AppNavigation(
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    val profileViewModel: ProfileViewModel = viewModel()
-    val hasUnreadNotifications by profileViewModel.hasUnreadNotifications.collectAsState()
+    val profileViewModel: ProfileViewModel = viewModelContainer.profileViewModel
+
+
+    LaunchedEffect(profileViewModel) {
+        profileViewModel.checkUnreadNotifications()
+    }
+
+    val hasUnreadNotifications by profileViewModel.hasUnreadNotifications.collectAsState(initial = false)
 
     Scaffold(
         bottomBar = {
@@ -84,26 +92,17 @@ fun AppNavigation(
                             },
                             icon = {
                                 if (navItem.route == Screens.Notifications.name) {
-                                    Box {
-                                        Icon(
-                                            imageVector = navItem.icon,
-                                            contentDescription = null
-                                        )
-                                        if (hasUnreadNotifications) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(8.dp)
-                                                    .align(Alignment.TopEnd)
-                                                    .padding(top = 2.dp, end = 2.dp)
-                                                    .background(Color.Red, shape = CircleShape)
-                                            )
+                                    BadgedBox(
+                                        badge = {
+                                            if (hasUnreadNotifications) {
+                                                Badge(containerColor = Color.Red)
+                                            }
                                         }
+                                    ) {
+                                        Icon(navItem.icon, contentDescription = null)
                                     }
                                 } else {
-                                    Icon(
-                                        imageVector = navItem.icon,
-                                        contentDescription = null
-                                    )
+                                    Icon(navItem.icon, contentDescription = null)
                                 }
                             }
                         )
@@ -168,7 +167,7 @@ fun AppNavigation(
                 EditPhotoProfile(navController, viewModelContainer.profileViewModel)
             }
             composable(route = "editObject/{collectionId}/{itemId}",
-                    arguments = listOf(
+                arguments = listOf(
                     navArgument("collectionId") { type = NavType.StringType },
                     navArgument("itemId") { type = NavType.StringType }
                 )
@@ -189,7 +188,7 @@ fun AppNavigation(
                 PublicProfileScreen(userId = userId, navController = navController)
             }
             composable("Notifications") {
-                Notifications(navController = navController)
+                Notifications(navController = navController, viewModelContainer.profileViewModel)
             }
         }
     }

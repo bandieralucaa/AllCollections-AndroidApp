@@ -1,17 +1,14 @@
 package com.example.allcollections.notification
 
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -26,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.allcollections.profile.UserData
@@ -34,8 +30,10 @@ import com.example.allcollections.viewModel.ProfileViewModel
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
-fun Notifications(navController: NavController) {
-    val viewModel: ProfileViewModel = viewModel()
+fun Notifications(
+    navController: NavController,
+    profileViewModel: ProfileViewModel // passa la stessa istanza usata in AppNavigation
+) {
     val currentUser = FirebaseAuth.getInstance().currentUser
     val userId = currentUser?.uid
     var notifications by remember { mutableStateOf<List<NotificationItem>>(emptyList()) }
@@ -43,9 +41,12 @@ fun Notifications(navController: NavController) {
 
     LaunchedEffect(userId) {
         userId?.let {
-            viewModel.getNotifications(it) { result ->
+            profileViewModel.observeNotifications(it) { result ->
                 notifications = result
             }
+            // non serve chiamare checkUnreadNotifications() qui se il ViewModel lo gestisce sulle write
+            // se vuoi forzare la sincronizzazione iniziale, puoi chiamarlo qui:
+            profileViewModel.checkUnreadNotifications()
         }
     }
 
@@ -87,9 +88,11 @@ fun Notifications(navController: NavController) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            viewModel.markNotificationAsRead(item.notificationId)
-                            notifications = notifications.map {
-                                if (it.notificationId == item.notificationId) it.copy(read = true) else it
+                            // usa la versione con callback: aggiorna lo stato locale nel callback
+                            profileViewModel.markNotificationAsRead(item.notificationId) {
+                                notifications = notifications.map {
+                                    if (it.notificationId == item.notificationId) it.copy(read = true) else it
+                                }
                             }
                         }
                         .padding(vertical = 8.dp)
@@ -112,11 +115,13 @@ fun Notifications(navController: NavController) {
                                 fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.clickable {
-                                    viewModel.markNotificationAsRead(item.notificationId)
-                                    notifications = notifications.map {
-                                        if (it.notificationId == item.notificationId) it.copy(read = true) else it
+                                    // segnala come letta usando il callback prima della navigazione
+                                    profileViewModel.markNotificationAsRead(item.notificationId) {
+                                        notifications = notifications.map {
+                                            if (it.notificationId == item.notificationId) it.copy(read = true) else it
+                                        }
+                                        navController.navigate("publicProfile/${user.userId}")
                                     }
-                                    navController.navigate("publicProfile/${user.userId}")
                                 }
                             )
                         }
@@ -132,7 +137,7 @@ fun Notifications(navController: NavController) {
                 onDismissRequest = { showDialog.value = false },
                 confirmButton = {
                     Text("Conferma", modifier = Modifier.clickable {
-                        viewModel.deleteAllNotifications {
+                        profileViewModel.deleteAllNotifications {
                             notifications = emptyList()
                             showDialog.value = false
                         }

@@ -139,72 +139,22 @@ fun PhotoProfile(navController: NavController, userId: String, profileViewModel:
                 }
 
                 Button(onClick = {
-                    if (selectedImageUri == null) {
-                        Toast.makeText(context, "Seleziona una foto prima di confermare", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
-
-                    isLoading = true
-                    uploadSuccess = false
-
-                    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
-
-                    if (currentUserId == null || userData == null) {
-                        isLoading = false
-                        Toast.makeText(context, "Errore: dati mancanti", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
-
                     profileViewModel.saveProfilePicture(uri, context) { rawUrl ->
+                        val publicId = rawUrl?.substringAfter("upload/")?.substringBeforeLast(".")
+                        val finalImageUrl = publicId?.let { MediaManager.get().url().generate(it) }
 
-                        Log.d("PhotoProfile", "Callback upload triggered, rawUrl=$rawUrl")
-
-                        if (rawUrl != null) {
-                            val publicId = rawUrl.substringAfter("upload/").substringBeforeLast(".")
-                            val finalImageUrl = MediaManager.get().url().generate(publicId)
-
-                            val user = hashMapOf(
-                                "name" to userData.name,
-                                "surname" to userData.surname,
-                                "dateOfBirth" to userData.dateOfBirth.toString(),
-                                "email" to userData.email,
-                                "gender" to userData.gender,
-                                "username" to userData.username,
-                                "profileImageUrl" to finalImageUrl
-                            )
-
-                            FirebaseFirestore.getInstance()
-                                .collection("users")
-                                .document(currentUserId)
-                                .set(user)
-                                .addOnSuccessListener {
-                                    Log.d("PhotoProfile", "Firestore upload success")
-
-                                    isLoading = false
-                                    uploadSuccess = true
-                                    profileViewModel.pendingUserData = null
-                                    FirebaseAuth.getInstance().signOut()
-                                    Toast.makeText(context, "Registrazione completata! Accedi ora 🎉", Toast.LENGTH_LONG).show()
-
-                                    shouldNavigateToLogin = true  // <-- attiva la navigazione
-                                }
-
-
-                                .addOnFailureListener {
-                                    Log.d("PhotoProfile", "Firestore upload failure")
-
-                                    isLoading = false
-                                    Toast.makeText(context, "Errore durante salvataggio", Toast.LENGTH_SHORT).show()
-                                }
-                        } else {
-                            Log.d("PhotoProfile", "Upload immagine fallito")
-
-                            isLoading = false
-                            Toast.makeText(context, "Errore nell'upload immagine", Toast.LENGTH_SHORT).show()
-                        }
+                        profileViewModel.finalizeUserRegistration(
+                            imageUrl = finalImageUrl,
+                            onSuccess = {
+                                uploadSuccess = true
+                                shouldNavigateToLogin = true
+                                Toast.makeText(context, "Registrazione completata! Accedi ora 🎉", Toast.LENGTH_LONG).show()
+                            },
+                            onFailure = {
+                                Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+                            }
+                        )
                     }
-
-
                 }) {
                     Text("Conferma foto profilo")
                 }
@@ -215,50 +165,17 @@ fun PhotoProfile(navController: NavController, userId: String, profileViewModel:
             if (selectedImageUri == null) {
 
                 Button(onClick = {
-                    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
-
-                    if (userData == null || currentUserId == null) {
-                        Toast.makeText(context, "Errore: dati mancanti", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
-
-                    val defaultImageUrl =
-                        "https://res.cloudinary.com/dqtr2napz/image/upload/v1758028769/default_image_midrqr.jpg"
-
-                    val user = hashMapOf(
-                        "name" to userData.name,
-                        "surname" to userData.surname,
-                        "dateOfBirth" to userData.dateOfBirth.toString(),
-                        "email" to userData.email,
-                        "gender" to userData.gender,
-                        "username" to userData.username,
-                        "profileImageUrl" to defaultImageUrl
-                    )
-
-                    FirebaseFirestore.getInstance()
-                        .collection("users")
-                        .document(currentUserId)
-                        .set(user)
-                        .addOnSuccessListener {
-                            isLoading = false
+                    profileViewModel.finalizeUserRegistration(
+                        imageUrl = null,
+                        onSuccess = {
                             uploadSuccess = true
-                            profileViewModel.pendingUserData = null
-                            FirebaseAuth.getInstance().signOut()
-                            Toast.makeText(
-                                context,
-                                "Registrazione completata! Accedi ora 🎉",
-                                Toast.LENGTH_LONG
-                            ).show()
-
-                            shouldNavigateToLogin = true  // <-- attiva la navigazione
+                            shouldNavigateToLogin = true
+                            Toast.makeText(context, "Registrazione completata! Accedi ora 🎉", Toast.LENGTH_LONG).show()
+                        },
+                        onFailure = {
+                            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
                         }
-                        .addOnFailureListener {
-                            Toast.makeText(
-                                context,
-                                "Errore durante la registrazione",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
+                    )
                 }) {
                     Text("Salta")
                 }
@@ -266,7 +183,6 @@ fun PhotoProfile(navController: NavController, userId: String, profileViewModel:
 
         }
     }
-
 
     LaunchedEffect(shouldNavigateToLogin) {
         if (shouldNavigateToLogin) {

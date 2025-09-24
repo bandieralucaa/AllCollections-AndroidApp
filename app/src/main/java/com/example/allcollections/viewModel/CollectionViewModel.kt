@@ -9,6 +9,7 @@ import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
 import com.example.allcollections.collection.CollectionItem
 import com.example.allcollections.collection.UserCollection
+import com.example.allcollections.comment.Comment
 import com.google.firebase.auth.auth
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FieldPath
@@ -739,7 +740,28 @@ class CollectionViewModel : ViewModel() {
         }
     }
 
+    fun addCommentToCollection(comment: Comment, onResult: (Boolean) -> Unit) {
+        FirebaseFirestore.getInstance()
+            .collection("comments")
+            .add(comment)
+            .addOnSuccessListener { onResult(true) }
+            .addOnFailureListener { onResult(false) }
+    }
 
+    fun getCommentsForCollection(collectionId: String, onSuccess: (List<Comment>) -> Unit, onFailure: (String) -> Unit) {
+        FirebaseFirestore.getInstance()
+            .collection("comments")
+            .whereEqualTo("collectionId", collectionId)
+            .orderBy("timestamp")
+            .get()
+            .addOnSuccessListener { result ->
+                val comments = result.documents.mapNotNull { it.toObject(Comment::class.java) }
+                onSuccess(comments)
+            }
+            .addOnFailureListener { e ->
+                onFailure(e.message ?: "Errore nel recupero dei commenti")
+            }
+    }
 
 
 
