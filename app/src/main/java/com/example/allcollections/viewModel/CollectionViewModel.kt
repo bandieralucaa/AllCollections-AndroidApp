@@ -21,6 +21,8 @@ import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.launch
 
@@ -237,34 +239,6 @@ class CollectionViewModel : ViewModel() {
         }
     }
 
-    fun deleteItemFromCollection(
-        collectionId: String,
-        itemId: String,
-        onSuccess: () -> Unit = {},
-        onFailure: (String) -> Unit = {}
-    ) {
-        val itemRef = db.collection("collections")
-            .document(collectionId)
-            .collection("items")
-            .document(itemId)
-
-        viewModelScope.launch {
-            try {
-                val snapshot = itemRef.get().await()
-                val publicId = snapshot.getString("publicId")
-
-                itemRef.delete().await() // Cancella da Firestore
-
-                publicId?.let {
-                    deleteImageFromCloudinary(it) // Cancella da Cloudinary
-                }
-
-                onSuccess()
-            } catch (e: Exception) {
-                onFailure("Errore eliminazione: ${e.message}")
-            }
-        }
-    }
 
     fun deleteImageFromCloudinary(publicId: String): Boolean {
         val options = mapOf("invalidate" to true)
@@ -561,29 +535,6 @@ class CollectionViewModel : ViewModel() {
             .dispatch()
     }
 
-    fun getAllCollections(
-        onSuccess: (List<UserCollection>) -> Unit,
-        onFailure: (String) -> Unit
-    ) {
-        viewModelScope.launch {
-            try {
-                val querySnapshot = db.collection("collections")
-                    .get()
-                    .await()
-
-                val collections = querySnapshot.documents.mapNotNull { doc ->
-                    val collection = doc.toObject(UserCollection::class.java)
-                    collection?.copy(id = doc.id)
-                }
-
-                onSuccess(collections)
-            } catch (e: Exception) {
-                onFailure("Errore durante il recupero delle collezioni: ${e.message}")
-            }
-        }
-    }
-
-
     fun getAllCollectionsWithUsernames(
         onSuccess: (List<UserCollection>) -> Unit,
         onFailure: (String) -> Unit
@@ -740,12 +691,54 @@ class CollectionViewModel : ViewModel() {
         }
     }
 
-    fun addCommentToCollection(comment: Comment, onResult: (Boolean) -> Unit) {
+    fun addCommentToCollection(
+        comment: Comment,
+        notificationViewModel: NotificationViewModel,
+        onResult: (Boolean) -> Unit
+    ) {
+        val currentUid = auth.currentUser?.uid
+        if (currentUid == null) {
+            onResult(false)
+            return
+        }
+
         FirebaseFirestore.getInstance()
             .collection("comments")
             .add(comment)
-            .addOnSuccessListener { onResult(true) }
-            .addOnFailureListener { onResult(false) }
+            .addOnSuccessListener {
+                val collectionId = comment.collectionId
+                if (collectionId.isNullOrBlank()) {
+                    onResult(true)
+                    return@addOnSuccessListener
+                }
+
+                FirebaseFirestore.getInstance()
+                    .collection("collections")
+                    .document(collectionId)
+                    .get()
+                    .addOnSuccessListener { collDoc ->
+                        val recipientId = collDoc.getString("iduser")
+                        val collectionName = collDoc.getString("name") ?: ""
+
+                        if (!recipientId.isNullOrBlank() && recipientId != currentUid) {
+                            notificationViewModel.sendCommentNotification(
+                                recipientId = recipientId,
+                                senderId = currentUid,
+                                collectionId = collectionId,
+                                collectionName = collectionName,
+                                commentText = comment.text
+                            )
+                        }
+
+                        onResult(true)
+                    }
+                    .addOnFailureListener {
+                        onResult(true)
+                    }
+            }
+            .addOnFailureListener {
+                onResult(false)
+            }
     }
 
     fun getCommentsForCollection(collectionId: String, onSuccess: (List<Comment>) -> Unit, onFailure: (String) -> Unit) {
@@ -762,7 +755,5 @@ class CollectionViewModel : ViewModel() {
                 onFailure(e.message ?: "Errore nel recupero dei commenti")
             }
     }
-
-
 
 }

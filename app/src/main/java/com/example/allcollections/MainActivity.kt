@@ -11,12 +11,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.example.allcollections.navigation.AppNavigation
 import com.example.allcollections.navigation.Screens
 import com.example.allcollections.ui.theme.AllCollectionsTheme
 import com.example.allcollections.ui.theme.ThemeMode
 import com.example.allcollections.viewModel.CollectionViewModel
+import com.example.allcollections.viewModel.NotificationViewModel
 import com.example.allcollections.viewModel.ProfileViewModel
 import com.example.allcollections.viewModel.ThemeViewModel
 import com.example.allcollections.viewModel.ViewModelContainer
@@ -38,8 +40,8 @@ class MainActivity : ComponentActivity() {
             val profileViewModel: ProfileViewModel = ViewModelProvider(this).get(ProfileViewModel::class.java)
             val collectionViewModel: CollectionViewModel = ViewModelProvider(this).get(CollectionViewModel::class.java)
             val themeViewModel = koinViewModel<ThemeViewModel>()
-            val viewModelContainer = ViewModelContainer(profileViewModel, collectionViewModel, themeViewModel)
-            profileViewModel.checkUnreadNotifications()
+            val notificationViewModel: NotificationViewModel = ViewModelProvider(this).get(NotificationViewModel::class.java)
+            val viewModelContainer = ViewModelContainer(profileViewModel, collectionViewModel, themeViewModel, notificationViewModel)
             val themeState by themeViewModel.state.collectAsState()
             val currentUser = FirebaseAuth.getInstance().currentUser
 

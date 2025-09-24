@@ -3,36 +3,29 @@ package com.example.allcollections.notification
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
-import com.example.allcollections.profile.UserData
-import com.example.allcollections.viewModel.ProfileViewModel
+import com.example.allcollections.utils.formatRelativeTime
+import com.example.allcollections.viewModel.NotificationViewModel
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun Notifications(
     navController: NavController,
-    profileViewModel: ProfileViewModel // passa la stessa istanza usata in AppNavigation
+    notificationViewModel: NotificationViewModel
 ) {
     val currentUser = FirebaseAuth.getInstance().currentUser
     val userId = currentUser?.uid
@@ -41,12 +34,10 @@ fun Notifications(
 
     LaunchedEffect(userId) {
         userId?.let {
-            profileViewModel.observeNotifications(it) { result ->
+            notificationViewModel.observeNotifications(it) { result ->
                 notifications = result
             }
-            // non serve chiamare checkUnreadNotifications() qui se il ViewModel lo gestisce sulle write
-            // se vuoi forzare la sincronizzazione iniziale, puoi chiamarlo qui:
-            profileViewModel.checkUnreadNotifications()
+            notificationViewModel.checkUnreadNotifications()
         }
     }
 
@@ -83,22 +74,23 @@ fun Notifications(
                 val user = item.user
                 val timestamp = item.timestamp
                 val read = item.read
+                val (message, targetCollectionId) = buildNotificationMessage(item)
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            // usa la versione con callback: aggiorna lo stato locale nel callback
-                            profileViewModel.markNotificationAsRead(item.notificationId) {
+                            notificationViewModel.markNotificationAsRead(item.notificationId) {
                                 notifications = notifications.map {
                                     if (it.notificationId == item.notificationId) it.copy(read = true) else it
                                 }
+                                targetCollectionId?.let {
+                                    navController.navigate("collectionDetail/$it")
+                                } ?: navController.navigate("publicProfile/${user.userId}")
                             }
                         }
                         .padding(vertical = 8.dp)
-                        .background(
-                            if (!read) Color(0xFFE3F2FD) else Color.Transparent
-                        ),
+                        .background(if (!read) Color(0xFFE3F2FD) else Color.Transparent),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val painter = rememberAsyncImagePainter(user.profileImageUrl)
@@ -109,24 +101,22 @@ fun Notifications(
                     )
 
                     Column(modifier = Modifier.padding(start = 8.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "@${user.username}",
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.clickable {
-                                    // segnala come letta usando il callback prima della navigazione
-                                    profileViewModel.markNotificationAsRead(item.notificationId) {
-                                        notifications = notifications.map {
-                                            if (it.notificationId == item.notificationId) it.copy(read = true) else it
-                                        }
-                                        navController.navigate("publicProfile/${user.userId}")
-                                    }
+                        Text(
+                            text = "@${user.username}",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        val relativeTime = formatRelativeTime(item.timestamp)
+                        Text(
+                            buildAnnotatedString {
+                                append(message)
+                                append(" — ")
+                                withStyle(SpanStyle(color = Color.Gray)) {
+                                    append(relativeTime)
                                 }
-                            )
-                        }
-
-                        Text(text = "Ti ha seguito il $timestamp", fontSize = 12.sp)
+                            },
+                            fontSize = 12.sp
+                        )
                     }
                 }
             }
@@ -137,7 +127,7 @@ fun Notifications(
                 onDismissRequest = { showDialog.value = false },
                 confirmButton = {
                     Text("Conferma", modifier = Modifier.clickable {
-                        profileViewModel.deleteAllNotifications {
+                        notificationViewModel.deleteAllNotifications {
                             notifications = emptyList()
                             showDialog.value = false
                         }
@@ -152,5 +142,27 @@ fun Notifications(
                 text = { Text("Questa azione non può essere annullata.") }
             )
         }
+    }
+}
+
+fun buildNotificationMessage(item: NotificationItem): Pair<String, String?> {
+    val username = item.user.username
+    return when (item.type) {
+        "comment" -> {
+            val collName = item.collectionName ?: "la tua collezione"
+            val preview = item.commentText?.let { if (it.length > 80) it.take(77) + "..." else it } ?: ""
+            val suffix = if (preview.isNotBlank()) " — \"$preview\"" else ""
+            "@$username ha commentato \"$collName\"$suffix" to item.collectionId
+        }
+        "follow" -> "@$username ti ha seguito" to null
+        "like" -> {
+            val collName = item.collectionName ?: "la tua collezione"
+            "@$username ha messo mi piace a \"$collName\"" to item.collectionId
+        }
+        "mention" -> {
+            val context = item.commentText?.let { if (it.length > 80) it.take(77) + "..." else it } ?: "ti ha menzionato"
+            "@$username ti ha menzionato: \"$context\"" to item.collectionId
+        }
+        else -> "@$username ha effettuato un'azione" to item.collectionId
     }
 }

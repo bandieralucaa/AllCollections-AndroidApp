@@ -52,6 +52,7 @@ import com.example.allcollections.viewModel.ViewModelContainer
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Badge
 import androidx.compose.runtime.LaunchedEffect
+import com.example.allcollections.viewModel.NotificationViewModel
 
 @Composable
 fun AppNavigation(
@@ -64,20 +65,17 @@ fun AppNavigation(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val profileViewModel: ProfileViewModel = viewModelContainer.profileViewModel
+    val notificationViewModel: NotificationViewModel = viewModel()
+    val hasUnreadNotifications by notificationViewModel.hasUnreadNotifications.collectAsState(initial = false)
 
-
-    LaunchedEffect(profileViewModel) {
-        profileViewModel.checkUnreadNotifications()
+    LaunchedEffect(Unit) {
+        notificationViewModel.checkUnreadNotifications()
     }
-
-    val hasUnreadNotifications by profileViewModel.hasUnreadNotifications.collectAsState(initial = false)
 
     Scaffold(
         bottomBar = {
             if (currentDestination?.route !in listOf(Screens.Login.name, Screens.Register.name)) {
-                NavigationBar(
-                    modifier = Modifier.height(55.dp)
-                ) {
+                NavigationBar(modifier = Modifier.height(55.dp)) {
                     listOfNavItems.forEach { navItem ->
                         NavigationBarItem(
                             selected = currentDestination?.hierarchy?.any { it.route == navItem.route } == true,
@@ -188,7 +186,7 @@ fun AppNavigation(
                 PublicProfileScreen(userId = userId, navController = navController)
             }
             composable("Notifications") {
-                Notifications(navController = navController, viewModelContainer.profileViewModel)
+                Notifications(navController = navController, notificationViewModel = notificationViewModel)
             }
         }
     }

@@ -17,6 +17,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.allcollections.collection.UserCollection
 import com.example.allcollections.viewModel.CollectionViewModel
+import com.example.allcollections.viewModel.NotificationViewModel
 import com.example.allcollections.viewModel.ProfileViewModel
 import com.google.firebase.auth.FirebaseAuth
 
@@ -32,6 +33,7 @@ fun PublicProfileScreen(userId: String, navController: NavController) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     var isFollowing by remember { mutableStateOf(false) }
     var followerCount by remember { mutableStateOf(0) }
+    val notificationViewModel: NotificationViewModel = viewModel()
 
     fun refreshProfile() {
         viewModel.getUsernameById(userId) { username = it }
@@ -103,7 +105,7 @@ fun PublicProfileScreen(userId: String, navController: NavController) {
                             }
                         }
                     } else {
-                        profileViewModel.followUser(currentUserId, userId) {
+                        profileViewModel.followUser(currentUserId, userId, notificationViewModel) {
                             if (it) {
                                 refreshProfile()
                                 profileViewModel.getFollowerCount(userId) { count ->

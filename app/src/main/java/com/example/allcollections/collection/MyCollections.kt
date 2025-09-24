@@ -44,8 +44,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.compose.rememberImagePainter
@@ -94,89 +96,98 @@ fun MyCollections(navController: NavController, viewModel: CollectionViewModel) 
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            collections.value.forEach { collection ->
-                item {
-                    val showMenu = remember { mutableStateOf(false) }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(1f)
-                            .padding(8.dp)
-                    ) {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clickable{
-                                    navController.navigate("collectionDetail/${collection.id}")
-                                },
-                            elevation = CardDefaults.cardElevation()
-                        ) {
-                            AsyncImage(
-                                model = collection?.collectionImageUrl + "?t=${System.currentTimeMillis()}",
-                                contentDescription = "Immagine collezione",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp)
-                                    .clip(MaterialTheme.shapes.medium),
-                                contentScale = ContentScale.Crop
-                            )
-                        }
-
-                        var expanded by remember { mutableStateOf(false) }
-
+        if (collections.value.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Non hai ancora nessuna collezione,\ncreane una!",
+                    fontSize = 18.sp,
+                    color = Color.Gray
+                )
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                collections.value.forEach { collection ->
+                    item {
                         Box(
                             modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(4.dp)
+                                .fillMaxWidth()
+                                .aspectRatio(1f)
+                                .padding(8.dp)
                         ) {
-                            IconButton(onClick = { expanded = true }) {
-                                Icon(Icons.Default.MoreVert, contentDescription = "Opzioni")
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clickable{
+                                        navController.navigate("collectionDetail/${collection.id}")
+                                    },
+                                elevation = CardDefaults.cardElevation()
+                            ) {
+                                AsyncImage(
+                                    model = collection.collectionImageUrl + "?t=${System.currentTimeMillis()}",
+                                    contentDescription = "Immagine collezione",
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(MaterialTheme.shapes.medium),
+                                    contentScale = ContentScale.Inside
+                                )
                             }
 
-                            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                                DropdownMenuItem(
-                                    text = { Text("Modifica") },
-                                    onClick = {
-                                        expanded = false
-                                        navController.navigate("editCollection/${collection.id}")
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Elimina") },
-                                    onClick = {
-                                        expanded = false
-                                        viewModel.deleteCollection(
-                                            collection.id,
-                                            onSuccess = {
-                                                scope.launch {
-                                                    snackbarHostState.showSnackbar("Collezione eliminata")
-                                                }
-                                                viewModel.getCollections(iduser,
-                                                    onSuccess = { collections.value = it },
-                                                    onFailure = { error -> errorMessage.value = error }
-                                                )
-                                            },
-                                            onFailure = { error -> errorMessage.value = error }
-                                        )
-                                    }
-                                )
+                            var expanded by remember { mutableStateOf(false) }
+
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(4.dp)
+                            ) {
+                                IconButton(onClick = { expanded = true }) {
+                                    Icon(Icons.Default.MoreVert, contentDescription = "Opzioni")
+                                }
+
+                                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                    DropdownMenuItem(
+                                        text = { Text("Modifica") },
+                                        onClick = {
+                                            expanded = false
+                                            navController.navigate("editCollection/${collection.id}")
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Elimina") },
+                                        onClick = {
+                                            expanded = false
+                                            viewModel.deleteCollection(
+                                                collection.id,
+                                                onSuccess = {
+                                                    scope.launch {
+                                                        snackbarHostState.showSnackbar("Collezione eliminata")
+                                                    }
+                                                    viewModel.getCollections(iduser,
+                                                        onSuccess = { collections.value = it },
+                                                        onFailure = { error -> errorMessage.value = error }
+                                                    )
+                                                },
+                                                onFailure = { error -> errorMessage.value = error }
+                                            )
+                                        }
+                                    )
+                                }
                             }
                         }
+
+
                     }
-
-
                 }
             }
         }
-
     }
 }

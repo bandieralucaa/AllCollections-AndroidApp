@@ -25,6 +25,7 @@ import coil.compose.AsyncImage
 import com.example.allcollections.comment.Comment
 import com.example.allcollections.navigation.Screens
 import com.example.allcollections.viewModel.CollectionViewModel
+import com.example.allcollections.viewModel.NotificationViewModel
 import com.example.allcollections.viewModel.ProfileViewModel
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
@@ -44,6 +45,7 @@ fun CollectionDetail(
     val collection = remember { mutableStateOf<UserCollection?>(null) }
     val currentUserId = profileViewModel.getCurrentUserId()
     val userPhotos = remember { mutableStateMapOf<String, String>() }
+    val notificationViewModel: NotificationViewModel = viewModel()
 
     LaunchedEffect(collectionId) {
         viewModel.getCollectionById(
@@ -100,7 +102,7 @@ fun CollectionDetail(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Fit
                 )
                 if (col.iduser == currentUserId) {
                     Button(
@@ -168,10 +170,11 @@ fun CollectionDetail(
                         userId = userId,
                         text = newComment
                     )
-                    viewModel.addCommentToCollection(comment) { success ->
+                    viewModel.addCommentToCollection(comment, notificationViewModel = notificationViewModel) { success ->
                         if (success) {
                             newComment = ""
                             loadCommentsAndUsernames(collectionId, viewModel, comments, usernames, errorMessage)
+
                         } else {
                             errorMessage.value = "Errore nell'invio del commento"
                         }

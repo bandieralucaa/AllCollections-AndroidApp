@@ -33,6 +33,7 @@ class ProfileViewModel : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
     private val _isLoggedIn = mutableStateOf(false)
+
     val isLoggedIn: State<Boolean> = _isLoggedIn
     private val _loginErrorMessage = mutableStateOf<String?>(null)
     val loginErrorMessage: State<String?> = _loginErrorMessage
@@ -238,7 +239,12 @@ class ProfileViewModel : ViewModel() {
             }
     }
 
-    fun followUser(followerId: String, followedId: String, onResult: (Boolean) -> Unit) {
+    fun followUser(
+        followerId: String,
+        followedId: String,
+        notificationViewModel: NotificationViewModel,
+        onResult: (Boolean) -> Unit
+    ) {
         val docId = "${followerId}_$followedId"
         val data = mapOf("followerId" to followerId, "followedId" to followedId)
 
@@ -247,18 +253,11 @@ class ProfileViewModel : ViewModel() {
             .document(docId)
             .set(data)
             .addOnSuccessListener {
-                val notification = mapOf(
-                    "recipientId" to followedId,
-                    "senderId" to followerId,
-                    "type" to "follow",
-                    "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
-                    "read" to false
+                // delega la notifica al NotificationViewModel
+                notificationViewModel.sendFollowNotification(
+                    recipientId = followedId,
+                    senderId = followerId
                 )
-
-                FirebaseFirestore.getInstance()
-                    .collection("notifications")
-                    .add(notification)
-
                 onResult(true)
             }
             .addOnFailureListener {
@@ -377,128 +376,10 @@ class ProfileViewModel : ViewModel() {
             }
     }
 
-    fun observeNotifications(userId: String, onResult: (List<NotificationItem>) -> Unit) {
-        val notificationsRef = db.collection("notifications")
-            .whereEqualTo("recipientId", userId)
-            .orderBy("timestamp", Query.Direction.DESCENDING)
-
-        notificationsRef.addSnapshotListener { snapshot, error ->
-            if (error != null || snapshot == null) {
-                onResult(emptyList())
-                return@addSnapshotListener
-            }
-
-            // mappa provvisoria: notificationId -> raw fields
-            val rawList = snapshot.documents.map { doc ->
-                val notificationId = doc.id
-                val senderId = doc.getString("senderId") ?: ""
-                val timestamp = doc.getTimestamp("timestamp")?.toDate()
-                val formattedDate = timestamp?.let { formatRelativeTime(it) } ?: ""
-                val read = doc.getBoolean("read") ?: false
-                Triple(notificationId, senderId, Pair(formattedDate, read))
-            }
-
-            // ottieni tutti gli senderId unici
-            val senderIds = rawList.map { it.second }.distinct().filter { it.isNotBlank() }
-            if (senderIds.isEmpty()) {
-                onResult(emptyList())
-                return@addSnapshotListener
-            }
-
-            // query unica per gli user profiles
-            db.collection("users")
-                .whereIn(FieldPath.documentId(), senderIds)
-                .get()
-                .addOnSuccessListener { usersSnap ->
-                    // crea mappa senderId -> UserData
-                    val usersMap = usersSnap.documents.mapNotNull { userDoc ->
-                        try {
-                            val uid = userDoc.id
-                            uid to UserData(
-                                userId = uid,
-                                name = userDoc.getString("name") ?: "",
-                                surname = userDoc.getString("surname") ?: "",
-                                dateOfBirth = LocalDate.parse(userDoc.getString("dateOfBirth") ?: "2000-01-01"),
-                                email = userDoc.getString("email") ?: "",
-                                gender = userDoc.getString("gender") ?: "",
-                                username = userDoc.getString("username") ?: "",
-                                profileImageUrl = userDoc.getString("profileImageUrl") ?: ""
-                            )
-                        } catch (e: Exception) {
-                            null
-                        }
-                    }.toMap()
-
-                    // ricomponi la lista finale mantenendo l'ordine
-                    val notifications = rawList.mapNotNull { (notificationId, senderId, meta) ->
-                        val (formattedDate, read) = meta
-                        val user = usersMap[senderId] ?: return@mapNotNull null
-                        NotificationItem(user, formattedDate, read, notificationId)
-                    }
-
-                    onResult(notifications)
-                }
-                .addOnFailureListener {
-                    // in caso di errore user profiles, ritorna lista vuota o lista minimale
-                    onResult(emptyList())
-                }
-        }
-    }
-
-    fun markNotificationAsRead(notificationId: String, onComplete: (() -> Unit)? = null) {
-        db.collection("notifications").document(notificationId)
-            .update("read", true)
-            .addOnSuccessListener {
-                // aggiorna il badge solo dopo il successo
-                checkUnreadNotifications()
-                onComplete?.invoke()
-            }
-            .addOnFailureListener {
-                onComplete?.invoke() // opzionale: comunica comunque il completamento
-            }
-    }
 
     private val _hasUnreadNotifications = MutableStateFlow(false)
     val hasUnreadNotifications: StateFlow<Boolean> = _hasUnreadNotifications
 
-    fun checkUnreadNotifications() {
-        val userId = auth.currentUser?.uid ?: return
-
-        db.collection("notifications")
-            .whereEqualTo("recipientId", userId)
-            .whereEqualTo("read", false)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    _hasUnreadNotifications.value = false
-                    return@addSnapshotListener
-                }
-
-                _hasUnreadNotifications.value = snapshot?.isEmpty == false
-            }
-    }
-
-    fun deleteAllNotifications(onComplete: () -> Unit) {
-        val userId = auth.currentUser?.uid ?: return
-        val db = FirebaseFirestore.getInstance()
-
-        db.collection("notifications")
-            .whereEqualTo("recipientId", userId)
-            .get()
-            .addOnSuccessListener { snapshot ->
-                val batch = db.batch()
-                snapshot.documents.forEach { doc -> batch.delete(doc.reference) }
-                batch.commit().addOnSuccessListener {
-                    // aggiorna il badge e poi notifica il caller
-                    checkUnreadNotifications()
-                    onComplete()
-                }.addOnFailureListener {
-                    onComplete()
-                }
-            }
-            .addOnFailureListener {
-                onComplete()
-            }
-    }
 
     fun getCurrentUserId(): String {
         return FirebaseAuth.getInstance().currentUser?.uid ?: "anonimo"
