@@ -381,31 +381,45 @@ class CollectionViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             try {
+                // 1. Elimina tutti gli oggetti associati
                 val itemsSnapshot = db.collection("collections")
                     .document(collectionId)
                     .collection("items")
                     .get()
                     .await()
 
-                if (itemsSnapshot.isEmpty) {
-                    db.collection("collections")
-                        .document(collectionId)
-                        .delete()
-                        .await()
-                    onSuccess()
-                } else {
-                    val items = itemsSnapshot.documents
-
-                    items.map { it.id }.forEach { itemId ->
-                        deleteItemFromCollectionSuspend(collectionId, itemId)
-                    }
-
-                    db.collection("collections")
-                        .document(collectionId)
-                        .delete()
-                        .await()
-                    onSuccess()
+                itemsSnapshot.documents.forEach { doc ->
+                    deleteItemFromCollectionSuspend(collectionId, doc.id)
                 }
+
+                // 2. Elimina tutti i commenti associati
+                val commentsSnapshot = db.collection("comments")
+                    .whereEqualTo("collectionId", collectionId)
+                    .get()
+                    .await()
+
+                commentsSnapshot.documents.forEach { commentDoc ->
+                    commentDoc.reference.delete().await()
+                }
+
+                // 3. Elimina tutte le notifiche associate
+                val notificationsSnapshot = db.collection("notifications")
+                    .whereEqualTo("collectionId", collectionId)
+                    .get()
+                    .await()
+
+                notificationsSnapshot.documents.forEach { notificationDoc ->
+                    notificationDoc.reference.delete().await()
+                }
+
+                // 4. Elimina la collezione stessa
+                db.collection("collections")
+                    .document(collectionId)
+                    .delete()
+                    .await()
+
+                onSuccess()
+
             } catch (e: Exception) {
                 onFailure("Errore eliminazione: ${e.message}")
             }

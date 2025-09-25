@@ -151,37 +151,35 @@ fun EditCollection(
 
                 Button(onClick = {
                     scope.launch {
-                        var updateSuccess = false
-                        var imageSuccess = true
+                        val hasFieldChanges = name != collection.name ||
+                                category != (collection.category ?: "") ||
+                                description != (collection.description ?: "")
+                        val hasImageChange = newImageUri != null
+
 
                         try {
-                            // Aggiorna i dati della collezione
-                            viewModel.updateCollection(
-                                updatedCollection = collection.copy(
-                                    name = name,
-                                    category = category,
-                                    description = description
-                                ),
-                                onSuccess = {
-                                    updateSuccess = true
-                                },
-                                onFailure = { error ->
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Errore salvataggio: $error")
+                            if (hasFieldChanges) {
+                                viewModel.updateCollection(
+                                    updatedCollection = collection.copy(
+                                        name = name,
+                                        category = category,
+                                        description = description
+                                    ),
+                                    onSuccess = { /* ok */ },
+                                    onFailure = { error ->
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Errore salvataggio: $error")
+                                        }
                                     }
-                                }
-                            )
+                                )
+                            }
 
-                            // Se è stata scelta una nuova immagine, aggiorna anche quella
-                            if (newImageUri != null) {
+                            if (hasImageChange) {
                                 viewModel.updateCollectionImage(
                                     collectionId = collection.id,
                                     newImageUri = newImageUri!!,
-                                    onSuccess = {
-                                        imageSuccess = true
-                                    },
+                                    onSuccess = { /* ok */ },
                                     onFailure = { error ->
-                                        imageSuccess = false
                                         scope.launch {
                                             snackbarHostState.showSnackbar("Errore immagine: $error")
                                         }
@@ -189,11 +187,10 @@ fun EditCollection(
                                 )
                             }
 
-                            // Se tutto ok, torna indietro
-                            if (updateSuccess && imageSuccess) {
-                                navController.popBackStack()
-                                // opzionale: mostra snackbar nella pagina precedente
+                            navController.navigate("collectionDetail/${collection.id}") {
+                                popUpTo("editCollection/${collection.id}") { inclusive = true }
                             }
+
                         } catch (e: Exception) {
                             scope.launch {
                                 snackbarHostState.showSnackbar("Errore imprevisto: ${e.message}")

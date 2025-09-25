@@ -150,19 +150,10 @@ fun buildNotificationMessage(item: NotificationItem): Pair<String, String?> {
     return when (item.type) {
         "comment" -> {
             val collName = item.collectionName ?: "la tua collezione"
-            val preview = item.commentText?.let { if (it.length > 80) it.take(77) + "..." else it } ?: ""
-            val suffix = if (preview.isNotBlank()) " — \"$preview\"" else ""
-            "@$username ha commentato \"$collName\"$suffix" to item.collectionId
+            "@$username ha commentato \"$collName\"" to item.collectionId
         }
         "follow" -> "@$username ti ha seguito" to null
-        "like" -> {
-            val collName = item.collectionName ?: "la tua collezione"
-            "@$username ha messo mi piace a \"$collName\"" to item.collectionId
-        }
-        "mention" -> {
-            val context = item.commentText?.let { if (it.length > 80) it.take(77) + "..." else it } ?: "ti ha menzionato"
-            "@$username ti ha menzionato: \"$context\"" to item.collectionId
-        }
+
         else -> "@$username ha effettuato un'azione" to item.collectionId
     }
 }
