@@ -1,14 +1,11 @@
 package com.example.allcollections.collection
 
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,12 +20,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.allcollections.comment.Comment
+import com.example.allcollections.comment.CommentItem
 import com.example.allcollections.navigation.Screens
 import com.example.allcollections.viewModel.CollectionViewModel
 import com.example.allcollections.viewModel.NotificationViewModel
 import com.example.allcollections.viewModel.ProfileViewModel
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
 
 @Composable
 fun CollectionDetail(
@@ -147,10 +143,26 @@ fun CollectionDetail(
             Text(text = "Commenti", style = MaterialTheme.typography.titleMedium)
         }
 
-        items(comments, key = { it.timestamp }) { comment ->
-            val username = usernames[comment.userId]
-            val photoUrl = userPhotos[comment.userId]
-            CommentItem(comment = comment, username = username, photoUrl = photoUrl)
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 100.dp, max = 200.dp) // altezza fissa o dinamica
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                    .padding(8.dp)
+            ) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(comments, key = { it.timestamp }) { comment ->
+                        val username = usernames[comment.userId]
+                        val photoUrl = userPhotos[comment.userId]
+                        CommentItem(comment = comment, username = username, photoUrl = photoUrl)
+                    }
+                }
+            }
         }
 
         item {
@@ -223,33 +235,6 @@ fun loadCommentsAndUsernames(
     )
 }
 
-@Composable
-fun CommentItem(comment: Comment, username: String?, photoUrl: String?) {
-    Row(modifier = Modifier.padding(vertical = 8.dp)) {
-        AsyncImage(
-            model = photoUrl,
-            contentDescription = "Foto profilo",
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(20.dp)),
-            contentScale = ContentScale.Crop
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Column {
-            Text(
-                text = username ?: comment.userId,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = comment.text,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-    }
-}
 
 fun loadUsernamesForComments(
     comments: List<Comment>,

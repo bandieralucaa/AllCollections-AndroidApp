@@ -130,9 +130,27 @@ fun PublicProfileScreen(userId: String, navController: NavController) {
                                 navController.navigate("collectionDetail/${collection.id}")
                             }
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(text = collection.name, style = MaterialTheme.typography.titleSmall)
-                            Text(text = collection.category ?: "", style = MaterialTheme.typography.bodySmall)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AsyncImage(
+                                model = collection.collectionImageUrl,
+                                contentDescription = "Immagine collezione",
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(MaterialTheme.shapes.medium),
+                                contentScale = ContentScale.Crop
+                            )
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column {
+                                Text(text = collection.name, style = MaterialTheme.typography.titleSmall)
+                                Text(text = collection.category ?: "", style = MaterialTheme.typography.bodySmall)
+                            }
                         }
                     }
                 }
