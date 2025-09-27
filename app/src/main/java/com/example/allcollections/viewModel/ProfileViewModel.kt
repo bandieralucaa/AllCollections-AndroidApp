@@ -91,7 +91,7 @@ class ProfileViewModel : ViewModel() {
             return
         }
 
-        val finalImageUrl = imageUrl ?: "https://res.cloudinary.com/dqtr2napz/image/upload/v1758028769/default_image_midrqr.jpg"
+        val finalImageUrl = imageUrl ?: "https://res.cloudinary.com/dqtr2napz/image/upload/v1758965362/default_image_profile_okdl8h.png"
 
         val user = hashMapOf(
             "name" to userData.name,
