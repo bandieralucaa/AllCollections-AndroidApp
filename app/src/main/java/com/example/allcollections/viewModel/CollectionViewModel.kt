@@ -1,5 +1,6 @@
 package com.example.allcollections.viewModel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import android.net.Uri
 import android.util.Log
@@ -768,6 +769,105 @@ class CollectionViewModel : ViewModel() {
             .addOnFailureListener { e ->
                 onFailure(e.message ?: "Errore nel recupero dei commenti")
             }
+    }
+
+    fun updateItemInCollection(
+        collectionId: String,
+        itemId: String,
+        updatedItem: CollectionItem,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                db.collection("collections")
+                    .document(collectionId)
+                    .collection("items")
+                    .document(itemId)
+                    .set(updatedItem)
+                    .await()
+
+                onSuccess()
+            } catch (e: Exception) {
+                onFailure("Errore aggiornamento: ${e.message}")
+            }
+        }
+    }
+
+    fun deleteItemFromCollection(
+        collectionId: String,
+        itemId: String,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                db.collection("collections")
+                    .document(collectionId)
+                    .collection("items")
+                    .document(itemId)
+                    .delete()
+                    .await()
+
+                onSuccess()
+            } catch (e: Exception) {
+                onFailure("Errore eliminazione: ${e.message}")
+            }
+        }
+    }
+
+    fun uploadItemImageAndUpdate(
+        collectionId: String,
+        itemId: String,
+        imageUri: Uri,
+        updatedDescription: String,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        val userId = auth.currentUser?.uid
+        if (userId == null) {
+            onFailure("Utente non autenticato")
+            return
+        }
+
+        MediaManager.get().upload(imageUri)
+            .option("folder", "$userId/collections/$collectionId/items")
+            .callback(object : UploadCallback {
+                override fun onStart(requestId: String?) {}
+                override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {}
+
+                override fun onSuccess(requestId: String?, resultData: MutableMap<Any?, Any?>?) {
+                    val imageUrl = resultData?.get("secure_url") as? String
+                    val publicId = resultData?.get("public_id") as? String
+
+                    if (imageUrl != null && publicId != null) {
+                        val updatedItem = hashMapOf(
+                            "description" to updatedDescription,
+                            "imageUrl" to imageUrl,
+                            "publicId" to publicId
+                        ) as Map<String, Any>
+
+                        db.collection("collections")
+                            .document(collectionId)
+                            .collection("items")
+                            .document(itemId)
+                            .update(updatedItem)
+                            .addOnSuccessListener { onSuccess() }
+                            .addOnFailureListener { e ->
+                                onFailure("Errore salvataggio item: ${e.message}")
+                            }
+                    } else {
+                        onFailure("URL o publicId mancanti")
+                    }
+                }
+
+                override fun onError(requestId: String?, error: ErrorInfo?) {
+                    onFailure(error?.description ?: "Errore upload immagine")
+                }
+
+                override fun onReschedule(requestId: String?, error: ErrorInfo?) {}
+            })
+            .dispatch()
     }
 
 }

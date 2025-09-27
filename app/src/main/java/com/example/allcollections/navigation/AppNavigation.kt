@@ -52,6 +52,7 @@ import com.example.allcollections.viewModel.ViewModelContainer
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Badge
 import androidx.compose.runtime.LaunchedEffect
+import com.example.allcollections.collection.EditItem
 import com.example.allcollections.viewModel.NotificationViewModel
 
 @Composable
@@ -187,6 +188,23 @@ fun AppNavigation(
             }
             composable("Notifications") {
                 Notifications(navController = navController, notificationViewModel = notificationViewModel)
+            }
+            composable(
+                route = "editItem/{collectionId}/{itemId}",
+                arguments = listOf(
+                    navArgument("collectionId") { type = NavType.StringType },
+                    navArgument("itemId") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val collectionId = backStackEntry.arguments?.getString("collectionId") ?: ""
+                val itemId = backStackEntry.arguments?.getString("itemId") ?: ""
+
+                EditItem(
+                    navController = navController,
+                    collectionId = collectionId,
+                    itemId = itemId,
+                    viewModel = viewModelContainer.collectionViewModel
+                )
             }
         }
     }

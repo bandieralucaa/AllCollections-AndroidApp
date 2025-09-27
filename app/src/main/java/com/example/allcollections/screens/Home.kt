@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -138,6 +139,25 @@ fun Home(
                             modifier = Modifier.padding(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = collection.name,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                            Text(
+                                text = "Creato da: ${collection.username}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.clickable {
+                                    navController.navigate("publicProfile/${collection.iduser}")
+                                }
+                            )
                             AsyncImage(
                                 model = collection.collectionImageUrl + "?t=${System.currentTimeMillis()}",
                                 contentDescription = "Immagine collezione",
@@ -146,20 +166,6 @@ fun Home(
                                     .height(150.dp)
                                     .clip(MaterialTheme.shapes.medium),
                                 contentScale = ContentScale.Crop
-                            )
-
-                            Text(
-                                text = collection.name,
-                                style = MaterialTheme.typography.titleMedium
-                            )
-
-                            Text(
-                                text = "Creato da: ${collection.username}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.clickable {
-                                    navController.navigate("publicProfile/${collection.iduser}")
-                                }
                             )
                         }
                     }

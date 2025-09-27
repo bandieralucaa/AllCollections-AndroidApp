@@ -193,7 +193,35 @@ fun CollectionDetail(
                 }
             } else {
                 items(objects.value, key = { it.id }) { item ->
-                    CollectionItemCard(item = item)
+                    CollectionItemCard(
+                        item = item,
+                        showMenu = collection.value?.iduser == currentUserId,
+                        onEdit = {
+                            navController.navigate("editItem/${collectionId}/${item.id}")
+                        },
+                        onDelete = {
+                            viewModel.deleteItemFromCollection(
+                                collectionId = collectionId,
+                                itemId = item.id,
+                                onSuccess = {
+                                    objects.value = objects.value.filter { it.id != item.id }
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Oggetto eliminato")
+                                        viewModel.getItemsFromCollection(
+                                            collectionId,
+                                            onSuccess = { objects.value = it },
+                                            onFailure = { errorMessage.value = it }
+                                        )
+                                    }
+                                },
+                                onFailure = { error ->
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Errore: $error")
+                                    }
+                                }
+                            )
+                        }
+                    )
                 }
             }
 
@@ -206,7 +234,7 @@ fun CollectionDetail(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 100.dp, max = 200.dp)
+                        .heightIn(min = 100.dp, max = 150.dp)
                         .clip(MaterialTheme.shapes.medium)
                         .background(MaterialTheme.colorScheme.secondaryContainer)
                         .padding(8.dp)
@@ -218,7 +246,7 @@ fun CollectionDetail(
                         items(comments, key = { it.timestamp }) { comment ->
                             val username = usernames[comment.userId]
                             val photoUrl = userPhotos[comment.userId]
-                            CommentItem(comment = comment, username = username, photoUrl = photoUrl)
+                            CommentItem(comment = comment, username = username, photoUrl = photoUrl, navController)
                         }
                     }
                 }

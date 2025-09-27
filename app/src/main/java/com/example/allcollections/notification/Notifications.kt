@@ -90,7 +90,10 @@ fun Notifications(
                             }
                         }
                         .padding(vertical = 8.dp)
-                        .background(if (!read) Color(0xFFE3F2FD) else Color.Transparent),
+                        .background(
+                            if (!read) MaterialTheme.colorScheme.surfaceVariant
+                            else Color.Transparent
+                        ),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val painter = rememberAsyncImagePainter(user.profileImageUrl)

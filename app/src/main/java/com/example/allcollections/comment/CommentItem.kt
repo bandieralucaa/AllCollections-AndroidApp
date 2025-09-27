@@ -1,5 +1,6 @@
 package com.example.allcollections.comment
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,10 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 
 @Composable
-fun CommentItem(comment: Comment, username: String?, photoUrl: String?) {
+fun CommentItem(comment: Comment, username: String?, photoUrl: String?, navController: NavController) {
     Row(modifier = Modifier.padding(vertical = 8.dp)) {
         AsyncImage(
             model = photoUrl,
@@ -34,7 +36,10 @@ fun CommentItem(comment: Comment, username: String?, photoUrl: String?) {
             Text(
                 text = username ?: comment.userId,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.clickable{
+                    navController.navigate("publicProfile/${comment.userId}")
+                }
             )
             Text(
                 text = comment.text,
