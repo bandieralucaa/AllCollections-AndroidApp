@@ -22,6 +22,8 @@ import com.example.allcollections.viewModel.ProfileViewModel
 import com.google.firebase.auth.FirebaseAuth
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +39,8 @@ fun Register(navController: NavController, profileViewModel: ProfileViewModel) {
     var password by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("Maschio") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var passwordVisible by remember { mutableStateOf(false) }
+
 
     Scaffold(
         topBar = {
@@ -67,10 +71,14 @@ fun Register(navController: NavController, profileViewModel: ProfileViewModel) {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+
+                val textFieldWidth = Modifier.fillMaxWidth(0.8f)
+
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Nome") },
+                    modifier = textFieldWidth,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                 )
 
@@ -78,17 +86,23 @@ fun Register(navController: NavController, profileViewModel: ProfileViewModel) {
                     value = surname,
                     onValueChange = { surname = it },
                     label = { Text("Cognome") },
+                    modifier = textFieldWidth,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                 )
 
-                GenderSelector(selectedGender = gender) { gender = it }
+                Box(modifier = textFieldWidth) {
+                    GenderSelector(selectedGender = gender) { gender = it }
+                }
 
-                DatePickerField(dateOfBirth) { dateOfBirth = it }
+                Box(modifier = textFieldWidth) {
+                    DatePickerField(dateOfBirth) { dateOfBirth = it }
+                }
 
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
                     label = { Text("Email") },
+                    modifier = textFieldWidth,
                     keyboardOptions = KeyboardOptions(
                         imeAction = ImeAction.Next,
                         keyboardType = KeyboardType.Email
@@ -99,6 +113,7 @@ fun Register(navController: NavController, profileViewModel: ProfileViewModel) {
                     value = username,
                     onValueChange = { username = it },
                     label = { Text("Username") },
+                    modifier = textFieldWidth,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                 )
 
@@ -106,9 +121,21 @@ fun Register(navController: NavController, profileViewModel: ProfileViewModel) {
                     value = password,
                     onValueChange = { password = it },
                     label = { Text("Password") },
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon = {
+                        val icon = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                        val description = if (passwordVisible) "Nascondi password" else "Mostra password"
+
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(imageVector = icon, contentDescription = description)
+                        }
+                    },
+                    singleLine = true,
+                    modifier = textFieldWidth,
                 )
+
+                Spacer(modifier = Modifier.height(20.dp))
 
                 Button(onClick = {
                     profileViewModel.registerUser(
