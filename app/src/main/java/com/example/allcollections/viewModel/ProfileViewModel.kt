@@ -13,6 +13,7 @@ import com.example.allcollections.notification.NotificationItem
 import com.example.allcollections.profile.FollowType
 import com.example.allcollections.profile.UserData
 import com.example.allcollections.utils.formatRelativeTime
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
@@ -378,8 +379,6 @@ class ProfileViewModel : ViewModel() {
 
 
     private val _hasUnreadNotifications = MutableStateFlow(false)
-    val hasUnreadNotifications: StateFlow<Boolean> = _hasUnreadNotifications
-
 
     fun getCurrentUserId(): String {
         return FirebaseAuth.getInstance().currentUser?.uid ?: "anonimo"
@@ -396,6 +395,41 @@ class ProfileViewModel : ViewModel() {
             }
     }
 
+    fun changePassword(
+        currentPassword: String,
+        newPassword: String,
+        confirmPassword: String,
+        onResult: (Boolean, String?) -> Unit
+    ) {
+        val user = FirebaseAuth.getInstance().currentUser
+        val email = user?.email
+
+        if (email == null) {
+            onResult(false, "Utente non autenticato.")
+            return
+        }
+
+        if (newPassword != confirmPassword) {
+            onResult(false, "Le nuove password non coincidono.")
+            return
+        }
+
+        val credential = EmailAuthProvider.getCredential(email, currentPassword)
+
+        user.reauthenticate(credential)
+            .addOnSuccessListener {
+                user.updatePassword(newPassword)
+                    .addOnSuccessListener {
+                        onResult(true, null)
+                    }
+                    .addOnFailureListener { e ->
+                        onResult(false, "Errore durante l'aggiornamento: ${e.message}")
+                    }
+            }
+            .addOnFailureListener {
+                onResult(false, "La password attuale non è corretta.")
+            }
+    }
 
 }
 

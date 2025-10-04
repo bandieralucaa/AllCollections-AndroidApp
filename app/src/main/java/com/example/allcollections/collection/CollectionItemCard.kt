@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -38,12 +39,12 @@ fun CollectionItemCard(
     item: CollectionItem,
     showMenu: Boolean,
     onEdit: () -> Unit = {},
-    onDelete: () -> Unit = {}
+    onDelete: () -> Unit = {},
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+        modifier = modifier
+            .fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
@@ -74,7 +75,7 @@ fun CollectionItemCard(
 
                 Box {
                     IconButton(onClick = { expanded = true }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Opzioni oggetto")
+                        Icon(Icons.Default.MoreHoriz, contentDescription = "Opzioni oggetto")
                     }
 
                     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {

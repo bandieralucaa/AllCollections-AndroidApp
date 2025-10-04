@@ -24,37 +24,30 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import com.example.allcollections.navigation.MyTopBar
+import com.example.allcollections.utils.DatePickerField
+import com.example.allcollections.utils.GenderSelector
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Register(navController: NavController, profileViewModel: ProfileViewModel) {
     val scrollState = rememberScrollState()
-    val context = LocalContext.current
-
+    val snackbarHostState = remember { SnackbarHostState() }
     var name by remember { mutableStateOf("") }
     var surname by remember { mutableStateOf("") }
     var dateOfBirth by remember { mutableStateOf(LocalDate.now()) }
     var email by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var gender by remember { mutableStateOf("Maschio") }
+    var gender by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var passwordVisible by remember { mutableStateOf(false) }
 
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text("Registrazione") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Torna indietro"
-                        )
-                    }
-                }
-            )
+            MyTopBar(navController = navController)
         }
     ) { innerPadding ->
         Box(
@@ -65,9 +58,10 @@ fun Register(navController: NavController, profileViewModel: ProfileViewModel) {
         ) {
             Column(
                 modifier = Modifier
-                    .widthIn(max = 400.dp)
-                    .padding(16.dp)
-                    .verticalScroll(scrollState),
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(innerPadding)
+                    .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -90,13 +84,15 @@ fun Register(navController: NavController, profileViewModel: ProfileViewModel) {
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                 )
 
-                Box(modifier = textFieldWidth) {
-                    GenderSelector(selectedGender = gender) { gender = it }
-                }
+                GenderSelector(
+                    selectedGender = gender,
+                    modifier = textFieldWidth
+                ) { gender = it }
 
-                Box(modifier = textFieldWidth) {
-                    DatePickerField(dateOfBirth) { dateOfBirth = it }
-                }
+                DatePickerField(
+                    selectedDate = dateOfBirth,
+                    modifier = textFieldWidth
+                ) { dateOfBirth = it }
 
                 OutlinedTextField(
                     value = email,
@@ -159,62 +155,4 @@ fun Register(navController: NavController, profileViewModel: ProfileViewModel) {
     }
 }
 
-@Composable
-fun DatePickerField(selectedDate: LocalDate, onDateSelected: (LocalDate) -> Unit) {
-    val context = LocalContext.current
-    var showDialog by remember { mutableStateOf(false) }
-
-    OutlinedTextField(
-        value = selectedDate.format(DateTimeFormatter.ofPattern("dd-MM-yyyy")),
-        onValueChange = {},
-        label = { Text("Data di nascita") },
-        trailingIcon = {
-            IconButton(onClick = { showDialog = true }) {
-                Icon(Icons.Filled.DateRange, contentDescription = "Seleziona data")
-            }
-        },
-        readOnly = true
-    )
-
-    if (showDialog) {
-        val picker = android.app.DatePickerDialog(context)
-        picker.setOnDateSetListener { _, year, month, day ->
-            onDateSelected(LocalDate.of(year, month + 1, day))
-            showDialog = false
-        }
-        picker.show()
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun GenderSelector(selectedGender: String, onGenderSelected: (String) -> Unit) {
-    val options = listOf("Maschio", "Femmina", "Altro", "Non binario", "Preferisco non dichiarare")
-    var expanded by remember { mutableStateOf(false) }
-    var selectedText by remember { mutableStateOf(selectedGender) }
-
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-        TextField(
-            value = selectedText,
-            onValueChange = {},
-            readOnly = true,
-            modifier = Modifier.menuAnchor(),
-            label = { Text("Genere") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option) },
-                    onClick = {
-                        selectedText = option
-                        onGenderSelected(option)
-                        expanded = false
-                    },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
-                )
-            }
-        }
-    }
-}
 

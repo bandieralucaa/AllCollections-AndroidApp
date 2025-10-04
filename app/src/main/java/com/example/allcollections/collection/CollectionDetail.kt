@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -21,6 +22,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.allcollections.comment.Comment
 import com.example.allcollections.comment.CommentItem
+import com.example.allcollections.navigation.MyTopBar
 import com.example.allcollections.navigation.Screens
 import com.example.allcollections.viewModel.CollectionViewModel
 import com.example.allcollections.viewModel.NotificationViewModel
@@ -79,7 +81,10 @@ fun CollectionDetail(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            MyTopBar(navController = navController)
+        }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -87,13 +92,6 @@ fun CollectionDetail(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            item {
-                IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Indietro")
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
             collection.value?.let { col ->
                 item {
                     Row(
@@ -113,7 +111,7 @@ fun CollectionDetail(
 
                             Box {
                                 IconButton(onClick = { expanded = true }) {
-                                    Icon(Icons.Default.Menu, contentDescription = "Opzioni")
+                                    Icon(Icons.Default.MoreHoriz, contentDescription = "Opzioni")
                                 }
 
                                 DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -220,7 +218,8 @@ fun CollectionDetail(
                                     }
                                 }
                             )
-                        }
+                        },
+                        modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
             }

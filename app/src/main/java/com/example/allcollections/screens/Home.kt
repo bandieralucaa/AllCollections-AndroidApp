@@ -122,14 +122,15 @@ fun Home(
                     .padding(padding)
                     .fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(30.dp),
+                horizontalArrangement = Arrangement.spacedBy(30.dp)
             ) {
                 items(allCollections.value.size) { index ->
                     val collection = allCollections.value[index]
                     Card(
                         modifier = Modifier
-                            .fillMaxSize()
+                            .fillMaxWidth(0.95f)
+                            .wrapContentHeight()
                             .clickable {
                                 navController.navigate("collectionDetail/${collection.id}")
                             },
@@ -140,8 +141,7 @@ fun Home(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth(),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -163,7 +163,7 @@ fun Home(
                                 contentDescription = "Immagine collezione",
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(150.dp)
+                                    .height(130.dp)
                                     .clip(MaterialTheme.shapes.medium),
                                 contentScale = ContentScale.Crop
                             )

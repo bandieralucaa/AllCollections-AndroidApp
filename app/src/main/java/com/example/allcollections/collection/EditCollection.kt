@@ -45,6 +45,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import coil.compose.rememberAsyncImagePainter
+import com.example.allcollections.navigation.MyTopBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,13 +57,12 @@ fun EditCollection(
     val collectionState = remember { mutableStateOf<UserCollection?>(null) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-
+    val scrollState = rememberScrollState()
     var newImageUri by remember { mutableStateOf<Uri?>(null) }
+
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri -> newImageUri = uri }
-
-    val scrollState = rememberScrollState()
 
     LaunchedEffect(collectionId) {
         viewModel.getCollectionById(
@@ -83,17 +83,10 @@ fun EditCollection(
         var description by remember { mutableStateOf(collection.description ?: "") }
 
         Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
-                TopAppBar(
-                    title = { Text("Modifica collezione") },
-                    navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(Icons.Filled.ArrowBack, contentDescription = "Torna indietro")
-                        }
-                    }
-                )
-            },
-            snackbarHost = { SnackbarHost(snackbarHostState) }
+                MyTopBar(navController = navController)
+            }
         ) { innerPadding ->
             Column(
                 modifier = Modifier

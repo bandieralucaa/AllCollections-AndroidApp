@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.allcollections.navigation.MyTopBar
 import com.example.allcollections.viewModel.CollectionViewModel
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
@@ -31,7 +32,6 @@ fun MyCollections(navController: NavController, viewModel: CollectionViewModel) 
     val snackbarHostState = remember { SnackbarHostState() }
     val errorMessage = remember { mutableStateOf<String?>(null) }
     val currentError by rememberUpdatedState(errorMessage.value)
-    val scope = rememberCoroutineScope()
 
     LaunchedEffect(currentError) {
         currentError?.let {
@@ -49,17 +49,10 @@ fun MyCollections(navController: NavController, viewModel: CollectionViewModel) 
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState)},
         topBar = {
-            TopAppBar(
-                title = { Text("Le mie Collezioni") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Indietro")
-                    }
-                }
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+            MyTopBar(navController = navController)
+        }
     ) { padding ->
         if (collections.value.isEmpty()) {
             Box(

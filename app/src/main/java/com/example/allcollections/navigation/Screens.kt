@@ -17,5 +17,5 @@ enum class Screens {
     AddImageCollection,
     EditPhotoProfile,
     Notifications,
-    EditItem
+    EditPassword
 }

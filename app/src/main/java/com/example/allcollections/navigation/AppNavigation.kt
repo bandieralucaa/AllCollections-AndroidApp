@@ -51,8 +51,11 @@ import com.example.allcollections.viewModel.ThemeState
 import com.example.allcollections.viewModel.ViewModelContainer
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Badge
+import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.unit.sp
 import com.example.allcollections.collection.EditItem
+import com.example.allcollections.profile.EditPassword
 import com.example.allcollections.viewModel.NotificationViewModel
 
 @Composable
@@ -76,7 +79,12 @@ fun AppNavigation(
     Scaffold(
         bottomBar = {
             if (currentDestination?.route !in listOf(Screens.Login.name, Screens.Register.name)) {
-                NavigationBar(modifier = Modifier.height(55.dp)) {
+                NavigationBar(
+                    modifier = Modifier
+                        .height(72.dp)
+                        .padding(horizontal = 8.dp),
+                    tonalElevation = 4.dp
+                ) {
                     listOfNavItems.forEach { navItem ->
                         NavigationBarItem(
                             selected = currentDestination?.hierarchy?.any { it.route == navItem.route } == true,
@@ -98,12 +106,21 @@ fun AppNavigation(
                                             }
                                         }
                                     ) {
-                                        Icon(navItem.icon, contentDescription = null)
+                                        Icon(
+                                            navItem.icon,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(28.dp)
+                                        )
                                     }
                                 } else {
-                                    Icon(navItem.icon, contentDescription = null)
+                                    Icon(
+                                        navItem.icon,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(28.dp)
+                                    )
                                 }
-                            }
+                            },
+                            alwaysShowLabel = true
                         )
                     }
                 }
@@ -205,6 +222,9 @@ fun AppNavigation(
                     itemId = itemId,
                     viewModel = viewModelContainer.collectionViewModel
                 )
+            }
+            composable("EditPassword") {
+                EditPassword(navController = navController, viewModelContainer.profileViewModel)
             }
         }
     }

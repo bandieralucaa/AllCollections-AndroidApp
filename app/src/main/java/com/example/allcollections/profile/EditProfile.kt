@@ -1,6 +1,7 @@
 package com.example.allcollections.profile
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,14 +31,16 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.allcollections.login.GenderSelector
 import com.example.allcollections.viewModel.ProfileViewModel
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import com.example.allcollections.login.DatePickerField
-
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import com.example.allcollections.navigation.MyTopBar
+import com.example.allcollections.utils.DatePickerField
+import com.example.allcollections.utils.GenderSelector
 
 @Composable
 fun EditProfile(navController: NavController) {
@@ -49,9 +52,9 @@ fun EditProfile(navController: NavController) {
     var email by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(true) {
         val userData = profileViewModel.getUserData()
@@ -63,113 +66,81 @@ fun EditProfile(navController: NavController) {
         username = userData.username
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Row(
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            MyTopBar(navController = navController)
+        }
+    ) { innerPadding ->
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 10.dp),
-            horizontalArrangement = Arrangement.Start
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentAlignment = Alignment.Center
         ) {
-            IconButton(
-                onClick = { navController.popBackStack() }
+            Column(
+                modifier = Modifier
+                    .verticalScroll(scrollState)
+                    .padding(16.dp)
+                    .fillMaxWidth(0.85f),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back"
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nome") },
+                    modifier = Modifier.fillMaxWidth()
                 )
-            }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = surname,
+                    onValueChange = { surname = it },
+                    label = { Text("Cognome") },
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
-            label = { Text(text = "Nome") }
-        )
+                GenderSelector(
+                    selectedGender = gender,
+                    modifier = Modifier.fillMaxWidth()
+                ) { gender = it }
 
-        Spacer(modifier = Modifier.height(10.dp))
+                DatePickerField(
+                    selectedDate = dateOfBirth,
+                    modifier = Modifier.fillMaxWidth()
+                ) { dateOfBirth = it }
 
-        OutlinedTextField(
-            value = surname,
-            onValueChange = { surname = it },
-            label = { Text(text = "Cognome") }
-        )
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Indirizzo email") },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-        Spacer(modifier = Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Username") },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-        GenderSelector(selectedGender = gender) { selectedGender ->
-            gender = selectedGender
-        }
+                Button(onClick = {
+                    profileViewModel.updateUserData(
+                        name, surname, dateOfBirth, email, gender, username
+                    ) { success, error ->
+                        if (success) navController.navigateUp()
+                        else errorMessage = error
+                    }
+                }) {
+                    Text("Salva modifiche")
+                }
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        DatePickerField(dateOfBirth) { selectedDate ->
-            dateOfBirth = selectedDate
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            label = { Text(text = "Indirizzo email") }
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        OutlinedTextField(
-            value = username,
-            onValueChange = { username = it },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            label = { Text(text = "Username") }
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text(text = "Password") },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation()
-        )
-
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Button(onClick = {
-            profileViewModel.updateUserData(
-                name = name,
-                surname = surname,
-                dateOfBirth = dateOfBirth,
-                email = email,
-                gender = gender,
-                username = username,
-            ) { success, error ->
-                if (success) {
-                    navController.navigateUp()
-                } else {
-                    errorMessage = error
+                errorMessage?.let {
+                    Text(text = it, color = Color.Red)
                 }
             }
-        }) {
-            Text("Salva modifiche")
-        }
-
-        errorMessage?.let { message ->
-            Text(
-                text = message,
-                color = Color.Red
-            )
         }
     }
 }

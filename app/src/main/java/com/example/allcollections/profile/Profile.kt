@@ -171,7 +171,7 @@ fun ProfileContent(navController: NavController) {
                 } else {
                     Column {
                         followList.forEach { user ->
-                           Row(
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 8.dp),

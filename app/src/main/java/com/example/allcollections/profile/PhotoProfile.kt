@@ -29,14 +29,10 @@ import android.content.Intent
 import android.provider.Settings
 import com.example.allcollections.utils.PermissionStatus
 
-
 @Composable
 fun PhotoProfile(navController: NavController, userId: String, profileViewModel: ProfileViewModel) {
     val context = LocalContext.current
-    val userData = profileViewModel.pendingUserData
     var shouldNavigateToLogin by remember { mutableStateOf(false) }
-
-
 
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(false) }
@@ -60,6 +56,14 @@ fun PhotoProfile(navController: NavController, userId: String, profileViewModel:
         }
     }
 
+    val galleryPermission = rememberPermission(Manifest.permission.READ_MEDIA_IMAGES) {
+        if (it.isGranted) {
+            galleryLauncher.launch("image/*")
+        } else {
+            Toast.makeText(context, "Permesso galleria negato", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = cameraLauncher.snackbarHostState) }
     ) { innerPadding ->
@@ -72,12 +76,34 @@ fun PhotoProfile(navController: NavController, userId: String, profileViewModel:
             verticalArrangement = Arrangement.Center
         ) {
             Text("Scegli la tua foto profilo", fontSize = 22.sp)
-
             Spacer(modifier = Modifier.height(16.dp))
 
             if (selectedImageUri == null) {
-                Button(onClick = { galleryLauncher.launch("image/*") }) {
+                Button(onClick = {
+                    when (galleryPermission.status) {
+                        PermissionStatus.Granted -> galleryLauncher.launch("image/*")
+                        PermissionStatus.Denied -> galleryPermission.launchPermissionRequest()
+                        PermissionStatus.PermanentlyDenied -> Toast.makeText(
+                            context,
+                            "Vai nelle impostazioni per abilitare la galleria",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        else -> galleryPermission.launchPermissionRequest()
+                    }
+                }) {
                     Text("Scegli dalla galleria")
+                }
+
+                if (galleryPermission.status == PermissionStatus.PermanentlyDenied) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = {
+                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.fromParts("package", context.packageName, null)
+                        }
+                        context.startActivity(intent)
+                    }) {
+                        Text("Apri Impostazioni")
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -111,10 +137,8 @@ fun PhotoProfile(navController: NavController, userId: String, profileViewModel:
                     }
                 }
 
-
                 Spacer(modifier = Modifier.height(16.dp))
             }
-
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -163,7 +187,6 @@ fun PhotoProfile(navController: NavController, userId: String, profileViewModel:
             }
 
             if (selectedImageUri == null) {
-
                 Button(onClick = {
                     profileViewModel.finalizeUserRegistration(
                         imageUrl = null,
@@ -180,7 +203,6 @@ fun PhotoProfile(navController: NavController, userId: String, profileViewModel:
                     Text("Salta")
                 }
             }
-
         }
     }
 
@@ -195,6 +217,4 @@ fun PhotoProfile(navController: NavController, userId: String, profileViewModel:
             shouldNavigateToLogin = false
         }
     }
-
-
 }
