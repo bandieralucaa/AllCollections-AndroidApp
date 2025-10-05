@@ -22,7 +22,6 @@ import com.example.allcollections.viewModel.ProfileViewModel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import com.example.allcollections.profile.FollowType
 
 @Composable
 fun Profile(navController: NavController) {
@@ -208,5 +207,4 @@ fun ProfileContent(navController: NavController) {
             }
         )
     }
-
 }

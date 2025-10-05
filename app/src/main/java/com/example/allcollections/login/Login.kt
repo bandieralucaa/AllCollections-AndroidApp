@@ -20,8 +20,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.allcollections.R
 import com.example.allcollections.navigation.Screens
-import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
-import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import android.util.Log
@@ -48,7 +46,7 @@ fun Login(navController: NavController, viewModel: ProfileViewModel) {
     val cleanedEmail = email.trim()
     val cleanedPassword = password
     var passwordVisible by remember { mutableStateOf(false) }
-
+    val textFieldWidth = Modifier.fillMaxWidth(0.8f)
 
     LaunchedEffect(currentUser) {
         if (currentUser != null) {
@@ -58,17 +56,11 @@ fun Login(navController: NavController, viewModel: ProfileViewModel) {
         }
     }
 
-
-
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-
-        val textFieldWidth = Modifier.fillMaxWidth(0.8f)
-
-
         Image(
             painter = painterResource(id = R.drawable.logo),
             contentDescription = "Logo",

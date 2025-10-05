@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -30,7 +29,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.example.allcollections.navigation.Screens
 import com.example.allcollections.viewModel.CollectionViewModel
 import kotlinx.coroutines.launch
@@ -45,7 +43,6 @@ fun AddImageCollection(
     var isUploading by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
 
     val galleryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()

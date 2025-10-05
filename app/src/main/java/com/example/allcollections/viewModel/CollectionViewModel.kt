@@ -1,6 +1,5 @@
 package com.example.allcollections.viewModel
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import android.net.Uri
 import android.util.Log
@@ -11,24 +10,14 @@ import com.cloudinary.android.callback.UploadCallback
 import com.example.allcollections.collection.CollectionItem
 import com.example.allcollections.collection.UserCollection
 import com.example.allcollections.comment.Comment
-import com.google.firebase.auth.auth
 import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.SetOptions
-import com.google.firebase.firestore.firestore
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
-import com.google.firebase.storage.ktx.storage
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.launch
 
 class CollectionViewModel : ViewModel() {
-
     private val db = Firebase.firestore
     private val auth = Firebase.auth
 
@@ -52,7 +41,6 @@ class CollectionViewModel : ViewModel() {
             "description" to description,
             "iduser" to userId
         )
-
 
         viewModelScope.launch {
             try {
@@ -82,7 +70,7 @@ class CollectionViewModel : ViewModel() {
 
                 val collections = querySnapshot.documents.mapNotNull { doc ->
                     val collection = doc.toObject(UserCollection::class.java)
-                    collection?.copy(id = doc.id) // 🔥 questo è ciò che serve
+                    collection?.copy(id = doc.id)
                 }
 
                 onSuccess(collections)
@@ -245,7 +233,7 @@ class CollectionViewModel : ViewModel() {
         val options = mapOf("invalidate" to true)
 
         return try {
-            val result = MediaManager.get()
+            MediaManager.get()
                 .cloudinary
                 .uploader()
                 .destroy(publicId, options)
@@ -382,7 +370,6 @@ class CollectionViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             try {
-                // 1. Elimina tutti gli oggetti associati
                 val itemsSnapshot = db.collection("collections")
                     .document(collectionId)
                     .collection("items")
@@ -393,7 +380,6 @@ class CollectionViewModel : ViewModel() {
                     deleteItemFromCollectionSuspend(collectionId, doc.id)
                 }
 
-                // 2. Elimina tutti i commenti associati
                 val commentsSnapshot = db.collection("comments")
                     .whereEqualTo("collectionId", collectionId)
                     .get()
@@ -403,7 +389,6 @@ class CollectionViewModel : ViewModel() {
                     commentDoc.reference.delete().await()
                 }
 
-                // 3. Elimina tutte le notifiche associate
                 val notificationsSnapshot = db.collection("notifications")
                     .whereEqualTo("collectionId", collectionId)
                     .get()
@@ -413,7 +398,6 @@ class CollectionViewModel : ViewModel() {
                     notificationDoc.reference.delete().await()
                 }
 
-                // 4. Elimina la collezione stessa
                 db.collection("collections")
                     .document(collectionId)
                     .delete()
@@ -440,6 +424,7 @@ class CollectionViewModel : ViewModel() {
 
         publicId?.let { deleteImageFromCloudinary(it) }
     }
+
 
     fun UserCollection.toMap(): Map<String, Any> {
         val map = mutableMapOf<String, Any>()
@@ -658,7 +643,6 @@ class CollectionViewModel : ViewModel() {
                         doc.toObject(UserCollection::class.java)?.copy(id = doc.id)
                     }
 
-                    // 🔄 Per ogni collezione, recupera lo username
                     val enrichedCollections = mutableListOf<UserCollection>()
                     val pending = collections.size
                     var done = 0
@@ -771,28 +755,6 @@ class CollectionViewModel : ViewModel() {
             }
     }
 
-    fun updateItemInCollection(
-        collectionId: String,
-        itemId: String,
-        updatedItem: CollectionItem,
-        onSuccess: () -> Unit,
-        onFailure: (String) -> Unit
-    ) {
-        viewModelScope.launch {
-            try {
-                db.collection("collections")
-                    .document(collectionId)
-                    .collection("items")
-                    .document(itemId)
-                    .set(updatedItem)
-                    .await()
-
-                onSuccess()
-            } catch (e: Exception) {
-                onFailure("Errore aggiornamento: ${e.message}")
-            }
-        }
-    }
 
     fun deleteItemFromCollection(
         collectionId: String,

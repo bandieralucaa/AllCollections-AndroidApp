@@ -32,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -52,6 +51,7 @@ fun EditItem(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var isSaving by remember { mutableStateOf(false) }
+    val item = itemState.value
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -74,7 +74,6 @@ fun EditItem(
         )
     }
 
-    val item = itemState.value
     if (item != null) {
         var description by remember { mutableStateOf(item.description ?: "") }
 

@@ -1,20 +1,16 @@
 package com.example.allcollections.navigation
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import com.example.allcollections.ui.theme.ThemeMode
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -51,9 +47,7 @@ import com.example.allcollections.viewModel.ThemeState
 import com.example.allcollections.viewModel.ViewModelContainer
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Badge
-import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.unit.sp
 import com.example.allcollections.collection.EditItem
 import com.example.allcollections.profile.EditPassword
 import com.example.allcollections.viewModel.NotificationViewModel

@@ -9,35 +9,25 @@ import androidx.lifecycle.ViewModel
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
-import com.example.allcollections.notification.NotificationItem
 import com.example.allcollections.profile.FollowType
 import com.example.allcollections.profile.UserData
-import com.example.allcollections.utils.formatRelativeTime
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
-import java.text.SimpleDateFormat
-import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 
 class ProfileViewModel : ViewModel() {
-
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
     private val _isLoggedIn = mutableStateOf(false)
-
-    val isLoggedIn: State<Boolean> = _isLoggedIn
     private val _loginErrorMessage = mutableStateOf<String?>(null)
-    val loginErrorMessage: State<String?> = _loginErrorMessage
     private val _profileImageUrl = mutableStateOf<String?>(null)
     val profileImageUrl: State<String?> = _profileImageUrl
     var pendingUserData: UserData? = null
@@ -254,7 +244,6 @@ class ProfileViewModel : ViewModel() {
             .document(docId)
             .set(data)
             .addOnSuccessListener {
-                // delega la notifica al NotificationViewModel
                 notificationViewModel.sendFollowNotification(
                     recipientId = followedId,
                     senderId = followerId
@@ -377,9 +366,6 @@ class ProfileViewModel : ViewModel() {
             }
     }
 
-
-    private val _hasUnreadNotifications = MutableStateFlow(false)
-
     fun getCurrentUserId(): String {
         return FirebaseAuth.getInstance().currentUser?.uid ?: "anonimo"
     }
@@ -391,7 +377,7 @@ class ProfileViewModel : ViewModel() {
                 callback(photoUrl)
             }
             .addOnFailureListener {
-                callback("") // fallback in caso di errore
+                callback("")
             }
     }
 

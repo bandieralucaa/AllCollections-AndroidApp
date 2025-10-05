@@ -23,10 +23,8 @@ fun SearchPage(viewModel: CollectionViewModel, navController: NavController) {
     val allCollections = remember { mutableStateOf(emptyList<UserCollection>()) }
     val searchQuery = remember { mutableStateOf("") }
     val errorMessage = remember { mutableStateOf<String?>(null) }
-
     val currentUserId = Firebase.auth.currentUser?.uid
 
-    // Recupera tutte le collezioni degli altri utenti
     LaunchedEffect(Unit) {
         viewModel.getAllCollectionsWithUsernames(
             onSuccess = { collections ->

@@ -26,8 +26,9 @@ fun EditObject(
     val itemState = remember { mutableStateOf<CollectionItem?>(null) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-
+    val item = itemState.value
     var newImageUri by remember { mutableStateOf<Uri?>(null) }
+
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
@@ -47,7 +48,6 @@ fun EditObject(
         )
     }
 
-    val item = itemState.value
     if (item != null) {
         var description by remember { mutableStateOf(item.description) }
 
@@ -95,7 +95,6 @@ fun EditObject(
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(onClick = {
-                // Aggiorna descrizione
                 viewModel.updateItemDescription(
                     collectionId = collectionId,
                     itemId = item.id,

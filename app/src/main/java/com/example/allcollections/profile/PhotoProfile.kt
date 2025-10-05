@@ -2,7 +2,6 @@ package com.example.allcollections.profile
 
 import android.Manifest
 import android.net.Uri
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,7 +13,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -23,8 +21,6 @@ import com.example.allcollections.utils.rememberCameraLauncher
 import com.example.allcollections.utils.rememberPermission
 import com.example.allcollections.viewModel.ProfileViewModel
 import com.cloudinary.android.MediaManager
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 import android.content.Intent
 import android.provider.Settings
 import com.example.allcollections.utils.PermissionStatus
@@ -33,7 +29,6 @@ import com.example.allcollections.utils.PermissionStatus
 fun PhotoProfile(navController: NavController, userId: String, profileViewModel: ProfileViewModel) {
     val context = LocalContext.current
     var shouldNavigateToLogin by remember { mutableStateOf(false) }
-
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var uploadSuccess by remember { mutableStateOf(false) }
@@ -158,7 +153,7 @@ fun PhotoProfile(navController: NavController, userId: String, profileViewModel:
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(8.dp))
                 } else if (uploadSuccess) {
-                    Text("✅ Foto salvata con successo!", color = MaterialTheme.colorScheme.primary)
+                    Text("Foto salvata con successo!", color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
@@ -172,7 +167,7 @@ fun PhotoProfile(navController: NavController, userId: String, profileViewModel:
                             onSuccess = {
                                 uploadSuccess = true
                                 shouldNavigateToLogin = true
-                                Toast.makeText(context, "Registrazione completata! Accedi ora 🎉", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, "Registrazione completata! Accedi ora", Toast.LENGTH_LONG).show()
                             },
                             onFailure = {
                                 Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
@@ -193,7 +188,7 @@ fun PhotoProfile(navController: NavController, userId: String, profileViewModel:
                         onSuccess = {
                             uploadSuccess = true
                             shouldNavigateToLogin = true
-                            Toast.makeText(context, "Registrazione completata! Accedi ora 🎉", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, "Registrazione completata! Accedi ora", Toast.LENGTH_LONG).show()
                         },
                         onFailure = {
                             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()

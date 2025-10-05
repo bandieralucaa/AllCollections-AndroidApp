@@ -11,7 +11,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.example.allcollections.navigation.AppNavigation
 import com.example.allcollections.navigation.Screens
@@ -58,7 +57,7 @@ class MainActivity : ComponentActivity() {
                     ThemeMode.System -> isSystemInDarkTheme()
                 }
             ) {
-                Surface( // Imposta lo sfondo in base al tema selezionato
+                Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {

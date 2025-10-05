@@ -11,10 +11,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -34,10 +30,8 @@ import com.example.allcollections.viewModel.ThemeState
 
 @Composable
 fun ChooseTheme(state: ThemeState, onThemeSelected: (theme: ThemeMode) -> Unit, navController: NavController) {
-
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
-
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },

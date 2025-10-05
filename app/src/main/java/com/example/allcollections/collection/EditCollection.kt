@@ -4,22 +4,16 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -29,19 +23,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
 import com.example.allcollections.viewModel.CollectionViewModel
 import kotlinx.coroutines.launch
 import android.net.Uri
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import coil.compose.rememberAsyncImagePainter
@@ -59,6 +49,7 @@ fun EditCollection(
     val snackbarHostState = remember { SnackbarHostState() }
     val scrollState = rememberScrollState()
     var newImageUri by remember { mutableStateOf<Uri?>(null) }
+    val collection = collectionState.value
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -76,7 +67,6 @@ fun EditCollection(
         )
     }
 
-    val collection = collectionState.value
     if (collection != null) {
         var name by remember { mutableStateOf(collection.name) }
         var category by remember { mutableStateOf(collection.category ?: "") }

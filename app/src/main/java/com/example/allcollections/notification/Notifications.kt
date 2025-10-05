@@ -42,7 +42,6 @@ fun Notifications(
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()

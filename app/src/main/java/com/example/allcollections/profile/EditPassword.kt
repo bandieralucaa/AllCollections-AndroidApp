@@ -42,6 +42,7 @@ fun EditPassword(navController: NavController, profileViewModel: ProfileViewMode
     var currentPasswordVisible by remember { mutableStateOf(false) }
     var newPasswordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
+    val fieldModifier = Modifier.fillMaxWidth()
 
     Scaffold(
         topBar = { MyTopBar(navController = navController, title = "Modifica password") }
@@ -54,8 +55,6 @@ fun EditPassword(navController: NavController, profileViewModel: ProfileViewMode
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            val fieldModifier = Modifier.fillMaxWidth()
-
             OutlinedTextField(
                 value = currentPassword,
                 onValueChange = { currentPassword = it },

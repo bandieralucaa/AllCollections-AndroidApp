@@ -17,9 +17,7 @@ enum class PermissionStatus {
     Granted,
     Denied,
     PermanentlyDenied;
-
     val isGranted get() = this == Granted
-    val isDenied get() = this == Denied || this == PermanentlyDenied
 }
 
 interface PermissionHandler {
