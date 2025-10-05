@@ -1,9 +1,11 @@
 package com.example.allcollections.collection
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
@@ -48,6 +50,7 @@ fun CollectionDetail(
     val notificationViewModel: NotificationViewModel = viewModel()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    var fullscreenImageUrl by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(collectionId) {
         viewModel.getCollectionById(
@@ -81,11 +84,14 @@ fun CollectionDetail(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            MyTopBar(navController = navController)
-        }
+            if (fullscreenImageUrl == null) {
+                MyTopBar(navController = navController)
+            }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -152,7 +158,8 @@ fun CollectionDetail(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(200.dp)
-                            .clip(MaterialTheme.shapes.medium),
+                            .clip(MaterialTheme.shapes.medium)
+                            .clickable { fullscreenImageUrl = col.collectionImageUrl },
                         contentScale = ContentScale.Crop
                     )
 
@@ -219,7 +226,8 @@ fun CollectionDetail(
                                 }
                             )
                         },
-                        modifier = Modifier.padding(vertical = 8.dp)
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        onImageClick = { imageUrl -> fullscreenImageUrl = imageUrl }
                     )
                 }
             }
@@ -293,6 +301,43 @@ fun CollectionDetail(
                 }
             }
         }
+
+        fullscreenImageUrl?.let { url ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.95f))
+            ) {
+                AsyncImage(
+                    model = url,
+                    contentDescription = "Immagine ingrandita",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable { fullscreenImageUrl = null },
+                    contentScale = ContentScale.Fit
+                )
+
+                IconButton(
+                    onClick = { fullscreenImageUrl = null },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(16.dp)
+                        .size(40.dp)
+                        .background(
+                            color = Color.White.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(50)
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Chiudi anteprima",
+                        tint = Color.Black
+                    )
+                }
+            }
+        }
+
+
     }
 }
 

@@ -26,7 +26,6 @@ import com.google.firebase.auth.FirebaseAuth
 fun PublicProfileScreen(userId: String, navController: NavController) {
     val viewModel: CollectionViewModel = viewModel()
     val profileViewModel: ProfileViewModel = viewModel()
-
     var username by remember { mutableStateOf("") }
     var profileImageUrl by remember { mutableStateOf<String?>(null) }
     var userCollections by remember { mutableStateOf(emptyList<UserCollection>()) }
@@ -64,93 +63,94 @@ fun PublicProfileScreen(userId: String, navController: NavController) {
             )
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            horizontalAlignment = Alignment.CenterHorizontally,
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
 
-            profileImageUrl?.let { url ->
-                AsyncImage(
-                    model = url,
-                    contentDescription = "Foto profilo",
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clip(MaterialTheme.shapes.medium),
-                    contentScale = ContentScale.Crop
-                )
+        ) {
+            item {
+                profileImageUrl?.let { url ->
+                    AsyncImage(
+                        model = url,
+                        contentDescription = "Foto profilo",
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(MaterialTheme.shapes.medium),
+                        contentScale = ContentScale.Crop
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            item {
+                Text(text = username, style = MaterialTheme.typography.titleMedium)
+            }
 
-            Text(text = username, style = MaterialTheme.typography.titleMedium)
+            item {
+                Text(text = "Follower: $followerCount")
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(text = "Follower: $followerCount")
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = {
-                    if (isFollowing) {
-                        profileViewModel.unfollowUser(currentUserId, userId) {
-                            if (it) {
-                                refreshProfile()
-                                profileViewModel.getFollowerCount(userId) { count ->
-                                    followerCount = count
+            item {
+                Button(
+                    onClick = {
+                        if (isFollowing) {
+                            profileViewModel.unfollowUser(currentUserId, userId) {
+                                if (it) {
+                                    refreshProfile()
+                                    profileViewModel.getFollowerCount(userId) { count ->
+                                        followerCount = count
+                                    }
                                 }
                             }
-                        }
-                    } else {
-                        profileViewModel.followUser(currentUserId, userId, notificationViewModel) {
-                            if (it) {
-                                refreshProfile()
-                                profileViewModel.getFollowerCount(userId) { count ->
-                                    followerCount = count
+                        } else {
+                            profileViewModel.followUser(currentUserId, userId, notificationViewModel) {
+                                if (it) {
+                                    refreshProfile()
+                                    profileViewModel.getFollowerCount(userId) { count ->
+                                        followerCount = count
+                                    }
                                 }
                             }
                         }
                     }
+                ){
+                    Text(if (isFollowing) "Seguito" else "Segui")
                 }
-            ){
-                Text(if (isFollowing) "Seguito ✓" else "Segui")
             }
 
-            LazyColumn(modifier = Modifier.padding(16.dp)) {
-                items(userCollections.size) { index ->
-                    val collection = userCollections[index]
-                    Card(
+            items(userCollections.size) { index ->
+                val collection = userCollections[index]
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .clickable {
+                            navController.navigate("collectionDetail/${collection.id}")
+                        }
+                ) {
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                            .clickable {
-                                navController.navigate("collectionDetail/${collection.id}")
-                            }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
+                        AsyncImage(
+                            model = collection.collectionImageUrl,
+                            contentDescription = "Immagine collezione",
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            AsyncImage(
-                                model = collection.collectionImageUrl,
-                                contentDescription = "Immagine collezione",
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .clip(MaterialTheme.shapes.medium),
-                                contentScale = ContentScale.Crop
-                            )
+                                .size(64.dp)
+                                .clip(MaterialTheme.shapes.medium),
+                            contentScale = ContentScale.Crop
+                        )
 
-                            Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
 
-                            Column {
-                                Text(text = collection.name, style = MaterialTheme.typography.titleSmall)
-                                Text(text = collection.category ?: "", style = MaterialTheme.typography.bodySmall)
-                            }
+                        Column {
+                            Text(text = collection.name, style = MaterialTheme.typography.titleSmall)
+                            Text(text = collection.category ?: "", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }

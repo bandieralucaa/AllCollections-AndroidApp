@@ -33,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import androidx.compose.foundation.clickable
 
 @Composable
 fun CollectionItemCard(
@@ -40,7 +41,8 @@ fun CollectionItemCard(
     showMenu: Boolean,
     onEdit: () -> Unit = {},
     onDelete: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onImageClick: (String) -> Unit = {}
 ) {
     Card(
         modifier = modifier
@@ -58,8 +60,9 @@ fun CollectionItemCard(
                 contentDescription = "Immagine oggetto",
                 modifier = Modifier
                     .size(64.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onImageClick(item.imageUrl) },
+            contentScale = ContentScale.Crop
             )
 
             Spacer(modifier = Modifier.width(12.dp))
