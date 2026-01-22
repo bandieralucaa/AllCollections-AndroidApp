@@ -1,3 +1,4 @@
+import org.gradle.kotlin.dsl.android
 import java.util.Properties
 
 plugins {
@@ -82,14 +83,13 @@ dependencies {
     implementation(libs.androidx.navigation.compose.android)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
 
-    // Firebase con BOM
-    implementation(platform("com.google.firebase:firebase-bom:33.6.0"))
+    // Firebase con BOM (versione aggiornata)
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-analytics-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
-    implementation("com.google.firebase:firebase-messaging:23.0.0")
-
+    implementation("com.google.firebase:firebase-messaging-ktx")
 
     // Cloudinary (versione più aggiornata)
     implementation("com.cloudinary:cloudinary-android:3.0.2")
