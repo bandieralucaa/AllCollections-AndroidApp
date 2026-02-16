@@ -17,6 +17,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
+import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.data.model.UserCollection
 import kotlinx.coroutines.launch
@@ -176,8 +177,8 @@ fun EditCollectionScreen(
                                 }
 
                                 // Naviga alla detail screen dopo salvataggio
-                                navController.navigate("CollectionDetailScreen/${currentCollection.id}") {
-                                    popUpTo("editCollection/${currentCollection.id}") { inclusive = true }
+                                navController.navigate(Screens.CollectionDetailScreen.collectionDetailRoute(currentCollection.id)) {
+                                    popUpTo("edit_collection/${currentCollection.id}") { inclusive = true }
                                 }
 
                             } catch (e: Exception) {

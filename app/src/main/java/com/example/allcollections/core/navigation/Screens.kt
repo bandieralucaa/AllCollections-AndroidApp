@@ -27,6 +27,8 @@ enum class Screens(val route: String) {
     AddCollectionObjectScreen("add_object_collection/{collectionId}"),
     EditCollectionItemScreen("edit_collection_item/{collectionId}/{itemId}"),
 
+    EditCollectionScreen("edit_collection/{collectionId}"),
+
     // ─────────── HOME / SEARCH / NOTIFICATIONS ───────────
     HomeScreen("home"),
     SearchScreen("search"),

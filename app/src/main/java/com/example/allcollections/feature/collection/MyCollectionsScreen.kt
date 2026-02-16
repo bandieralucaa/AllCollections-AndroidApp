@@ -158,8 +158,7 @@ fun MyCollectionsScreen(
                                 layoutType = CollectionCardLayout.Horizontal, // Layout orizzontale per lista
                                 showMenu = true, // Mostra menu modifica/elimina
                                 onEdit = {
-                                    navController.navigate("editCollection/${collection.id}")
-                                },
+                                    navController.navigate(Screens.EditCollectionScreen.editCollectionRoute(collection.id))                                },
                                 onDelete = {
                                     scope.launch {
                                         val result = snackbarHostState.showSnackbar(

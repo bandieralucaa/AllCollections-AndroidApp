@@ -21,8 +21,8 @@ import com.example.allcollections.core.theme.ThemeState
 import com.example.allcollections.feature.auth.*
 import com.example.allcollections.feature.collection.*
 import com.example.allcollections.feature.home.HomeScreen
-import com.example.allcollections.feature.notification.NotificationViewModel
 import com.example.allcollections.feature.notification.NotificationsScreen
+import com.example.allcollections.feature.notification.presentation.NotificationViewModel
 import com.example.allcollections.feature.profile.*
 import com.example.allcollections.feature.publicProfile.PublicProfileScreen
 import com.example.allcollections.feature.search.SearchScreen
@@ -43,11 +43,6 @@ fun AppNavigation(
     val hasUnreadNotifications by notificationViewModel
         .hasUnreadNotifications
         .collectAsState(initial = false)
-
-    // Controlla notifiche non lette all'avvio
-    LaunchedEffect(Unit) {
-        notificationViewModel.checkUnreadNotifications()
-    }
 
     Scaffold(
         bottomBar = {
@@ -234,6 +229,16 @@ private fun NavGraphBuilder.collectionNav(navController: NavHostController) {
         val itemId = requireNotNull(entry.arguments?.getString("itemId"))
         EditCollectionItemScreen(navController, collectionId, itemId, koinViewModel())
     }
+
+    composable(
+        route = Screens.EditCollectionScreen.route,
+        arguments = listOf(navArgument("collectionId") { type = NavType.StringType })
+    ) { entry ->
+        val collectionId = requireNotNull(entry.arguments?.getString("collectionId"))
+        EditCollectionScreen(navController, collectionId, koinViewModel())
+    }
+
+
 }
 
 /* ---------------- SETTINGS NAVIGATION ---------------- */

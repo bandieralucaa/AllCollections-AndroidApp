@@ -18,9 +18,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.data.model.UserCollection
 import com.example.allcollections.feature.collection.CollectionViewModel
-import com.example.allcollections.feature.notification.NotificationViewModel
+import com.example.allcollections.feature.notification.presentation.NotificationViewModel
 import com.example.allcollections.feature.profile.ProfileViewModel
 import com.google.firebase.auth.FirebaseAuth
 
@@ -44,7 +45,6 @@ fun PublicProfileScreen(
     // ViewModel
     val profileVM: ProfileViewModel = viewModel()
     val collectionVM: CollectionViewModel = viewModel()
-    val notificationVM: NotificationViewModel = viewModel()
 
     // Stati locali per UI
     var username by remember { mutableStateOf("Utente") }
@@ -144,7 +144,7 @@ fun PublicProfileScreen(
                         .fillMaxWidth()
                         .padding(vertical = 8.dp)
                         .clickable {
-                            navController.navigate("CollectionDetailScreen/${collection.id}")
+                            navController.navigate(Screens.CollectionDetailScreen.collectionDetailRoute(collection.id))
                         }
                 ) {
                     Row(

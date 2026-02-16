@@ -203,7 +203,7 @@ fun EditProfileScreen(
                                 scope.launch {
                                     if (success) {
                                         snackbarHostState.showSnackbar("Profilo aggiornato")
-                                        navController.navigateUp()
+                                        navController.popBackStack()
                                     } else {
                                         snackbarHostState.showSnackbar(
                                             error ?: "Errore aggiornamento profilo"

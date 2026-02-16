@@ -9,7 +9,7 @@ import com.cloudinary.android.callback.UploadCallback
 import com.example.allcollections.data.model.CollectionItem
 import com.example.allcollections.data.model.Comment
 import com.example.allcollections.data.model.UserCollection
-import com.example.allcollections.feature.notification.NotificationViewModel
+import com.example.allcollections.feature.notification.presentation.NotificationViewModel
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -610,7 +610,6 @@ class CollectionViewModel : ViewModel() {
                         if (!recipientId.isNullOrBlank() && recipientId != currentUid) {
                             notificationViewModel.sendCommentNotification(
                                 recipientId = recipientId,
-                                senderId = currentUid,
                                 collectionId = collectionId,
                                 collectionName = collectionName,
                                 commentText = comment.text
