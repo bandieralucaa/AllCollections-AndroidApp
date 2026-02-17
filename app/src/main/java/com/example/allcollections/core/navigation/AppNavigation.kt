@@ -19,6 +19,8 @@ import androidx.navigation.navArgument
 import com.example.allcollections.core.theme.ThemeMode
 import com.example.allcollections.core.theme.ThemeState
 import com.example.allcollections.feature.auth.*
+import com.example.allcollections.feature.chat.presentation.ChatScreen
+import com.example.allcollections.feature.chat.presentation.ChatsListScreen
 import com.example.allcollections.feature.collection.*
 import com.example.allcollections.feature.home.HomeScreen
 import com.example.allcollections.feature.notification.NotificationsScreen
@@ -48,7 +50,9 @@ fun AppNavigation(
         bottomBar = {
             val hideBottomBarRoutes = listOf(
                 Screens.LoginScreen.route,
-                Screens.RegisterScreen.route
+                Screens.RegisterScreen.route,
+                Screens.VerifyEmailScreen.route,
+                Screens.ForgotPasswordScreen.route
             )
             if (currentDestination?.route != null &&
                 hideBottomBarRoutes.none { currentDestination.route!!.startsWith(it) }
@@ -69,6 +73,7 @@ fun AppNavigation(
             profileNav(navController)
             collectionNav(navController)
             settingsNav(navController, themeState, onThemeSelected)
+            chatNav(navController)
         }
     }
 }
@@ -117,6 +122,12 @@ private fun NavGraphBuilder.authNav(navController: NavHostController) {
     composable(Screens.RegisterScreen.route) {
         RegisterScreen(navController, koinViewModel())
     }
+    composable(Screens.VerifyEmailScreen.route) {
+        VerifyEmailScreen(navController, koinViewModel())
+    }
+    composable(Screens.ForgotPasswordScreen.route) {
+        ForgotPasswordScreen(navController)
+    }
 }
 
 /* ---------------- HOME NAVIGATION ---------------- */
@@ -129,7 +140,11 @@ private fun NavGraphBuilder.homeNav(navController: NavHostController) {
 /* ---------------- SEARCH NAVIGATION ---------------- */
 private fun NavGraphBuilder.searchNav(navController: NavHostController) {
     composable(Screens.SearchScreen.route) {
-        SearchScreen(koinViewModel(), navController)
+        SearchScreen(
+            viewModel = koinViewModel(),
+            searchViewModel = koinViewModel(),
+            navController = navController
+        )
     }
 }
 
@@ -240,6 +255,25 @@ private fun NavGraphBuilder.collectionNav(navController: NavHostController) {
 
 
 }
+
+/* ---------------- CHAT NAVIGATION ---------------- */
+private fun NavGraphBuilder.chatNav(navController: NavHostController) {
+    composable(Screens.ChatsListScreen.route) {
+        ChatsListScreen(navController)
+    }
+
+    composable(
+        route = Screens.ChatScreen.route,
+        arguments = listOf(navArgument("userId") { type = NavType.StringType })
+    ) { entry ->
+        val userId = requireNotNull(entry.arguments?.getString("userId"))
+        ChatScreen(
+            otherUserId = userId,
+            navController = navController
+        )
+    }
+}
+
 
 /* ---------------- SETTINGS NAVIGATION ---------------- */
 private fun NavGraphBuilder.settingsNav(

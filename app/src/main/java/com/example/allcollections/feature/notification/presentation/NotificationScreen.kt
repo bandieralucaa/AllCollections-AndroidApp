@@ -42,25 +42,6 @@ fun NotificationsScreen(
                 title = "Notifiche",
                 actions = {
                     if (notifications.isNotEmpty()) {
-                        // Icona "Segna tutti come letti"
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                    notifications.forEach { notification ->
-                                        if (!notification.read) {
-                                            viewModel.markAsRead(notification.id)
-                                        }
-                                    }
-                                    snackbarHostState.showSnackbar("Tutte le notifiche segnate come lette")
-                                }
-                            }
-                        ) {
-                            Icon(
-                                Icons.Default.DoneAll,
-                                contentDescription = "Segna tutti come letti"
-                            )
-                        }
-
                         // Icona "Elimina tutti"
                         IconButton(
                             onClick = { showDeleteAllDialog = true }

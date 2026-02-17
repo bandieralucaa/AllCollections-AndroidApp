@@ -134,6 +134,25 @@ fun LoginScreen(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+                    .padding(top = 4.dp, bottom = 8.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                TextButton(
+                    onClick = { navController.navigate(Screens.ForgotPasswordScreen.route) }
+                ) {
+                    Text(
+                        text = "Password dimenticata?",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
 
             // Bottone Login
             Button(

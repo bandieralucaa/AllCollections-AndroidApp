@@ -34,6 +34,7 @@ import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.feature.notification.presentation.NotificationViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,7 +43,7 @@ fun CollectionDetailScreen(
     collectionId: String,
     viewModel: CollectionViewModel = viewModel(),
     profileViewModel: ProfileViewModel = viewModel(),
-    notificationViewModel: NotificationViewModel = viewModel()
+    notificationViewModel: NotificationViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()

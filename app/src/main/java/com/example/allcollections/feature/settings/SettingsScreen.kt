@@ -3,6 +3,7 @@ package com.example.allcollections.feature.settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -58,7 +59,8 @@ fun SettingsScreen(
         },
         "Cambia tema" to { navController.navigate(Screens.ChooseThemeScreen.route) },
         "Logout" to {
-            viewModel.logout() // Logout corretto senza argomenti
+            viewModel.cleanupListeners()
+            viewModel.logout()
             navController.navigate(Screens.LoginScreen.route) {
                 popUpTo(navController.graph.startDestinationId) { inclusive = true }
             }
@@ -81,8 +83,7 @@ fun SettingsScreen(
         ) {
             // Lista delle impostazioni cliccabili
             LazyColumn(modifier = Modifier.weight(1f)) {
-                items(settingsItems.size) { index ->
-                    val (setting, action) = settingsItems[index]
+                items(settingsItems) { (setting, action) ->
                     ClickableSettingItem(setting = setting, onClick = action)
                     Divider(color = Color.Gray, thickness = 0.5.dp)
                 }

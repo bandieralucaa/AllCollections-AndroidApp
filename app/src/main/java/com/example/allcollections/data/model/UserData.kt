@@ -20,7 +20,7 @@ data class UserData(
     val userId: String = "",
     val name: String = "",
     val surname: String = "",
-    val dateOfBirth: String = "",  // ← CAMBIA DA LocalDate? A String
+    val dateOfBirth: String = "",
     val email: String = "",
     val gender: String = "",
     val username: String = "",

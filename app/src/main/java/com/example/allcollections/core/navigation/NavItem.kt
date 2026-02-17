@@ -1,9 +1,11 @@
 package com.example.allcollections.core.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.QuestionAnswer
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -32,6 +34,10 @@ val bottomNavItems: List<NavItem> = listOf(
     NavItem(
         icon = Icons.Default.Search,
         screen = Screens.SearchScreen
+    ),
+    NavItem(
+        icon = Icons.Default.QuestionAnswer,
+        screen = Screens.ChatsListScreen
     ),
     NavItem(
         icon = Icons.Default.Notifications,

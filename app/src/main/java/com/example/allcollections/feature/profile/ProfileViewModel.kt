@@ -14,6 +14,7 @@ import com.example.allcollections.data.model.UserData
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -27,6 +28,11 @@ class ProfileViewModel : ViewModel() {
     // ----------------------------------
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+
+    // ----------------------------------
+    // LISTENER REGISTRATIONS
+    // ----------------------------------
+    private val listeners = mutableListOf<ListenerRegistration>()
 
     // ----------------------------------
     // UI STATE
@@ -70,6 +76,19 @@ class ProfileViewModel : ViewModel() {
 
         const val DEFAULT_PROFILE_IMAGE =
             "https://res.cloudinary.com/dqtr2napz/image/upload/v1758965362/default_image_profile_okdl8h.png"
+    }
+
+    // ======================================================
+    // CLEANUP (da chiamare prima del logout)
+    // ======================================================
+
+    /**
+     * Rimuove tutti i listener attivi per evitare errori di permessi dopo il logout
+     */
+    fun cleanupListeners() {
+        listeners.forEach { it.remove() }
+        listeners.clear()
+        Log.d("ProfileViewModel", "Listener puliti")
     }
 
     // ======================================================
@@ -135,6 +154,54 @@ class ProfileViewModel : ViewModel() {
         } catch (e: Exception) {
             false
         }
+    }
+
+    // ======================================================
+    // VERIFICA EMAIL
+    // ======================================================
+
+    /**
+     * Invia email di verifica all'utente corrente
+     */
+    fun sendEmailVerification(onResult: (Boolean, String?) -> Unit) {
+        val user = auth.currentUser
+        if (user == null) {
+            onResult(false, "Nessun utente loggato")
+            return
+        }
+
+        user.sendEmailVerification()
+            .addOnSuccessListener {
+                onResult(true, null)
+            }
+            .addOnFailureListener { e ->
+                onResult(false, e.message)
+            }
+    }
+
+    /**
+     * Controlla se l'email dell'utente corrente è verificata
+     */
+    fun isEmailVerified(): Boolean {
+        return auth.currentUser?.isEmailVerified == true
+    }
+
+    /**
+     * Ricarica i dati dell'utente per aggiornare lo stato di verifica email
+     */
+    fun reloadUser(onComplete: (Boolean) -> Unit) {
+        val user = auth.currentUser ?: run {
+            onComplete(false)
+            return
+        }
+
+        user.reload()
+            .addOnSuccessListener {
+                onComplete(true)
+            }
+            .addOnFailureListener {
+                onComplete(false)
+            }
     }
 
     // ======================================================
@@ -275,6 +342,7 @@ class ProfileViewModel : ViewModel() {
     }
 
     fun logout() {
+        cleanupListeners()  // ← Pulisce i listener PRIMA del logout
         auth.signOut()
     }
 
@@ -305,42 +373,41 @@ class ProfileViewModel : ViewModel() {
 
     fun loadFollowers(userId: String) {
         _isLoadingFollowers.value = true
-        db.collection(FOLLOWS)
+        val listener = db.collection(FOLLOWS)
             .whereEqualTo(FIELD_FOLLOWED_ID, userId)
-            .get()
-            .addOnSuccessListener { docs ->
-                val list = docs.documents.mapNotNull { it.getString(FIELD_FOLLOWER_ID) }
+            .addSnapshotListener { docs, error ->
+                if (error != null) {
+                    _followersList.value = emptyList()
+                    _isLoadingFollowers.value = false
+                    return@addSnapshotListener
+                }
+                val list = docs?.documents?.mapNotNull { it.getString(FIELD_FOLLOWER_ID) } ?: emptyList()
                 loadUsersDetails(list) { users ->
                     _followersList.value = users
                     _isLoadingFollowers.value = false
                 }
             }
-            .addOnFailureListener {
-                _followersList.value = emptyList()
-                _isLoadingFollowers.value = false
-            }
+        listeners.add(listener)  // ← Aggiunge il listener alla lista
     }
 
     fun loadFollowing(userId: String) {
         _isLoadingFollowing.value = true
-        db.collection(FOLLOWS)
+        val listener = db.collection(FOLLOWS)
             .whereEqualTo(FIELD_FOLLOWER_ID, userId)
-            .get()
-            .addOnSuccessListener { docs ->
-                val list = docs.documents.mapNotNull { it.getString(FIELD_FOLLOWED_ID) }
+            .addSnapshotListener { docs, error ->
+                if (error != null) {
+                    _followingList.value = emptyList()
+                    _isLoadingFollowing.value = false
+                    return@addSnapshotListener
+                }
+                val list = docs?.documents?.mapNotNull { it.getString(FIELD_FOLLOWED_ID) } ?: emptyList()
                 loadUsersDetails(list) { users ->
                     _followingList.value = users
                     _isLoadingFollowing.value = false
                 }
             }
-            .addOnFailureListener {
-                _followingList.value = emptyList()
-                _isLoadingFollowing.value = false
-            }
+        listeners.add(listener)  // ← Aggiunge il listener alla lista
     }
-
-
-
 
     private fun loadUsersDetails(
         userIds: List<String>,
@@ -423,9 +490,6 @@ class ProfileViewModel : ViewModel() {
             }
     }
 
-
-
-
     // ======================================================
     // PASSWORD
     // ======================================================
@@ -453,6 +517,19 @@ class ProfileViewModel : ViewModel() {
             }
             .addOnFailureListener {
                 onResult(false, "Password attuale errata")
+            }
+    }
+
+    // Aggiungi questa funzione in ProfileViewModel.kt
+    fun getUsernameById(userId: String, onResult: (String) -> Unit) {
+        db.collection("users").document(userId)
+            .get()
+            .addOnSuccessListener { doc ->
+                val username = doc.getString("username") ?: "Utente"
+                onResult(username)
+            }
+            .addOnFailureListener {
+                onResult("Utente")
             }
     }
 }

@@ -18,6 +18,8 @@ enum class Screens(val route: String) {
     // ─────────── AUTH ───────────
     LoginScreen("login"),
     RegisterScreen("register"),
+    ForgotPasswordScreen("forgot_password"),
+    VerifyEmailScreen("verify_email"),
 
     // ─────────── COLLECTION ───────────
     MyCollectionsScreen("my_collections"),
@@ -40,6 +42,10 @@ enum class Screens(val route: String) {
     PhotoProfileScreen("photo_profile/{userId}/{isRegistration}"),
     EditProfileScreen("edit_profile"),
     EditPasswordScreen("edit_password"),
+
+    // ─────────── CHAT ───────────
+    ChatsListScreen("chats"),
+    ChatScreen("chat/{userId}"),
 
     // ─────────── SETTINGS ───────────
     SettingsScreen("settings"),
@@ -70,20 +76,11 @@ enum class Screens(val route: String) {
     fun photoProfileRoute(userId: String, isRegistration: Boolean) =
         "photo_profile/$userId/$isRegistration"
 
-    fun publicProfileRoute(userId: String) =
-        "public_profile/$userId"
-
     fun editCollectionItemRoute(collectionId: String, itemId: String) =
         "edit_collection_item/$collectionId/$itemId"
 
-    fun editItemRoute(collectionId: String, itemId: String) =
-        "edit_item/$collectionId/$itemId"
-
     fun collectionDetailRoute(collectionId: String) =
         "collection_detail/$collectionId"
-
-    fun addCollectionImageRoute(collectionId: String) =
-        "add_image_collection/$collectionId"
 
     fun addCollectionObjectRoute(collectionId: String) =
         "add_object_collection/$collectionId"
@@ -91,6 +88,6 @@ enum class Screens(val route: String) {
     fun editCollectionRoute(collectionId: String) =
         "edit_collection/$collectionId"
 
-    fun editPhotoProfileRoute(userId: String) =
-        "edit_photo_profile/$userId"
+    fun chatRoute(userId: String) =
+        "chat/$userId"
 }
