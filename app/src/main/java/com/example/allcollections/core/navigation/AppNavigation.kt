@@ -20,6 +20,7 @@ import com.example.allcollections.core.theme.ThemeMode
 import com.example.allcollections.core.theme.ThemeState
 import com.example.allcollections.feature.auth.*
 import com.example.allcollections.feature.chat.presentation.ChatScreen
+import com.example.allcollections.feature.chat.presentation.ChatViewModel
 import com.example.allcollections.feature.chat.presentation.ChatsListScreen
 import com.example.allcollections.feature.collection.*
 import com.example.allcollections.feature.home.HomeScreen
@@ -37,7 +38,8 @@ fun AppNavigation(
     startDestination: String,
     themeState: ThemeState,
     onThemeSelected: (ThemeMode) -> Unit,
-    notificationViewModel: NotificationViewModel = koinViewModel()
+    notificationViewModel: NotificationViewModel = koinViewModel(),
+    chatViewModel: ChatViewModel = koinViewModel()
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -45,6 +47,12 @@ fun AppNavigation(
     val hasUnreadNotifications by notificationViewModel
         .hasUnreadNotifications
         .collectAsState(initial = false)
+
+    val unreadMessagesCount by chatViewModel.unreadMessagesCount.collectAsState(initial = 0)
+
+    LaunchedEffect(Unit) {
+        chatViewModel.observeRecentChats()
+    }
 
     Scaffold(
         bottomBar = {
@@ -57,7 +65,12 @@ fun AppNavigation(
             if (currentDestination?.route != null &&
                 hideBottomBarRoutes.none { currentDestination.route!!.startsWith(it) }
             ) {
-                BottomNavBar(currentDestination, navController, hasUnreadNotifications)
+                BottomNavBar(
+                    currentDestination = currentDestination,
+                    navController = navController,
+                    hasUnreadNotifications = hasUnreadNotifications,
+                    unreadMessagesCount = unreadMessagesCount
+                )
             }
         }
     ) { padding ->
@@ -83,7 +96,8 @@ fun AppNavigation(
 private fun BottomNavBar(
     currentDestination: androidx.navigation.NavDestination?,
     navController: NavHostController,
-    hasUnreadNotifications: Boolean
+    hasUnreadNotifications: Boolean,
+    unreadMessagesCount: Int
 ) {
     NavigationBar(modifier = Modifier.height(72.dp)) {
         bottomNavItems.forEach { item ->
@@ -101,12 +115,22 @@ private fun BottomNavBar(
                     }
                 },
                 icon = {
-                    if (item.screen == Screens.NotificationsScreen && hasUnreadNotifications) {
-                        BadgedBox(badge = { Badge(containerColor = MaterialTheme.colorScheme.error) }) {
-                            Icon(item.icon, null, Modifier.size(28.dp))
+                    when {
+                        item.screen == Screens.NotificationsScreen && hasUnreadNotifications -> {
+                            BadgedBox(badge = { Badge(containerColor = MaterialTheme.colorScheme.error) }) {
+                                Icon(item.icon, null, Modifier.size(28.dp))
+                            }
                         }
-                    } else {
-                        Icon(item.icon, null, Modifier.size(28.dp))
+                        item.screen == Screens.ChatsListScreen && unreadMessagesCount > 0 -> {
+                            BadgedBox(badge = {
+                                Badge(containerColor = MaterialTheme.colorScheme.error) {
+                                    Text(unreadMessagesCount.toString())
+                                }
+                            }) {
+                                Icon(item.icon, null, Modifier.size(28.dp))
+                            }
+                        }
+                        else -> Icon(item.icon, null, Modifier.size(28.dp))
                     }
                 }
             )
@@ -252,8 +276,6 @@ private fun NavGraphBuilder.collectionNav(navController: NavHostController) {
         val collectionId = requireNotNull(entry.arguments?.getString("collectionId"))
         EditCollectionScreen(navController, collectionId, koinViewModel())
     }
-
-
 }
 
 /* ---------------- CHAT NAVIGATION ---------------- */
@@ -273,7 +295,6 @@ private fun NavGraphBuilder.chatNav(navController: NavHostController) {
         )
     }
 }
-
 
 /* ---------------- SETTINGS NAVIGATION ---------------- */
 private fun NavGraphBuilder.settingsNav(

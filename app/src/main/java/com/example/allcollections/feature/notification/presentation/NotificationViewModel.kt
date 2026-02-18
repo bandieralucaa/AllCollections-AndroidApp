@@ -81,10 +81,4 @@ class NotificationViewModel(
             repository.deleteAll(currentUserId)
         }
     }
-
-    fun sendChatNotification(recipientId: String, senderId: String, messageText: String) {
-        viewModelScope.launch {
-            repository.sendChatNotification(recipientId, senderId, messageText)
-        }
-    }
 }

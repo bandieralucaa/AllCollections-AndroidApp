@@ -62,7 +62,7 @@ fun SettingsScreen(
             viewModel.cleanupListeners()
             viewModel.logout()
             navController.navigate(Screens.LoginScreen.route) {
-                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                popUpTo(0) { inclusive = true }
             }
         }
     )

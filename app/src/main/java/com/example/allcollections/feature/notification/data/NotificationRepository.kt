@@ -154,31 +154,6 @@ class NotificationRepository(
             null
         }
     }
-
-    suspend fun sendChatNotification(recipientId: String, senderId: String, messageText: String) {
-        if (recipientId == senderId) return
-
-        // Prima ottieni lo username del mittente (opzionale)
-        val senderName = try {
-            val userDoc = firestore.collection("users").document(senderId).get().await()
-            userDoc.getString("username") ?: "Utente"
-        } catch (e: Exception) {
-            "Utente"
-        }
-
-        val notification = mapOf(
-            "recipientId" to recipientId,
-            "senderId" to senderId,
-            "type" to "chat",
-            "pushTitle" to "Nuovo messaggio da @$senderName",
-            "pushMessage" to messageText,
-            "messageText" to messageText,
-            "timestamp" to Timestamp.now(),
-            "read" to false
-        )
-
-        firestore.collection("notifications").add(notification).await()
-    }
 }
 
 // System user (spostato in un file separato)

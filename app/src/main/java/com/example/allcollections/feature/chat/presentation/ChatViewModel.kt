@@ -5,16 +5,17 @@ import androidx.lifecycle.viewModelScope
 import com.example.allcollections.data.model.ChatMessage
 import com.example.allcollections.feature.chat.data.ChatPreview
 import com.example.allcollections.feature.chat.data.ChatRepository
-import com.example.allcollections.feature.notification.presentation.NotificationViewModel
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class ChatViewModel(
     private val repository: ChatRepository,
-    private val notificationVM: NotificationViewModel
 ) : ViewModel() {
 
     private val currentUserId = Firebase.auth.currentUser?.uid ?: ""
@@ -28,6 +29,10 @@ class ChatViewModel(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    val unreadMessagesCount: StateFlow<Int> = _recentChats
+        .map { chats -> chats.sumOf { it.unreadCount } }
+        .stateIn(viewModelScope, SharingStarted.Lazily, 0)
+
     /**
      * Osserva i messaggi di una chat specifica
      */
@@ -36,6 +41,7 @@ class ChatViewModel(
 
         viewModelScope.launch {
             _isLoading.value = true
+            repository.resetUnreadCount(currentUserId, otherUserId)
             repository.getMessages(currentUserId, otherUserId).collect { list ->
                 _messages.value = list
                 repository.markMessagesAsRead(currentUserId, otherUserId)
@@ -71,12 +77,6 @@ class ChatViewModel(
 
         viewModelScope.launch {
             repository.sendMessage(message)
-
-            notificationVM.sendChatNotification(
-                recipientId = otherUserId,
-                senderId = currentUserId,
-                messageText = text
-            )
         }
     }
 

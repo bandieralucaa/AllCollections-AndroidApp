@@ -1,7 +1,7 @@
 package com.example.allcollections.feature.chat.data
 
 import com.example.allcollections.data.model.ChatMessage
-import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
@@ -57,16 +57,37 @@ class ChatRepository(
     }
 
     /**
-     * Invia un messaggio
+     * Invia un messaggio e aggiorna i metadati della chat
      */
     suspend fun sendMessage(message: ChatMessage) {
         val chatId = generateChatId(message.senderId, message.receiverId)
+        val chatRef = firestore.collection(CHATS_COLLECTION).document(chatId)
 
-        firestore.collection(CHATS_COLLECTION)
-            .document(chatId)
-            .collection(MESSAGES_COLLECTION)
-            .add(message)
-            .await()
+        chatRef.set(
+            mapOf(
+                "participants" to listOf(message.senderId, message.receiverId),
+                "lastMessage" to message.text,
+                "timestamp" to message.timestamp,
+                "unreadCount_${message.receiverId}" to FieldValue.increment(1)
+            ),
+            com.google.firebase.firestore.SetOptions.merge()
+        ).await()
+
+        chatRef.collection(MESSAGES_COLLECTION).add(message).await()
+    }
+
+    /**
+     * Azzera il contatore messaggi non letti quando si apre la chat
+     */
+    suspend fun resetUnreadCount(userId: String, otherUserId: String) {
+        val chatId = generateChatId(userId, otherUserId)
+        try {
+            firestore.collection(CHATS_COLLECTION).document(chatId)
+                .update("unreadCount_$userId", 0)
+                .await()
+        } catch (e: Exception) {
+            // Il documento potrebbe non esistere ancora
+        }
     }
 
     /**
@@ -98,7 +119,6 @@ class ChatRepository(
     suspend fun deleteChat(userId1: String, userId2: String) {
         val chatId = generateChatId(userId1, userId2)
 
-        // Prima elimina tutti i messaggi nella subcollection
         val messagesSnapshot = firestore.collection(CHATS_COLLECTION)
             .document(chatId)
             .collection(MESSAGES_COLLECTION)
@@ -113,78 +133,33 @@ class ChatRepository(
             batch.commit().await()
         }
 
-        // Poi elimina il documento principale della chat (opzionale)
-        // firestore.collection(CHATS_COLLECTION).document(chatId).delete().await()
+        firestore.collection(CHATS_COLLECTION).document(chatId).delete().await()
     }
 
     /**
      * Ottiene le ultime chat dell'utente
      */
     fun getRecentChats(userId: String): Flow<List<ChatPreview>> = callbackFlow {
-        // Query per messaggi RICEVUTI
-        val receivedListener = firestore.collectionGroup(MESSAGES_COLLECTION)
-            .whereEqualTo("receiverId", userId)
+        val listener = firestore.collection(CHATS_COLLECTION)
+            .whereArrayContains("participants", userId)
             .orderBy("timestamp", Query.Direction.DESCENDING)
-            .addSnapshotListener { receivedSnapshot, error ->
-                if (error != null) {
-                    close(error)
-                    return@addSnapshotListener
-                }
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) { close(error); return@addSnapshotListener }
 
-                // Query per messaggi INVIATI
-                firestore.collectionGroup(MESSAGES_COLLECTION)
-                    .whereEqualTo("senderId", userId)
-                    .orderBy("timestamp", Query.Direction.DESCENDING)
-                    .get()
-                    .addOnSuccessListener { sentSnapshot ->
+                val chats = snapshot?.documents?.mapNotNull { doc ->
+                    val lastMessage = doc.getString("lastMessage") ?: ""
+                    val timestamp = doc.getTimestamp("timestamp")?.toDate() ?: return@mapNotNull null
+                    val participants = doc.get("participants") as? List<*> ?: return@mapNotNull null
+                    val otherUserId = participants.firstOrNull { it != userId }?.toString() ?: return@mapNotNull null
+                    val unreadCount = (doc.getLong("unreadCount_$userId") ?: 0).toInt()
 
-                        val chatMap = mutableMapOf<String, ChatPreview>()
+                    ChatPreview(otherUserId, lastMessage, timestamp, unreadCount)
+                } ?: emptyList()
 
-                        // Processa messaggi RICEVUTI
-                        receivedSnapshot?.documents?.forEach { doc ->
-                            val message = doc.toObject(ChatMessage::class.java)
-                            message?.let {
-                                val otherUserId = it.senderId
-                                chatMap[otherUserId] = ChatPreview(
-                                    otherUserId = otherUserId,
-                                    lastMessage = it.text,
-                                    timestamp = it.timestamp.toDate(),
-                                    unreadCount = (chatMap[otherUserId]?.unreadCount ?: 0) + if (!it.read) 1 else 0
-                                )
-                            }
-                        }
-
-                        // Processa messaggi INVIATI
-                        sentSnapshot.documents.forEach { doc ->
-                            val message = doc.toObject(ChatMessage::class.java)
-                            message?.let {
-                                val otherUserId = it.receiverId
-
-                                if (!chatMap.containsKey(otherUserId)) {
-                                    chatMap[otherUserId] = ChatPreview(
-                                        otherUserId = otherUserId,
-                                        lastMessage = it.text,
-                                        timestamp = it.timestamp.toDate(),
-                                        unreadCount = 0
-                                    )
-                                } else {
-                                    val existing = chatMap[otherUserId]!!
-                                    if (it.timestamp.toDate() > existing.timestamp) {
-                                        chatMap[otherUserId] = existing.copy(
-                                            lastMessage = it.text,
-                                            timestamp = it.timestamp.toDate()
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        val result = chatMap.values.sortedByDescending { it.timestamp }
-                        trySend(result).isSuccess
-                    }
+                trySend(chats).isSuccess
             }
 
-        awaitClose { receivedListener.remove() }
+        awaitClose { listener.remove() }
     }
 }
 

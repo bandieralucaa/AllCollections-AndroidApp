@@ -1,6 +1,5 @@
 package com.example.allcollections.feature.collection
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.allcollections.core.navigation.Screens
@@ -37,7 +37,10 @@ fun MyCollectionsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // Aggiungi questo: rileva quando lo screen diventa attivo
+    // Stato per la collezione da eliminare (null = dialog chiuso)
+    var collectionToDelete by remember { mutableStateOf<UserCollection?>(null) }
+
+    // Rileva quando lo screen diventa attivo
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     var isScreenActive by remember { mutableStateOf(false) }
 
@@ -46,7 +49,6 @@ fun MyCollectionsScreen(
             isScreenActive = event == androidx.lifecycle.Lifecycle.Event.ON_RESUME
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
@@ -64,7 +66,6 @@ fun MyCollectionsScreen(
         viewModel.events.collect { event ->
             when (event) {
                 is CollectionViewModel.CollectionEvent.CollectionDeleted -> {
-                    // Ricarica le collezioni
                     Firebase.auth.currentUser?.uid?.let { userId ->
                         viewModel.loadUserCollections(userId)
                     }
@@ -87,9 +88,33 @@ fun MyCollectionsScreen(
         }
     }
 
-    // Carica le collezioni dell'utente al primo avvio
+    // Carica le collezioni al primo avvio
     LaunchedEffect(Unit) {
         Firebase.auth.currentUser?.uid?.let { viewModel.loadUserCollections(it) }
+    }
+
+    // AlertDialog di conferma eliminazione
+    collectionToDelete?.let { collection ->
+        AlertDialog(
+            onDismissRequest = { collectionToDelete = null },
+            title = { Text("Elimina collezione") },
+            text = { Text("Sei sicuro di voler eliminare '${collection.name}'? L'operazione non è reversibile.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteCollection(collection.id)
+                        collectionToDelete = null
+                    }
+                ) {
+                    Text("Elimina", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { collectionToDelete = null }) {
+                    Text("Annulla")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -118,7 +143,6 @@ fun MyCollectionsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-
             when {
                 uiState.isLoading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -141,7 +165,7 @@ fun MyCollectionsScreen(
                             text = "Crea la tua prima collezione con il pulsante +!",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -155,21 +179,15 @@ fun MyCollectionsScreen(
                         items(uiState.collections, key = { it.id }) { collection ->
                             CollectionCard(
                                 collection = collection,
-                                layoutType = CollectionCardLayout.Horizontal, // Layout orizzontale per lista
-                                showMenu = true, // Mostra menu modifica/elimina
+                                layoutType = CollectionCardLayout.Horizontal,
+                                showMenu = true,
                                 onEdit = {
-                                    navController.navigate(Screens.EditCollectionScreen.editCollectionRoute(collection.id))                                },
+                                    navController.navigate(
+                                        Screens.EditCollectionScreen.editCollectionRoute(collection.id)
+                                    )
+                                },
                                 onDelete = {
-                                    scope.launch {
-                                        val result = snackbarHostState.showSnackbar(
-                                            message = "Eliminare '${collection.name}'?",
-                                            actionLabel = "Elimina",
-                                            duration = SnackbarDuration.Long
-                                        )
-                                        if (result == SnackbarResult.ActionPerformed) {
-                                            viewModel.deleteCollection(collection.id)
-                                        }
-                                    }
+                                    collectionToDelete = collection
                                 },
                                 onCardClick = { collectionId ->
                                     navController.navigate("collection_detail/$collectionId")
