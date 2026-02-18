@@ -12,8 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -28,21 +26,6 @@ import com.example.allcollections.feature.profile.ProfileViewModel
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 
-/**
- * Schermata di login dell'app AllCollections.
- *
- * Permette all'utente di inserire email e password per autenticarsi.
- * Se l'utente è già loggato, viene reindirizzato automaticamente alla HomeScreen.
- * Mostra eventuali messaggi di errore se il login fallisce.
- *
- * Componenti principali:
- * - Logo e titolo
- * - Campo email
- * - Campo password con toggle visibilità
- * - Bottone "Accedi"
- * - Link per registrazione
- * - Messaggio di errore
- */
 @Composable
 fun LoginScreen(
     navController: NavController,
@@ -55,7 +38,6 @@ fun LoginScreen(
 
     val currentUser = Firebase.auth.currentUser
 
-    // Redirect automatico se l'utente è già loggato
     LaunchedEffect(currentUser) {
         if (currentUser != null) {
             navController.navigate(Screens.HomeScreen.route) {
@@ -64,15 +46,10 @@ fun LoginScreen(
         }
     }
 
-    // Layout principale con sfondo gradiente leggero
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFFE0F7FA), Color(0xFFFFFFFF))
-                )
-            ),
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -81,7 +58,6 @@ fun LoginScreen(
                 .padding(horizontal = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Logo
             Image(
                 painter = painterResource(R.drawable.logo),
                 contentDescription = "Logo AllCollections",
@@ -97,7 +73,6 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Email input
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
@@ -112,7 +87,6 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Password input con toggle visibilità
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -134,6 +108,7 @@ fun LoginScreen(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth(0.85f)
@@ -153,8 +128,6 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-
-            // Bottone Login
             Button(
                 onClick = {
                     val trimmedEmail = email.trim()
@@ -176,12 +149,10 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Link registrazione
             TextButton(onClick = { navController.navigate(Screens.RegisterScreen.route) }) {
                 Text("Non hai un account? Registrati")
             }
 
-            // Messaggio errore
             errorMessage?.let { msg ->
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(

@@ -19,20 +19,10 @@ class ChatRepository(
         private const val MESSAGES_COLLECTION = "messages"
     }
 
-    /**
-     * Genera un ID univoco per una chat tra due utenti
-     */
     private fun generateChatId(userId1: String, userId2: String): String {
-        return if (userId1 < userId2) {
-            "${userId1}_$userId2"
-        } else {
-            "${userId2}_$userId1"
-        }
+        return if (userId1 < userId2) "${userId1}_$userId2" else "${userId2}_$userId1"
     }
 
-    /**
-     * Ottiene i messaggi di una chat specifica
-     */
     fun getMessages(userId1: String, userId2: String): Flow<List<ChatMessage>> = callbackFlow {
         val chatId = generateChatId(userId1, userId2)
 
@@ -42,7 +32,7 @@ class ChatRepository(
             .orderBy("timestamp", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    close() // era close(error), ora chiude silenziosamente
                     return@addSnapshotListener
                 }
 
@@ -56,9 +46,6 @@ class ChatRepository(
         awaitClose { listener.remove() }
     }
 
-    /**
-     * Invia un messaggio e aggiorna i metadati della chat
-     */
     suspend fun sendMessage(message: ChatMessage) {
         val chatId = generateChatId(message.senderId, message.receiverId)
         val chatRef = firestore.collection(CHATS_COLLECTION).document(chatId)
@@ -76,9 +63,6 @@ class ChatRepository(
         chatRef.collection(MESSAGES_COLLECTION).add(message).await()
     }
 
-    /**
-     * Azzera il contatore messaggi non letti quando si apre la chat
-     */
     suspend fun resetUnreadCount(userId: String, otherUserId: String) {
         val chatId = generateChatId(userId, otherUserId)
         try {
@@ -90,9 +74,6 @@ class ChatRepository(
         }
     }
 
-    /**
-     * Segna come letti i messaggi
-     */
     suspend fun markMessagesAsRead(userId: String, otherUserId: String) {
         val chatId = generateChatId(userId, otherUserId)
 
@@ -113,9 +94,6 @@ class ChatRepository(
         }
     }
 
-    /**
-     * Elimina l'intera chat tra due utenti
-     */
     suspend fun deleteChat(userId1: String, userId2: String) {
         val chatId = generateChatId(userId1, userId2)
 
@@ -136,15 +114,15 @@ class ChatRepository(
         firestore.collection(CHATS_COLLECTION).document(chatId).delete().await()
     }
 
-    /**
-     * Ottiene le ultime chat dell'utente
-     */
     fun getRecentChats(userId: String): Flow<List<ChatPreview>> = callbackFlow {
         val listener = firestore.collection(CHATS_COLLECTION)
             .whereArrayContains("participants", userId)
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
-                if (error != null) { close(error); return@addSnapshotListener }
+                if (error != null) {
+                    close() // era close(error), ora chiude silenziosamente
+                    return@addSnapshotListener
+                }
 
                 val chats = snapshot?.documents?.mapNotNull { doc ->
                     val lastMessage = doc.getString("lastMessage") ?: ""

@@ -5,7 +5,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,7 +32,33 @@ fun NotificationsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     var showDeleteAllDialog by remember { mutableStateOf(false) }
-    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    // Dialog conferma eliminazione tutte
+    if (showDeleteAllDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAllDialog = false },
+            title = { Text("Elimina tutte le notifiche") },
+            text = { Text("Sei sicuro di voler eliminare tutte le notifiche? Questa azione non può essere annullata.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteAll()
+                        showDeleteAllDialog = false
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Notifiche eliminate")
+                        }
+                    }
+                ) {
+                    Text("Elimina", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAllDialog = false }) {
+                    Text("Annulla")
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -42,7 +67,6 @@ fun NotificationsScreen(
                 title = "Notifiche",
                 actions = {
                     if (notifications.isNotEmpty()) {
-                        // Icona "Elimina tutti"
                         IconButton(
                             onClick = { showDeleteAllDialog = true }
                         ) {
@@ -57,46 +81,6 @@ fun NotificationsScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
-
-        // Dialog conferma eliminazione tutte
-        if (showDeleteAllDialog) {
-            DeleteAllConfirmationDialog(
-                onConfirm = {
-                    showDeleteAllDialog = false
-                    showDeleteConfirmation = true
-                },
-                onDismiss = { showDeleteAllDialog = false }
-            )
-        }
-
-        // Dialog conferma finale
-        if (showDeleteConfirmation) {
-            AlertDialog(
-                onDismissRequest = { showDeleteConfirmation = false },
-                title = { Text("Elimina tutte le notifiche") },
-                text = { Text("Sei sicuro di voler eliminare tutte le notifiche? Questa azione non può essere annullata.") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            viewModel.deleteAll()
-                            showDeleteConfirmation = false
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Notifiche eliminate")
-                            }
-                        }
-                    ) {
-                        Text("Elimina", color = MaterialTheme.colorScheme.error)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDeleteConfirmation = false }) {
-                        Text("Annulla")
-                    }
-                }
-            )
-        }
-
-        // Contenuto principale
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -122,8 +106,6 @@ private fun NotificationsList(
     navController: NavController,
     snackbarHostState: SnackbarHostState
 ) {
-    val scope = rememberCoroutineScope()
-
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -141,7 +123,6 @@ private fun NotificationsList(
             )
         }
 
-        // Spazio in fondo
         item {
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -181,44 +162,15 @@ private fun EmptyNotificationsView() {
     }
 }
 
-@Composable
-private fun DeleteAllConfirmationDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Elimina tutte le notifiche") },
-        text = { Text("Sei sicuro di voler eliminare tutte le notifiche?") },
-        confirmButton = {
-            TextButton(
-                onClick = onConfirm,
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Text("Elimina")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Annulla")
-            }
-        }
-    )
-}
-
 private fun handleNotificationClick(
     notification: Notification,
     navController: NavController,
     viewModel: NotificationViewModel
 ) {
-    // Segna come letta se non lo è
     if (!notification.read) {
         viewModel.markAsRead(notification.id)
     }
 
-    // Naviga in base al tipo
     when (notification.type) {
         NotificationType.COMMENT -> {
             when {
@@ -242,7 +194,6 @@ private fun handleNotificationClick(
             } ?: navController.navigate(Screens.HomeScreen.route)
         }
         else -> {
-            // Per notifiche generali, vai alla home
             navController.navigate(Screens.HomeScreen.route)
         }
     }

@@ -24,7 +24,7 @@ class NotificationRepository(
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    close()
                     return@addSnapshotListener
                 }
 
@@ -39,7 +39,6 @@ class NotificationRepository(
 
         awaitClose { listener.remove() }
     }
-
     suspend fun sendFollowNotification(recipientId: String, senderId: String) {
         if (recipientId == senderId) return
 

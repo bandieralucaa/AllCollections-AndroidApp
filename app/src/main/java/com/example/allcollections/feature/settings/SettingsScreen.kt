@@ -16,35 +16,21 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.core.ui.MyTopBar
+import com.example.allcollections.feature.notification.presentation.NotificationViewModel
 import com.example.allcollections.feature.profile.ProfileViewModel
 
-/**
- * Schermata principale delle impostazioni.
- *
- * Mostra le opzioni:
- * - Modifica profilo
- * - Modifica password
- * - Cambia immagine profilo
- * - Cambia tema
- * - Logout
- *
- * @param navController Controller di navigazione per passare ad altri schermi
- * @param viewModel ViewModel del profilo per operazioni come logout e ID utente
- */
 @Composable
 fun SettingsScreen(
     navController: NavController,
-    viewModel: ProfileViewModel
+    viewModel: ProfileViewModel,
+    notificationViewModel: NotificationViewModel
 ) {
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Otteniamo l'ID dell'utente corrente
     val currentUserId = viewModel.getCurrentUserId()
 
-    // Lista delle impostazioni con azione associata
     val settingsItems = listOf<Pair<String, () -> Unit>>(
-        // Navigazione alle varie schermate
         "Modifica profilo" to { navController.navigate(Screens.EditProfileScreen.route) },
         "Modifica password" to { navController.navigate(Screens.EditPasswordScreen.route) },
         "Cambia immagine del profilo" to {
@@ -52,13 +38,14 @@ fun SettingsScreen(
                 navController.navigate(
                     Screens.PhotoProfileScreen.photoProfileRoute(
                         userId = currentUserId,
-                        isRegistration = false // false perché siamo in modifica, non registrazione
+                        isRegistration = false
                     )
                 )
             }
         },
         "Cambia tema" to { navController.navigate(Screens.ChooseThemeScreen.route) },
         "Logout" to {
+            notificationViewModel.stopObserving()
             viewModel.cleanupListeners()
             viewModel.logout()
             navController.navigate(Screens.LoginScreen.route) {
@@ -67,7 +54,6 @@ fun SettingsScreen(
         }
     )
 
-    // Scaffold principale con topBar e snackbarHost
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = { MyTopBar(navController = navController) }
@@ -81,7 +67,6 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Lista delle impostazioni cliccabili
             LazyColumn(modifier = Modifier.weight(1f)) {
                 items(settingsItems) { (setting, action) ->
                     ClickableSettingItem(setting = setting, onClick = action)
@@ -92,12 +77,6 @@ fun SettingsScreen(
     }
 }
 
-/**
- * Singolo elemento impostazione cliccabile.
- *
- * @param setting Testo della voce di impostazione
- * @param onClick Azione da eseguire al click
- */
 @Composable
 fun ClickableSettingItem(
     setting: String,

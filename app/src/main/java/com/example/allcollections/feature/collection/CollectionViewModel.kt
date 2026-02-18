@@ -643,6 +643,25 @@ class CollectionViewModel : ViewModel() {
         }
     }.flowOn(Dispatchers.IO)
 
+    /** Elimina un commento */
+    fun deleteComment(commentId: String) = viewModelScope.launch(exceptionHandler) {
+        try {
+            db.collection("comments").document(commentId).delete().await()
+        } catch (e: Exception) {
+            _events.emit(CollectionEvent.Error("Errore eliminazione commento: ${e.message}"))
+        }
+    }
+
+    /** Modifica testo di un commento */
+    fun updateComment(commentId: String, newText: String) = viewModelScope.launch(exceptionHandler) {
+        try {
+            db.collection("comments").document(commentId)
+                .update("text", newText.trim())
+                .await()
+        } catch (e: Exception) {
+            _events.emit(CollectionEvent.Error("Errore modifica commento: ${e.message}"))
+        }
+    }
 
     /** Ottieni username di un utente */
     fun getUsernameById(userId: String, onResult: (String) -> Unit) {

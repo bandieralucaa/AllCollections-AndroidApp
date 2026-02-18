@@ -55,18 +55,14 @@ fun CollectionDetailScreen(
     var itemToDelete by remember { mutableStateOf<CollectionItem?>(null) }
     var showComments by remember { mutableStateOf(true) }
 
-    // Stato per il carosello
     var currentItemIndex by remember { mutableStateOf(0) }
     val itemsList = uiState.items
 
-    // Ottieni ID utente corrente dal ProfileViewModel
     val currentUserId = profileViewModel.getCurrentUserId()
 
-    // Collezione caricata
     var collection by remember { mutableStateOf<com.example.allcollections.data.model.UserCollection?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
-    // Commenti
     var comments by remember { mutableStateOf<List<Comment>>(emptyList()) }
     val usernames = remember { mutableStateMapOf<String, String>() }
     val userPhotos = remember { mutableStateMapOf<String, String>() }
@@ -94,8 +90,6 @@ fun CollectionDetailScreen(
     // ===================== CARICAMENTO COLLEZIONE =====================
     LaunchedEffect(collectionId) {
         isLoading = true
-
-        // Carica collezione
         viewModel.getCollectionById(
             collectionId = collectionId,
             onSuccess = { loadedCollection ->
@@ -107,8 +101,6 @@ fun CollectionDetailScreen(
                 scope.launch { snackbarHostState.showSnackbar("Errore caricamento collezione: $error") }
             }
         )
-
-        // Carica oggetti
         viewModel.loadItems(collectionId)
     }
 
@@ -116,14 +108,12 @@ fun CollectionDetailScreen(
     LaunchedEffect(collectionId) {
         viewModel.getComments(collectionId).collect { commentList ->
             comments = commentList
-            // Carica dati utente in modo efficiente
             commentList.forEach { comment ->
                 loadUserData(comment.userId, viewModel, profileViewModel, usernames, userPhotos)
             }
         }
     }
 
-    // Reset indice quando cambia la lista
     LaunchedEffect(itemsList.size) {
         currentItemIndex = 0
     }
@@ -136,13 +126,11 @@ fun CollectionDetailScreen(
                 title = { Text("Elimina collezione") },
                 text = { Text("Sei sicuro di voler eliminare '${col.name}'?\nQuesta azione non può essere annullata.") },
                 confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showDeleteDialog = false
-                            viewModel.deleteCollection(col.id)
-                            scope.launch { snackbarHostState.showSnackbar("Eliminazione in corso...") }
-                        }
-                    ) { Text("Elimina", color = MaterialTheme.colorScheme.error) }
+                    TextButton(onClick = {
+                        showDeleteDialog = false
+                        viewModel.deleteCollection(col.id)
+                        scope.launch { snackbarHostState.showSnackbar("Eliminazione in corso...") }
+                    }) { Text("Elimina", color = MaterialTheme.colorScheme.error) }
                 },
                 dismissButton = {
                     TextButton(onClick = { showDeleteDialog = false }) { Text("Annulla") }
@@ -154,40 +142,21 @@ fun CollectionDetailScreen(
     // ===================== DIALOG ELIMINA OGGETTO =====================
     if (showDeleteItemDialog && itemToDelete != null) {
         AlertDialog(
-            onDismissRequest = {
-                showDeleteItemDialog = false
-                itemToDelete = null
-            },
+            onDismissRequest = { showDeleteItemDialog = false; itemToDelete = null },
             title = { Text("Elimina oggetto") },
-            text = {
-                Text("Sei sicuro di voler eliminare '${itemToDelete?.description ?: "questo oggetto"}'?\nQuesta azione non può essere annullata.")
-            },
+            text = { Text("Sei sicuro di voler eliminare '${itemToDelete?.description ?: "questo oggetto"}'?\nQuesta azione non può essere annullata.") },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        val itemId = itemToDelete?.id
-                        if (itemId != null) {
-                            viewModel.deleteItemFromCollection(collectionId, itemId)
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Oggetto eliminato")
-                            }
-                        }
-                        showDeleteItemDialog = false
-                        itemToDelete = null
+                TextButton(onClick = {
+                    itemToDelete?.id?.let { itemId ->
+                        viewModel.deleteItemFromCollection(collectionId, itemId)
+                        scope.launch { snackbarHostState.showSnackbar("Oggetto eliminato") }
                     }
-                ) {
-                    Text("Elimina", color = MaterialTheme.colorScheme.error)
-                }
+                    showDeleteItemDialog = false
+                    itemToDelete = null
+                }) { Text("Elimina", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteItemDialog = false
-                        itemToDelete = null
-                    }
-                ) {
-                    Text("Annulla")
-                }
+                TextButton(onClick = { showDeleteItemDialog = false; itemToDelete = null }) { Text("Annulla") }
             }
         )
     }
@@ -196,10 +165,7 @@ fun CollectionDetailScreen(
     Scaffold(
         topBar = {
             if (fullscreenImageUrl == null) {
-                MyTopBar(
-                    navController = navController,
-                    title = "" // Titolo vuoto perché ora è nell'header
-                )
+                MyTopBar(navController = navController, title = "")
             }
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
@@ -228,13 +194,10 @@ fun CollectionDetailScreen(
         val safeCollection = collection!!
 
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier = Modifier.fillMaxSize().padding(padding),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-
-            // ===================== HEADER INTEGRATO =====================
+            // ===================== HEADER =====================
             item {
                 CollectionHeader(
                     collection = safeCollection,
@@ -242,40 +205,25 @@ fun CollectionDetailScreen(
                     commentsCount = comments.size,
                     isOwner = safeCollection.iduser == currentUserId,
                     onAddObjectClick = {
-                        navController.navigate(
-                            Screens.AddCollectionObjectScreen.addCollectionObjectRoute(collectionId)
-                        )
+                        navController.navigate(Screens.AddCollectionObjectScreen.addCollectionObjectRoute(collectionId))
                     },
                     onImageClick = { fullscreenImageUrl = it },
                     onMenuClick = { showMenu = true }
                 )
 
-                // Menu dropdown (posizionato qui per non interferire con l'header)
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
-                ) {
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                     DropdownMenuItem(
                         text = { Text("Modifica collezione") },
                         onClick = {
                             showMenu = false
-                            safeCollection.id.let { id ->
-                                navController.navigate(Screens.EditCollectionScreen.editCollectionRoute(id))
-                            }
+                            navController.navigate(Screens.EditCollectionScreen.editCollectionRoute(safeCollection.id))
                         },
-                        leadingIcon = {
-                            Icon(Icons.Default.Edit, contentDescription = null)
-                        }
+                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
                     )
                     DropdownMenuItem(
                         text = { Text("Elimina collezione", color = MaterialTheme.colorScheme.error) },
-                        onClick = {
-                            showMenu = false
-                            showDeleteDialog = true
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                        }
+                        onClick = { showMenu = false; showDeleteDialog = true },
+                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
                     )
                 }
             }
@@ -284,15 +232,10 @@ fun CollectionDetailScreen(
             if (uiState.items.isEmpty()) {
                 item {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 32.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            "Nessun oggetto in questa collezione",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Text("Nessun oggetto in questa collezione", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             } else {
@@ -304,10 +247,7 @@ fun CollectionDetailScreen(
                         isOwner = safeCollection.iduser == currentUserId,
                         onEdit = { item ->
                             navController.navigate(
-                                Screens.EditCollectionItemScreen.editCollectionItemRoute(
-                                    collectionId,
-                                    item.id ?: ""
-                                )
+                                Screens.EditCollectionItemScreen.editCollectionItemRoute(collectionId, item.id ?: "")
                             )
                         },
                         onDelete = { item ->
@@ -339,6 +279,12 @@ fun CollectionDetailScreen(
                             viewModel.addComment(comment, notificationViewModel)
                         }
                     },
+                    onDeleteComment = { comment ->
+                        viewModel.deleteComment(comment.id)
+                    },
+                    onEditComment = { comment, newText ->
+                        viewModel.updateComment(comment.id, newText)
+                    },
                     navController = navController
                 )
             }
@@ -350,9 +296,7 @@ fun CollectionDetailScreen(
                 AsyncImage(
                     model = url,
                     contentDescription = "Immagine ingrandita",
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clickable { fullscreenImageUrl = null },
+                    modifier = Modifier.fillMaxSize().clickable { fullscreenImageUrl = null },
                     contentScale = ContentScale.Fit
                 )
                 IconButton(
@@ -361,23 +305,15 @@ fun CollectionDetailScreen(
                         .align(Alignment.TopStart)
                         .padding(16.dp)
                         .size(48.dp)
-                        .background(
-                            Color.White.copy(alpha = 0.3f),
-                            RoundedCornerShape(50)
-                        )
+                        .background(Color.White.copy(alpha = 0.3f), RoundedCornerShape(50))
                 ) {
-                    Icon(
-                        Icons.Default.ArrowBack,
-                        contentDescription = "Chiudi",
-                        tint = Color.White
-                    )
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Chiudi", tint = Color.White)
                 }
             }
         }
     }
 }
 
-// Funzione helper per caricare dati utente
 private fun loadUserData(
     userId: String,
     viewModel: CollectionViewModel,
@@ -386,14 +322,10 @@ private fun loadUserData(
     userPhotos: MutableMap<String, String>
 ) {
     if (!usernames.containsKey(userId)) {
-        viewModel.getUsernameById(userId) { username ->
-            usernames[userId] = username
-        }
+        viewModel.getUsernameById(userId) { username -> usernames[userId] = username }
     }
     if (!userPhotos.containsKey(userId)) {
-        profileViewModel.getUserProfilePhoto(userId) { photoUrl ->
-            userPhotos[userId] = photoUrl ?: ""
-        }
+        profileViewModel.getUserProfilePhoto(userId) { photoUrl -> userPhotos[userId] = photoUrl ?: "" }
     }
 }
 
@@ -410,167 +342,81 @@ fun CollectionHeader(
     onMenuClick: () -> Unit
 ) {
     Column {
-        // Cover con info integrate
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(240.dp)
                 .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
         ) {
-            // Immagine di sfondo
             if (!collection.collectionImageUrl.isNullOrBlank()) {
                 AsyncImage(
                     model = collection.collectionImageUrl,
                     contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clickable { collection.collectionImageUrl?.let { onImageClick(it) } },
+                    modifier = Modifier.fillMaxSize().clickable { collection.collectionImageUrl?.let { onImageClick(it) } },
                     contentScale = ContentScale.Crop
                 )
             } else {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.primaryContainer
-                                )
-                            )
-                        ),
+                    modifier = Modifier.fillMaxSize().background(
+                        Brush.linearGradient(
+                            colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)
+                        )
+                    ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        Icons.Default.Collections,
-                        contentDescription = null,
-                        modifier = Modifier.size(80.dp),
-                        tint = Color.White.copy(alpha = 0.5f)
-                    )
+                    Icon(Icons.Default.Collections, contentDescription = null, modifier = Modifier.size(80.dp), tint = Color.White.copy(alpha = 0.5f))
                 }
             }
 
-            // Overlay scuro per leggibilità
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.3f))
-            )
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)))
 
-            // Info in basso (nome e categoria)
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(20.dp)
-            ) {
-                Text(
-                    text = collection.name,
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = Color.White
-                )
-                Text(
-                    text = collection.category ?: "Senza categoria",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.9f)
-                )
+            Column(modifier = Modifier.align(Alignment.BottomStart).padding(20.dp)) {
+                Text(text = collection.name, style = MaterialTheme.typography.headlineMedium, color = Color.White)
+                Text(text = collection.category ?: "Senza categoria", style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.9f))
             }
 
-            // Stats in alto a destra
             Row(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(16.dp)
-                    .background(
-                        Color.Black.copy(alpha = 0.5f),
-                        RoundedCornerShape(24.dp)
-                    )
+                    .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Oggetti
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Collections,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = Color.White
-                    )
-                    Text(
-                        text = itemsCount.toString(),
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelLarge
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(Icons.Default.Collections, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                    Text(text = itemsCount.toString(), color = Color.White, style = MaterialTheme.typography.labelLarge)
                 }
-
-                // Commenti
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Chat,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = Color.White
-                    )
-                    Text(
-                        text = commentsCount.toString(),
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelLarge
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                    Text(text = commentsCount.toString(), color = Color.White, style = MaterialTheme.typography.labelLarge)
                 }
             }
 
-            // Menu (solo proprietario)
             if (isOwner) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(16.dp)
-                ) {
-                    IconButton(
-                        onClick = onMenuClick
-                    ) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = "Opzioni",
-                            tint = Color.White
-                        )
+                Box(modifier = Modifier.align(Alignment.TopStart).padding(16.dp)) {
+                    IconButton(onClick = onMenuClick) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Opzioni", tint = Color.White)
                     }
                 }
             }
         }
 
-        // Descrizione (se presente)
         if (!collection.description.isNullOrBlank()) {
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
-                )
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
             ) {
-                Text(
-                    text = collection.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(16.dp)
-                )
+                Text(text = collection.description, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(16.dp))
             }
         }
 
-        // Bottone aggiungi oggetto (solo proprietario)
         if (isOwner) {
             Button(
                 onClick = onAddObjectClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -591,33 +437,18 @@ fun ItemsCarousel(
     onDelete: (CollectionItem) -> Unit,
     onImageClick: (String) -> Unit
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        // Contatore oggetti
-        Text(
-            text = "Oggetto ${currentIndex + 1} di ${items.size}",
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        Text(text = "Oggetto ${currentIndex + 1} di ${items.size}", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(bottom = 8.dp))
 
-        // Box con posizionamento assoluto per frecce
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .pointerInput(Unit) {
-                    detectHorizontalDragGestures { change, dragAmount ->
-                        change.consume()
-                        if (dragAmount > 0) {
-                            if (currentIndex > 0) onIndexChange(currentIndex - 1)
-                        } else if (dragAmount < 0) {
-                            if (currentIndex < items.size - 1) onIndexChange(currentIndex + 1)
-                        }
-                    }
+            modifier = Modifier.fillMaxWidth().pointerInput(Unit) {
+                detectHorizontalDragGestures { change, dragAmount ->
+                    change.consume()
+                    if (dragAmount > 0) { if (currentIndex > 0) onIndexChange(currentIndex - 1) }
+                    else if (dragAmount < 0) { if (currentIndex < items.size - 1) onIndexChange(currentIndex + 1) }
                 }
+            }
         ) {
-            // Card centrale
             CarouselItemCard(
                 item = items[currentIndex],
                 isOwner = isOwner,
@@ -626,74 +457,31 @@ fun ItemsCarousel(
                 onImageClick = onImageClick
             )
 
-            // Freccia sinistra (sovrapposta)
             IconButton(
-                onClick = {
-                    if (currentIndex > 0) {
-                        onIndexChange(currentIndex - 1)
-                    }
-                },
+                onClick = { if (currentIndex > 0) onIndexChange(currentIndex - 1) },
                 enabled = currentIndex > 0,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .size(48.dp)
-                    .padding(start = 8.dp)
-                    .background(
-                        Color.Black.copy(alpha = 0.3f),
-                        CircleShape
-                    )
+                modifier = Modifier.align(Alignment.CenterStart).size(48.dp).padding(start = 8.dp).background(Color.Black.copy(alpha = 0.3f), CircleShape)
             ) {
-                Icon(
-                    Icons.Default.ArrowBack,
-                    contentDescription = "Oggetto precedente",
-                    tint = Color.White
-                )
+                Icon(Icons.Default.ArrowBack, contentDescription = "Oggetto precedente", tint = Color.White)
             }
 
-            // Freccia destra (sovrapposta)
             IconButton(
-                onClick = {
-                    if (currentIndex < items.size - 1) {
-                        onIndexChange(currentIndex + 1)
-                    }
-                },
+                onClick = { if (currentIndex < items.size - 1) onIndexChange(currentIndex + 1) },
                 enabled = currentIndex < items.size - 1,
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .size(48.dp)
-                    .padding(end = 8.dp)
-                    .background(
-                        Color.Black.copy(alpha = 0.3f),
-                        CircleShape
-                    )
+                modifier = Modifier.align(Alignment.CenterEnd).size(48.dp).padding(end = 8.dp).background(Color.Black.copy(alpha = 0.3f), CircleShape)
             ) {
-                Icon(
-                    Icons.Default.ArrowForward,
-                    contentDescription = "Oggetto successivo",
-                    tint = Color.White
-                )
+                Icon(Icons.Default.ArrowForward, contentDescription = "Oggetto successivo", tint = Color.White)
             }
         }
 
-        // Indicatori a pallini sotto
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 16.dp),
-            horizontalArrangement = Arrangement.Center
-        ) {
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.Center) {
             repeat(items.size) { index ->
                 Box(
                     modifier = Modifier
                         .size(if (index == currentIndex) 12.dp else 8.dp)
                         .padding(2.dp)
                         .clip(CircleShape)
-                        .background(
-                            if (index == currentIndex)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-                        )
+                        .background(if (index == currentIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
                 )
             }
         }
@@ -711,130 +499,62 @@ fun CarouselItemCard(
     var showItemMenu by remember { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column {
-            // Box per immagine con overlay (SOLO NOME)
             Box(modifier = Modifier.fillMaxWidth()) {
-                // Immagine
                 if (!item.imageUrl.isNullOrBlank()) {
                     AsyncImage(
                         model = item.imageUrl,
                         contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(350.dp)
-                            .clickable { item.imageUrl?.let { onImageClick(it) } },
+                        modifier = Modifier.fillMaxWidth().height(350.dp).clickable { item.imageUrl?.let { onImageClick(it) } },
                         contentScale = ContentScale.Crop
                     )
                 } else {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(250.dp)
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        modifier = Modifier.fillMaxWidth().height(250.dp).background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            Icons.Default.Image,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 
-                // Nome oggetto in overlay (SOLO NOME) - ✅ CORRETTO
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomStart)
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    Color.Black.copy(alpha = 0.7f)
-                                ),
-                                startY = 0f,
-                                endY = 300f
-                            )
-                        )
+                    modifier = Modifier.fillMaxWidth().align(Alignment.BottomStart)
+                        .background(Brush.verticalGradient(colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)), startY = 0f, endY = 300f))
                         .padding(16.dp)
                 ) {
-                    Text(
-                        text = item.description,
-                        color = Color.White,
-                        style = MaterialTheme.typography.headlineSmall,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Text(text = item.description, color = Color.White, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
 
-                // Menu opzioni (solo proprietario)
                 if (isOwner) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                    ) {
-                        IconButton(
-                            onClick = { showItemMenu = true }
-                        ) {
-                            Icon(
-                                Icons.Default.MoreVert,
-                                contentDescription = "Opzioni",
-                                tint = Color.White
-                            )
+                    Box(modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)) {
+                        IconButton(onClick = { showItemMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Opzioni", tint = Color.White)
                         }
-                        DropdownMenu(
-                            expanded = showItemMenu,
-                            onDismissRequest = { showItemMenu = false }
-                        ) {
+                        DropdownMenu(expanded = showItemMenu, onDismissRequest = { showItemMenu = false }) {
                             DropdownMenuItem(
                                 text = { Text("Modifica") },
-                                onClick = {
-                                    showItemMenu = false
-                                    onEdit()
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Edit, contentDescription = null)
-                                }
+                                onClick = { showItemMenu = false; onEdit() },
+                                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
                             )
                             DropdownMenuItem(
                                 text = { Text("Elimina", color = MaterialTheme.colorScheme.error) },
-                                onClick = {
-                                    showItemMenu = false
-                                    onDelete()
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                                }
+                                onClick = { showItemMenu = false; onDelete() },
+                                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
                             )
                         }
                     }
                 }
             }
 
-            // Descrizione completa sotto con etichetta (SOLO SE PRESENTE)
             if (!item.description.isNullOrBlank()) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Divider(modifier = Modifier.padding(bottom = 12.dp))
-                    Text(
-                        text = "Descrizione",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-                    Text(
-                        text = item.description,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                    Text(text = "Descrizione", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(bottom = 4.dp))
+                    Text(text = item.description, style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }
@@ -850,92 +570,107 @@ fun CommentsSection(
     showComments: Boolean,
     onToggleComments: () -> Unit,
     onAddComment: (String) -> Unit,
+    onDeleteComment: (Comment) -> Unit,
+    onEditComment: (Comment, String) -> Unit,
     navController: NavController
 ) {
     var newComment by remember { mutableStateOf("") }
+    var commentToDelete by remember { mutableStateOf<Comment?>(null) }
+    var commentToEdit by remember { mutableStateOf<Comment?>(null) }
+    var editText by remember { mutableStateOf("") }
+
+    // Dialog elimina commento
+    commentToDelete?.let { comment ->
+        AlertDialog(
+            onDismissRequest = { commentToDelete = null },
+            title = { Text("Elimina commento") },
+            text = { Text("Sei sicuro di voler eliminare questo commento?") },
+            confirmButton = {
+                TextButton(onClick = { onDeleteComment(comment); commentToDelete = null }) {
+                    Text("Elimina", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { commentToDelete = null }) { Text("Annulla") }
+            }
+        )
+    }
+
+    // Dialog modifica commento
+    commentToEdit?.let { comment ->
+        AlertDialog(
+            onDismissRequest = { commentToEdit = null },
+            title = { Text("Modifica commento") },
+            text = {
+                OutlinedTextField(
+                    value = editText,
+                    onValueChange = { editText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 5,
+                    placeholder = { Text("Scrivi il tuo commento...") }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (editText.isNotBlank()) { onEditComment(comment, editText); commentToEdit = null }
+                }) { Text("Salva") }
+            },
+            dismissButton = {
+                TextButton(onClick = { commentToEdit = null }) { Text("Annulla") }
+            }
+        )
+    }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        )
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            // Header con contatore e toggle
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onToggleComments() }
-                    .padding(vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().clickable { onToggleComments() }.padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Chat,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Commenti (${comments.size})",
-                        style = MaterialTheme.typography.titleMedium
-                    )
+                    Text("Commenti (${comments.size})", style = MaterialTheme.typography.titleMedium)
                 }
-                Icon(
-                    if (showComments) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = null
-                )
+                Icon(if (showComments) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null)
             }
 
-            // Lista commenti (collassabile)
             if (showComments) {
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
 
                 if (comments.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                         Text(
-                            text = "Nessun commento. Sii il primo a commentare!",
+                            "Nessun commento. Sii il primo a commentare!",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
                     }
                 } else {
-                    // Lista commenti con altezza limitata
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 400.dp)
-                    ) {
+                    LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
                         items(comments) { comment ->
                             CommentItem(
                                 comment = comment,
                                 username = usernames[comment.userId] ?: "Utente",
                                 photoUrl = userPhotos[comment.userId],
-                                navController = navController
+                                navController = navController,
+                                onDelete = { commentToDelete = it },
+                                onEdit = { editText = it.text; commentToEdit = it }
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                         }
                     }
                 }
 
-                // Input nuovo commento
                 if (currentUserId != null) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 16.dp),
+                        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         OutlinedTextField(
@@ -946,24 +681,15 @@ fun CommentsSection(
                             maxLines = 3,
                             shape = RoundedCornerShape(24.dp)
                         )
-
                         Spacer(modifier = Modifier.width(8.dp))
-
                         FloatingActionButton(
                             onClick = {
-                                if (newComment.isNotBlank()) {
-                                    onAddComment(newComment)
-                                    newComment = ""
-                                }
+                                if (newComment.isNotBlank()) { onAddComment(newComment); newComment = "" }
                             },
                             modifier = Modifier.size(48.dp),
                             containerColor = MaterialTheme.colorScheme.primary
                         ) {
-                            Icon(
-                                Icons.Default.Send,
-                                contentDescription = "Invia",
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Icon(Icons.Default.Send, contentDescription = "Invia", modifier = Modifier.size(20.dp))
                         }
                     }
                 }

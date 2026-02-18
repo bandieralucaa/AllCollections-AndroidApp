@@ -3,9 +3,12 @@ package com.example.allcollections.feature.comment
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
@@ -22,9 +25,13 @@ fun CommentItem(
     comment: Comment,
     username: String?,
     photoUrl: String?,
-    navController: NavController
+    navController: NavController,
+    onDelete: ((Comment) -> Unit)? = null,
+    onEdit: ((Comment) -> Unit)? = null
 ) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    val isMyComment = currentUserId == comment.userId
+    var showMenu by remember { mutableStateOf(false) }
 
     Row(
         modifier = Modifier
@@ -32,7 +39,6 @@ fun CommentItem(
             .padding(vertical = 8.dp),
         verticalAlignment = androidx.compose.ui.Alignment.Top
     ) {
-        // Foto profilo
         AsyncImage(
             model = photoUrl,
             contentDescription = "Foto profilo",
@@ -51,8 +57,7 @@ fun CommentItem(
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // Username
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = if (currentUserId == comment.userId) "Tu" else (username ?: comment.userId),
                 style = MaterialTheme.typography.labelSmall,
@@ -62,12 +67,8 @@ fun CommentItem(
                     MaterialTheme.colorScheme.primary
                 },
                 modifier = Modifier.clickable {
-                    val isCurrentUser = currentUserId == comment.userId
-
-                    if (isCurrentUser) {
-                        // Se sono io, naviga al profilo già presente nella bottom bar
+                    if (isMyComment) {
                         navController.navigate(Screens.ProfileScreen.route) {
-                            // Torna alla tab del profilo (bottom bar)
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
                             }
@@ -75,20 +76,51 @@ fun CommentItem(
                             restoreState = true
                         }
                     } else {
-                        // Se è un altro, naviga al profilo pubblico (stack normale)
                         navController.navigate(Screens.PublicProfileScreen.createRoute(comment.userId))
                     }
                 }
             )
-
             Spacer(modifier = Modifier.height(2.dp))
-
-            // Testo commento
             Text(
                 text = comment.text,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
+        }
+
+        // Menu solo per i propri commenti
+        if (isMyComment && (onDelete != null || onEdit != null)) {
+            Box {
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = "Opzioni",
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    onEdit?.let {
+                        DropdownMenuItem(
+                            text = { Text("Modifica") },
+                            onClick = { showMenu = false; it(comment) },
+                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                        )
+                    }
+                    onDelete?.let {
+                        DropdownMenuItem(
+                            text = { Text("Elimina", color = MaterialTheme.colorScheme.error) },
+                            onClick = { showMenu = false; it(comment) },
+                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
+                        )
+                    }
+                }
+            }
         }
     }
 }

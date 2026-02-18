@@ -6,6 +6,7 @@ import com.example.allcollections.feature.notification.data.NotificationReposito
 import com.example.allcollections.feature.notification.domain.Notification
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -17,7 +18,8 @@ class NotificationViewModel(
     private val repository: NotificationRepository
 ) : ViewModel() {
 
-    private val userId: String? = Firebase.auth.currentUser?.uid
+    private val userId: String?
+        get() = Firebase.auth.currentUser?.uid
 
     private val _notifications = MutableStateFlow<List<Notification>>(emptyList())
     val notifications: StateFlow<List<Notification>> = _notifications
@@ -27,21 +29,32 @@ class NotificationViewModel(
         list.firstOrNull()?.any { !it.read } ?: false
     }.stateIn(viewModelScope, SharingStarted.Lazily, false)
 
+    private var notificationJob: Job? = null
+
     init {
-        if (userId != null) {
-            observeNotifications()
-        }
+        observeNotifications()
     }
 
     private fun observeNotifications() {
-        if (userId == null) return
+        val currentUserId = userId ?: return
 
-        viewModelScope.launch {
-            repository.observeNotifications(userId).collect { rawNotifications ->
-                val enriched = repository.enrichWithSenders(rawNotifications)
-                _notifications.value = enriched
+        notificationJob?.cancel()
+        notificationJob = viewModelScope.launch {
+            try {
+                repository.observeNotifications(currentUserId).collect { rawNotifications ->
+                    val enriched = repository.enrichWithSenders(rawNotifications)
+                    _notifications.value = enriched
+                }
+            } catch (e: Exception) {
+                // Ignora errori di permessi
             }
         }
+    }
+
+    fun stopObserving() {
+        notificationJob?.cancel()
+        notificationJob = null
+        _notifications.value = emptyList()
     }
 
     fun sendFollowNotification(recipientId: String) {

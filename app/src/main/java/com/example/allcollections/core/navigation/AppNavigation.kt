@@ -85,7 +85,7 @@ fun AppNavigation(
             notificationsNav(navController, notificationViewModel)
             profileNav(navController)
             collectionNav(navController)
-            settingsNav(navController, themeState, onThemeSelected)
+            settingsNav(navController, themeState, onThemeSelected, notificationViewModel)
             chatNav(navController)
         }
     }
@@ -300,10 +300,11 @@ private fun NavGraphBuilder.chatNav(navController: NavHostController) {
 private fun NavGraphBuilder.settingsNav(
     navController: NavHostController,
     themeState: ThemeState,
-    onThemeSelected: (ThemeMode) -> Unit
+    onThemeSelected: (ThemeMode) -> Unit,
+    notificationViewModel: NotificationViewModel  // aggiunto
 ) {
     composable(Screens.SettingsScreen.route) {
-        SettingsScreen(navController, koinViewModel())
+        SettingsScreen(navController, koinViewModel(), notificationViewModel)
     }
     composable(Screens.ChooseThemeScreen.route) {
         ChooseTheme(themeState, onThemeSelected, navController)
