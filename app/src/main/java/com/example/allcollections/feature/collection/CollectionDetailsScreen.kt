@@ -521,14 +521,6 @@ fun CarouselItemCard(
                     }
                 }
 
-                Box(
-                    modifier = Modifier.fillMaxWidth().align(Alignment.BottomStart)
-                        .background(Brush.verticalGradient(colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)), startY = 0f, endY = 300f))
-                        .padding(16.dp)
-                ) {
-                    Text(text = item.description, color = Color.White, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
-
                 if (isOwner) {
                     Box(modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)) {
                         IconButton(onClick = { showItemMenu = true }) {
