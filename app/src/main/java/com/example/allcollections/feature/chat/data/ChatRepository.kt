@@ -1,6 +1,7 @@
 package com.example.allcollections.feature.chat.data
 
 import com.example.allcollections.data.model.ChatMessage
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -25,22 +26,36 @@ class ChatRepository(
 
     fun getMessages(userId1: String, userId2: String): Flow<List<ChatMessage>> = callbackFlow {
         val chatId = generateChatId(userId1, userId2)
+        val chatRef = firestore.collection(CHATS_COLLECTION).document(chatId)
 
-        val listener = firestore.collection(CHATS_COLLECTION)
-            .document(chatId)
+        val listener = chatRef
             .collection(MESSAGES_COLLECTION)
             .orderBy("timestamp", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close() // era close(error), ora chiude silenziosamente
+                    close()
                     return@addSnapshotListener
                 }
 
-                val messages = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(ChatMessage::class.java)?.copy(id = doc.id)
-                } ?: emptyList()
+                // Leggi il timestamp di eliminazione per userId1
+                firestore.collection(CHATS_COLLECTION).document(chatId).get()
+                    .addOnSuccessListener { doc ->
+                        val deletedAt = doc.getTimestamp("deletedAt_$userId1")
 
-                trySend(messages).isSuccess
+                        val messages = snapshot?.documents?.mapNotNull { msgDoc ->
+                            val message = msgDoc.toObject(ChatMessage::class.java)?.copy(id = msgDoc.id)
+                                ?: return@mapNotNull null
+
+                            // Filtra i messaggi precedenti all'eliminazione
+                            if (deletedAt != null && message.timestamp <= deletedAt) {
+                                return@mapNotNull null
+                            }
+
+                            message
+                        } ?: emptyList()
+
+                        trySend(messages).isSuccess
+                    }
             }
 
         awaitClose { listener.remove() }
@@ -58,6 +73,14 @@ class ChatRepository(
                 "unreadCount_${message.receiverId}" to FieldValue.increment(1)
             ),
             com.google.firebase.firestore.SetOptions.merge()
+        ).await()
+
+        // Ripristina la chat per chi l'aveva eliminata (rimuove deletedFor e deletedAt del receiver)
+        chatRef.update(
+            mapOf(
+                "deletedFor" to emptyList<String>(),
+                "deletedAt_${message.receiverId}" to FieldValue.delete()
+            )
         ).await()
 
         chatRef.collection(MESSAGES_COLLECTION).add(message).await()
@@ -96,22 +119,29 @@ class ChatRepository(
 
     suspend fun deleteChat(userId1: String, userId2: String) {
         val chatId = generateChatId(userId1, userId2)
+        val chatRef = firestore.collection(CHATS_COLLECTION).document(chatId)
 
-        val messagesSnapshot = firestore.collection(CHATS_COLLECTION)
-            .document(chatId)
-            .collection(MESSAGES_COLLECTION)
-            .get()
-            .await()
+        val doc = chatRef.get().await()
+        val deletedFor = doc.get("deletedFor") as? List<*> ?: emptyList<String>()
 
-        if (messagesSnapshot.documents.isNotEmpty()) {
-            val batch = firestore.batch()
-            messagesSnapshot.documents.forEach { doc ->
-                batch.delete(doc.reference)
+        if (deletedFor.contains(userId2)) {
+            // L'altro utente ha già eliminato → elimina davvero tutto
+            val messagesSnapshot = chatRef.collection(MESSAGES_COLLECTION).get().await()
+            if (messagesSnapshot.documents.isNotEmpty()) {
+                val batch = firestore.batch()
+                messagesSnapshot.documents.forEach { batch.delete(it.reference) }
+                batch.commit().await()
             }
-            batch.commit().await()
+            chatRef.delete().await()
+        } else {
+            // Solo io elimino → aggiungo il mio ID a deletedFor e salvo il timestamp
+            chatRef.update(
+                mapOf(
+                    "deletedFor" to FieldValue.arrayUnion(userId1),
+                    "deletedAt_$userId1" to Timestamp.now()
+                )
+            ).await()
         }
-
-        firestore.collection(CHATS_COLLECTION).document(chatId).delete().await()
     }
 
     fun getRecentChats(userId: String): Flow<List<ChatPreview>> = callbackFlow {
@@ -120,11 +150,15 @@ class ChatRepository(
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close() // era close(error), ora chiude silenziosamente
+                    close()
                     return@addSnapshotListener
                 }
 
                 val chats = snapshot?.documents?.mapNotNull { doc ->
+                    // Filtra le chat eliminate dal lato dell'utente
+                    val deletedFor = doc.get("deletedFor") as? List<*> ?: emptyList<Any>()
+                    if (deletedFor.contains(userId)) return@mapNotNull null
+
                     val lastMessage = doc.getString("lastMessage") ?: ""
                     val timestamp = doc.getTimestamp("timestamp")?.toDate() ?: return@mapNotNull null
                     val participants = doc.get("participants") as? List<*> ?: return@mapNotNull null

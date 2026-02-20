@@ -15,9 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.feature.notification.domain.Notification
 import com.example.allcollections.feature.notification.domain.NotificationType
 
@@ -42,31 +40,20 @@ fun NotificationItem(
                 if (!notification.read) onMarkAsRead()
                 onClick()
             },
-        colors = CardDefaults.cardColors(
-            containerColor = backgroundColor
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (!notification.read) 2.dp else 0.dp
-        )
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (!notification.read) 2.dp else 0.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Avatar
             NotificationAvatar(notification)
 
-            // Contenuto
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Testo principale
                 NotificationContent(notification)
-
-                // Data
                 Text(
                     text = notification.formattedTime,
                     style = MaterialTheme.typography.labelSmall,
@@ -74,13 +61,9 @@ fun NotificationItem(
                 )
             }
 
-            // Indicatore non letto
             if (!notification.read) {
                 Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
+                    modifier = Modifier.size(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary)
                 )
             }
         }
@@ -92,35 +75,29 @@ private fun NotificationAvatar(notification: Notification) {
     val icon = when (notification.type) {
         NotificationType.FOLLOW -> Icons.Default.PersonAdd
         NotificationType.COMMENT -> Icons.Default.Chat
+        NotificationType.LIKE -> Icons.Default.Favorite
         NotificationType.NEW_ITEM -> Icons.Default.Collections
         else -> Icons.Default.Info
     }
 
+    val iconTint = when (notification.type) {
+        NotificationType.LIKE -> Color.Red
+        else -> MaterialTheme.colorScheme.primary
+    }
+
     if (!notification.isSystem && notification.sender?.profileImageUrl?.isNotBlank() == true) {
-        // Avatar con foto profilo
         AsyncImage(
             model = notification.sender.profileImageUrl,
             contentDescription = "Foto profilo",
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape),
+            modifier = Modifier.size(48.dp).clip(CircleShape),
             contentScale = ContentScale.Crop
         )
     } else {
-        // Avatar di default con icona
         Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
+            modifier = Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
+            Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(24.dp))
         }
     }
 }
@@ -135,39 +112,26 @@ private fun NotificationContent(notification: Notification) {
     }
 
     val text = when (notification.type) {
-        NotificationType.FOLLOW -> buildString {
-            append("$senderName ha iniziato a seguirti")
-            if (!notification.data.collectionName.isNullOrBlank()) {
-                append(" nella collezione ${notification.data.collectionName}")
-            }
-        }
+        NotificationType.FOLLOW -> "$senderName ha iniziato a seguirti"
         NotificationType.COMMENT -> buildString {
             append("$senderName ha commentato")
-            if (!notification.data.collectionName.isNullOrBlank()) {
-                append(" in ${notification.data.collectionName}"
-                )}
-            if (!notification.data.commentText.isNullOrBlank()) {
-                append(": \"${notification.data.commentText}\"")
-            }
+            if (!notification.data.collectionName.isNullOrBlank()) append(" in ${notification.data.collectionName}")
+            if (!notification.data.commentText.isNullOrBlank()) append(": \"${notification.data.commentText}\"")
+        }
+        NotificationType.LIKE -> buildString {
+            append("$senderName ha messo like alla tua collezione")
+            if (!notification.data.collectionName.isNullOrBlank()) append(" \"${notification.data.collectionName}\"")
         }
         NotificationType.NEW_ITEM -> buildString {
             append("Nuovo oggetto aggiunto")
-            if (!notification.data.collectionName.isNullOrBlank()) {
-                append(" in ${notification.data.collectionName}")
-            }
+            if (!notification.data.collectionName.isNullOrBlank()) append(" in ${notification.data.collectionName}")
         }
-        else -> {
-            notification.data.pushMessage ?: "Nuova notifica"
-        }
+        else -> notification.data.pushMessage ?: "Nuova notifica"
     }
 
     Text(
         text = text,
-        style = if (!notification.read) {
-            MaterialTheme.typography.bodyLarge
-        } else {
-            MaterialTheme.typography.bodyMedium
-        },
+        style = if (!notification.read) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
         maxLines = 3,
         overflow = TextOverflow.Ellipsis
     )

@@ -94,4 +94,36 @@ class NotificationViewModel(
             repository.deleteAll(currentUserId)
         }
     }
+
+    fun sendLikeNotification(
+        recipientId: String,
+        collectionId: String,
+        collectionName: String
+    ) {
+        val senderId = userId ?: return
+        viewModelScope.launch {
+            repository.sendLikeNotification(
+                recipientId = recipientId,
+                senderId = senderId,
+                collectionId = collectionId,
+                collectionName = collectionName
+            )
+        }
+    }
+
+    fun sendNewItemNotification(
+        recipientId: String,
+        collectionId: String,
+        collectionName: String
+    ) {
+        val senderId = userId ?: return
+        viewModelScope.launch {
+            repository.sendNewItemNotification(
+                recipientId = recipientId,
+                senderId = senderId,
+                collectionId = collectionId,
+                collectionName = collectionName
+            )
+        }
+    }
 }

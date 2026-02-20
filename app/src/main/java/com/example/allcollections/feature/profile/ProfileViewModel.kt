@@ -295,6 +295,17 @@ class ProfileViewModel : ViewModel() {
             .addOnFailureListener { onResult(false, it.message) }
     }
 
+    fun saveBio(bio: String, onResult: (Boolean, String?) -> Unit) {
+        val userId = auth.currentUser?.uid ?: run {
+            onResult(false, "Utente non autenticato")
+            return
+        }
+        db.collection(USERS).document(userId)
+            .update("bio", bio.trim())
+            .addOnSuccessListener { onResult(true, null) }
+            .addOnFailureListener { onResult(false, it.message) }
+    }
+
     // ======================================================
     // LETTURA PROFILO
     // ======================================================
@@ -329,7 +340,16 @@ class ProfileViewModel : ViewModel() {
             }
     }
 
-
+    fun getUserBio(userId: String, onResult: (String) -> Unit) {
+        db.collection(USERS).document(userId)
+            .get()
+            .addOnSuccessListener { doc ->
+                onResult(doc.getString("bio") ?: "")
+            }
+            .addOnFailureListener {
+                onResult("")
+            }
+    }
 
     // ======================================================
     // LOGIN / LOGOUT

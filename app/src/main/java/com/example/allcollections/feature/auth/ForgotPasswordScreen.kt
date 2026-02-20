@@ -44,13 +44,12 @@ fun ForgotPasswordScreen(navController: NavController) {
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()  // Occupa tutta la larghezza
+                    .fillMaxWidth()
                     .verticalScroll(scrollState)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Spiegazione
                 Text(
                     text = "Inserisci la tua email per ricevere il link di recupero password",
                     style = MaterialTheme.typography.bodyLarge,

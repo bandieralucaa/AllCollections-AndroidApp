@@ -28,6 +28,7 @@ import coil.compose.AsyncImage
 import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.data.model.Comment
 import com.example.allcollections.data.model.CollectionItem
+import com.example.allcollections.data.model.UserData
 import com.example.allcollections.feature.comment.CommentItem
 import com.example.allcollections.feature.profile.ProfileViewModel
 import com.example.allcollections.core.ui.MyTopBar
@@ -69,6 +70,13 @@ fun CollectionDetailScreen(
 
     var showMenu by remember { mutableStateOf(false) }
 
+    // Like state
+    var likesCount by remember { mutableStateOf(0) }
+
+    // Likers dialog
+    var showLikersDialog by remember { mutableStateOf(false) }
+    var likers by remember { mutableStateOf<List<UserData>>(emptyList()) }
+
     // ===================== ASCOLTA EVENTI =====================
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -102,7 +110,7 @@ fun CollectionDetailScreen(
             }
         )
         viewModel.loadItems(collectionId)
-    }
+        viewModel.getLikesCount(collectionId) { likesCount = it }    }
 
     // ===================== CARICAMENTO COMMENTI =====================
     LaunchedEffect(collectionId) {
@@ -161,6 +169,55 @@ fun CollectionDetailScreen(
         )
     }
 
+    // ===================== DIALOG LIKERS =====================
+    if (showLikersDialog) {
+        AlertDialog(
+            onDismissRequest = { showLikersDialog = false },
+            title = { Text("Mi piace (${likers.size})") },
+            text = {
+                if (likers.isEmpty()) {
+                    Text("Nessun like ancora.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(likers) { user ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        showLikersDialog = false
+                                        navController.navigate(Screens.PublicProfileScreen.createRoute(user.userId))
+                                    }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                if (user.profileImageUrl.isNotBlank()) {
+                                    AsyncImage(
+                                        model = user.profileImageUrl,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(36.dp).clip(androidx.compose.foundation.shape.CircleShape),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Box(
+                                        modifier = Modifier.size(36.dp).clip(androidx.compose.foundation.shape.CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                                Text("@${user.username}", style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLikersDialog = false }) { Text("Chiudi") }
+            }
+        )
+    }
+
     // ===================== SCAFFOLD =====================
     Scaffold(
         topBar = {
@@ -192,23 +249,30 @@ fun CollectionDetailScreen(
         }
 
         val safeCollection = collection!!
+        val isOwner = safeCollection.iduser == currentUserId
 
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ===================== HEADER =====================
             item {
                 CollectionHeader(
                     collection = safeCollection,
                     itemsCount = uiState.items.size,
                     commentsCount = comments.size,
-                    isOwner = safeCollection.iduser == currentUserId,
+                    likesCount = likesCount,
+                    isOwner = isOwner,
                     onAddObjectClick = {
                         navController.navigate(Screens.AddCollectionObjectScreen.addCollectionObjectRoute(collectionId))
                     },
                     onImageClick = { fullscreenImageUrl = it },
-                    onMenuClick = { showMenu = true }
+                    onMenuClick = { showMenu = true },
+                    onLikesCountClick = {
+                        if (isOwner) {
+                            viewModel.getLikers(collectionId) { likers = it }
+                            showLikersDialog = true
+                        }
+                    }
                 )
 
                 DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
@@ -228,13 +292,9 @@ fun CollectionDetailScreen(
                 }
             }
 
-            // ===================== CAROSELLO OGGETTI =====================
             if (uiState.items.isEmpty()) {
                 item {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
                         Text("Nessun oggetto in questa collezione", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
@@ -244,7 +304,7 @@ fun CollectionDetailScreen(
                         items = itemsList,
                         currentIndex = currentItemIndex,
                         onIndexChange = { currentItemIndex = it },
-                        isOwner = safeCollection.iduser == currentUserId,
+                        isOwner = isOwner,
                         onEdit = { item ->
                             navController.navigate(
                                 Screens.EditCollectionItemScreen.editCollectionItemRoute(collectionId, item.id ?: "")
@@ -259,7 +319,6 @@ fun CollectionDetailScreen(
                 }
             }
 
-            // ===================== SEZIONE COMMENTI =====================
             item {
                 CommentsSection(
                     comments = comments,
@@ -279,18 +338,13 @@ fun CollectionDetailScreen(
                             viewModel.addComment(comment, notificationViewModel)
                         }
                     },
-                    onDeleteComment = { comment ->
-                        viewModel.deleteComment(comment.id)
-                    },
-                    onEditComment = { comment, newText ->
-                        viewModel.updateComment(comment.id, newText)
-                    },
+                    onDeleteComment = { comment -> viewModel.deleteComment(comment.id) },
+                    onEditComment = { comment, newText -> viewModel.updateComment(comment.id, newText) },
                     navController = navController
                 )
             }
         }
 
-        // ===================== FULLSCREEN IMAGE =====================
         fullscreenImageUrl?.let { url ->
             Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
                 AsyncImage(
@@ -329,17 +383,17 @@ private fun loadUserData(
     }
 }
 
-// ===================== COMPONENTI =====================
-
 @Composable
 fun CollectionHeader(
     collection: com.example.allcollections.data.model.UserCollection,
     itemsCount: Int,
     commentsCount: Int,
+    likesCount: Int,
     isOwner: Boolean,
     onAddObjectClick: () -> Unit,
     onImageClick: (String) -> Unit,
-    onMenuClick: () -> Unit
+    onMenuClick: () -> Unit,
+    onLikesCountClick: () -> Unit = {}
 ) {
     Column {
         Box(
@@ -358,9 +412,7 @@ fun CollectionHeader(
             } else {
                 Box(
                     modifier = Modifier.fillMaxSize().background(
-                        Brush.linearGradient(
-                            colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)
-                        )
+                        Brush.linearGradient(colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer))
                     ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -391,6 +443,14 @@ fun CollectionHeader(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
                     Text(text = commentsCount.toString(), color = Color.White, style = MaterialTheme.typography.labelLarge)
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = if (isOwner) Modifier.clickable { onLikesCountClick() } else Modifier
+                ) {
+                    Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                    Text(text = likesCount.toString(), color = Color.White, style = MaterialTheme.typography.labelLarge)
                 }
             }
 
@@ -571,7 +631,6 @@ fun CommentsSection(
     var commentToEdit by remember { mutableStateOf<Comment?>(null) }
     var editText by remember { mutableStateOf("") }
 
-    // Dialog elimina commento
     commentToDelete?.let { comment ->
         AlertDialog(
             onDismissRequest = { commentToDelete = null },
@@ -588,7 +647,6 @@ fun CommentsSection(
         )
     }
 
-    // Dialog modifica commento
     commentToEdit?.let { comment ->
         AlertDialog(
             onDismissRequest = { commentToEdit = null },

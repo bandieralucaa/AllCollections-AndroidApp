@@ -18,24 +18,16 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.core.ui.MyTopBar
+import com.example.allcollections.feature.notification.presentation.NotificationViewModel
 import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 
-/**
- * Schermata per aggiungere un oggetto a una collezione.
- *
- * Permette di:
- * - Inserire una descrizione
- * - Selezionare un'immagine dalla galleria
- * - Caricare l'immagine su Cloudinary tramite CollectionViewModel
- *
- * Mostra anteprima dell'immagine selezionata, progress indicator durante l'upload
- * e snackbar in caso di errori.
- */
 @Composable
 fun AddCollectionObjectScreen(
     navController: NavController,
     collectionId: String,
-    viewModel: CollectionViewModel = viewModel()
+    viewModel: CollectionViewModel = viewModel(),
+    notificationViewModel: NotificationViewModel = koinViewModel()
 ) {
     var description by remember { mutableStateOf("") }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
@@ -44,7 +36,6 @@ fun AddCollectionObjectScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    // Launcher per selezione immagine dalla galleria
     val imagePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -64,7 +55,6 @@ fun AddCollectionObjectScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Campo descrizione
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
@@ -72,7 +62,6 @@ fun AddCollectionObjectScreen(
                 modifier = Modifier.fillMaxWidth(0.9f)
             )
 
-            // Pulsante selezione immagine
             Button(
                 onClick = { imagePickerLauncher.launch("image/*") },
                 enabled = !isUploading,
@@ -82,7 +71,6 @@ fun AddCollectionObjectScreen(
                 Text(text = if (isUploading) "Caricamento in corso..." else "Scegli immagine")
             }
 
-            // Anteprima immagine
             selectedImageUri?.let { uri ->
                 Spacer(modifier = Modifier.height(12.dp))
                 if (isUploading) {
@@ -101,7 +89,6 @@ fun AddCollectionObjectScreen(
                 }
             }
 
-            // Pulsante aggiungi oggetto
             Button(
                 enabled = selectedImageUri != null && description.isNotBlank() && !isUploading,
                 onClick = {
@@ -110,7 +97,8 @@ fun AddCollectionObjectScreen(
                         viewModel.addItem(
                             collectionId = collectionId,
                             imageUri = uri,
-                            description = description
+                            description = description,
+                            notificationViewModel = notificationViewModel
                         ) { success, error ->
                             coroutineScope.launch {
                                 isUploading = false

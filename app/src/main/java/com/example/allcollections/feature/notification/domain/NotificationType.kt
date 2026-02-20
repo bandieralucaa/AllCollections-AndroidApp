@@ -3,6 +3,7 @@ package com.example.allcollections.feature.notification.domain
 enum class NotificationType(val value: String) {
     FOLLOW("follow"),
     COMMENT("comment"),
+    LIKE("like"),
     NEW_ITEM("new_item"),
     GENERAL("general");
 

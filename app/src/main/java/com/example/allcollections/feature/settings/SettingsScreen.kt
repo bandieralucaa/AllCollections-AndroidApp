@@ -43,6 +43,7 @@ fun SettingsScreen(
                 )
             }
         },
+        "Modifica bio" to { navController.navigate(Screens.EditBioScreen.route) },
         "Cambia tema" to { navController.navigate(Screens.ChooseThemeScreen.route) },
         "Logout" to {
             notificationViewModel.stopObserving()

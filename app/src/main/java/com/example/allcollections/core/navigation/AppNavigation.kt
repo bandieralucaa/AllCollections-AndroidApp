@@ -221,6 +221,9 @@ private fun NavGraphBuilder.profileNav(navController: NavHostController) {
             isRegistration = isRegistration
         )
     }
+    composable(Screens.EditBioScreen.route) {
+        EditBioScreen(navController, koinViewModel())
+    }
 }
 
 /* ---------------- COLLECTION NAVIGATION ---------------- */

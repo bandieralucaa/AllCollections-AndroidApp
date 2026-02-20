@@ -42,6 +42,7 @@ enum class Screens(val route: String) {
     PhotoProfileScreen("photo_profile/{userId}/{isRegistration}"),
     EditProfileScreen("edit_profile"),
     EditPasswordScreen("edit_password"),
+    EditBioScreen("edit_bio"),
 
     // ─────────── CHAT ───────────
     ChatsListScreen("chats"),

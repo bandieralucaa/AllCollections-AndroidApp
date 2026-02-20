@@ -76,6 +76,46 @@ class NotificationRepository(
         firestore.collection("notifications").add(notification).await()
     }
 
+    suspend fun sendLikeNotification(
+        recipientId: String,
+        senderId: String,
+        collectionId: String,
+        collectionName: String
+    ) {
+        if (recipientId == senderId) return
+
+        val notification = mapOf(
+            "recipientId" to recipientId,
+            "senderId" to senderId,
+            "type" to NotificationType.LIKE.value,
+            "collectionId" to collectionId,
+            "collectionName" to collectionName,
+            "timestamp" to Timestamp.now(),
+            "read" to false
+        )
+
+        firestore.collection("notifications").add(notification).await()
+    }
+
+    suspend fun sendNewItemNotification(
+        recipientId: String,
+        senderId: String,
+        collectionId: String,
+        collectionName: String
+    ) {
+        if (recipientId == senderId) return
+        val notification = mapOf(
+            "recipientId" to recipientId,
+            "senderId" to senderId,
+            "type" to NotificationType.NEW_ITEM.value,
+            "collectionId" to collectionId,
+            "collectionName" to collectionName,
+            "timestamp" to Timestamp.now(),
+            "read" to false
+        )
+        firestore.collection("notifications").add(notification).await()
+    }
+
     suspend fun markAsRead(notificationId: String) {
         firestore.collection("notifications")
             .document(notificationId)

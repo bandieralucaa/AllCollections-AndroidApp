@@ -33,29 +33,22 @@ fun NotificationsScreen(
 
     var showDeleteAllDialog by remember { mutableStateOf(false) }
 
-    // Dialog conferma eliminazione tutte
     if (showDeleteAllDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteAllDialog = false },
             title = { Text("Elimina tutte le notifiche") },
             text = { Text("Sei sicuro di voler eliminare tutte le notifiche? Questa azione non può essere annullata.") },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteAll()
-                        showDeleteAllDialog = false
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Notifiche eliminate")
-                        }
-                    }
-                ) {
+                TextButton(onClick = {
+                    viewModel.deleteAll()
+                    showDeleteAllDialog = false
+                    scope.launch { snackbarHostState.showSnackbar("Notifiche eliminate") }
+                }) {
                     Text("Elimina", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteAllDialog = false }) {
-                    Text("Annulla")
-                }
+                TextButton(onClick = { showDeleteAllDialog = false }) { Text("Annulla") }
             }
         )
     }
@@ -67,13 +60,8 @@ fun NotificationsScreen(
                 title = "Notifiche",
                 actions = {
                     if (notifications.isNotEmpty()) {
-                        IconButton(
-                            onClick = { showDeleteAllDialog = true }
-                        ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Elimina tutte"
-                            )
+                        IconButton(onClick = { showDeleteAllDialog = true }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Elimina tutte")
                         }
                     }
                 }
@@ -81,11 +69,7 @@ fun NotificationsScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             when {
                 notifications.isEmpty() -> EmptyNotificationsView()
                 else -> NotificationsList(
@@ -113,51 +97,22 @@ private fun NotificationsList(
         items(notifications, key = { it.id }) { notification ->
             NotificationItem(
                 notification = notification,
-                onMarkAsRead = {
-                    viewModel.markAsRead(notification.id)
-                },
-                onClick = {
-                    handleNotificationClick(notification, navController, viewModel)
-                },
+                onMarkAsRead = { viewModel.markAsRead(notification.id) },
+                onClick = { handleNotificationClick(notification, navController, viewModel) },
                 modifier = Modifier.animateItem()
             )
         }
-
-        item {
-            Spacer(modifier = Modifier.height(16.dp))
-        }
+        item { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }
 
 @Composable
 private fun EmptyNotificationsView() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Icon(
-                Icons.Default.Notifications,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            )
-            Text(
-                text = "Nessuna notifica",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "Quando riceverai notifiche, appariranno qui",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                textAlign = TextAlign.Center
-            )
+    Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+            Text("Nessuna notifica", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Quando riceverai notifiche, appariranno qui", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), textAlign = TextAlign.Center)
         }
     }
 }
@@ -167,21 +122,20 @@ private fun handleNotificationClick(
     navController: NavController,
     viewModel: NotificationViewModel
 ) {
-    if (!notification.read) {
-        viewModel.markAsRead(notification.id)
-    }
+    if (!notification.read) viewModel.markAsRead(notification.id)
 
     when (notification.type) {
         NotificationType.COMMENT -> {
             when {
-                notification.data.itemId != null -> {
-                    navController.navigate("item_detail/${notification.data.itemId}")
-                }
-                notification.data.collectionId != null -> {
-                    navController.navigate("collection_detail/${notification.data.collectionId}")
-                }
+                notification.data.itemId != null -> navController.navigate("item_detail/${notification.data.itemId}")
+                notification.data.collectionId != null -> navController.navigate("collection_detail/${notification.data.collectionId}")
                 else -> navController.navigate(Screens.NotificationsScreen.route)
             }
+        }
+        NotificationType.LIKE -> {
+            notification.data.collectionId?.let {
+                navController.navigate("collection_detail/$it")
+            } ?: navController.navigate(Screens.HomeScreen.route)
         }
         NotificationType.NEW_ITEM -> {
             notification.data.collectionId?.let {
@@ -193,8 +147,6 @@ private fun handleNotificationClick(
                 navController.navigate(Screens.PublicProfileScreen.createRoute(it))
             } ?: navController.navigate(Screens.HomeScreen.route)
         }
-        else -> {
-            navController.navigate(Screens.HomeScreen.route)
-        }
+        else -> navController.navigate(Screens.HomeScreen.route)
     }
 }

@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -23,40 +24,30 @@ import coil.compose.AsyncImage
 import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.data.model.FollowUser
 import com.google.firebase.auth.FirebaseAuth
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
-/**
- * Schermata principale del profilo dell’utente loggato.
- * Mostra:
- * - Foto profilo
- * - Username
- * - Follower e seguiti con dialog
- * - Pulsanti per collezioni e creazione
- */
 @Composable
 fun ProfileScreen(navController: NavController) {
     val viewModel: ProfileViewModel = viewModel()
 
-    // Stato autenticazione
     val currentUser = FirebaseAuth.getInstance().currentUser
     val userId = currentUser?.uid
 
-    // Stato UI locale
     var username by remember { mutableStateOf("") }
+    var bio by remember { mutableStateOf("") }
     var followerCount by remember { mutableStateOf(0) }
     var followingCount by remember { mutableStateOf(0) }
 
-    // Stati dal ViewModel
     val profileImageUrl by viewModel.profileImageUrl
     val followersList by viewModel.followersList
     val followingList by viewModel.followingList
     val isLoadingFollowers by viewModel.isLoadingFollowers
     val isLoadingFollowing by viewModel.isLoadingFollowing
 
-    // Stati dialog
     var showFollowersDialog by remember { mutableStateOf(false) }
     var showFollowingDialog by remember { mutableStateOf(false) }
 
-    // Reindirizza al login se non loggato
     LaunchedEffect(currentUser) {
         if (currentUser == null) {
             navController.navigate(Screens.LoginScreen.route) {
@@ -66,11 +57,11 @@ fun ProfileScreen(navController: NavController) {
         }
     }
 
-    // Carica dati utente e statistiche
     LaunchedEffect(userId) {
         if (userId != null) {
             val user = viewModel.getUserData()
             username = user?.username ?: "Utente"
+            bio = user?.bio ?: ""
             viewModel.loadProfileImage()
             viewModel.getFollowerCount(userId) { followerCount = it }
             viewModel.getFollowingCount(userId) { followingCount = it }
@@ -79,24 +70,17 @@ fun ProfileScreen(navController: NavController) {
 
     Scaffold(
         topBar = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 IconButton(onClick = { navController.navigate(Screens.SettingsScreen.route) }) {
                     Icon(Icons.Default.Settings, contentDescription = "Impostazioni")
                 }
             }
         }
     ) { padding ->
-
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
             Spacer(Modifier.height(24.dp))
 
             ProfileImage(imageUrl = profileImageUrl)
@@ -109,9 +93,19 @@ fun ProfileScreen(navController: NavController) {
                 fontFamily = FontFamily.Serif
             )
 
+            Text(
+                text = if (bio.isNotBlank()) bio else "Aggiungi una bio...",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (bio.isNotBlank()) MaterialTheme.colorScheme.onSurfaceVariant
+                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth(0.8f)
+                    .clickable { navController.navigate(Screens.EditBioScreen.route) }
+            )
+
             Spacer(Modifier.height(24.dp))
 
-            // Row con Follower e Seguiti
             Row(horizontalArrangement = Arrangement.spacedBy(32.dp)) {
                 ClickableStatItem(
                     label = "Follower",
@@ -121,7 +115,6 @@ fun ProfileScreen(navController: NavController) {
                         if (userId != null) viewModel.loadFollowers(userId)
                     }
                 )
-
                 ClickableStatItem(
                     label = "Seguiti",
                     count = followingCount,
@@ -152,7 +145,6 @@ fun ProfileScreen(navController: NavController) {
         }
     }
 
-    // Dialog follower
     if (showFollowersDialog) {
         FollowersDialog(
             title = "Follower",
@@ -166,7 +158,6 @@ fun ProfileScreen(navController: NavController) {
         )
     }
 
-    // Dialog following
     if (showFollowingDialog) {
         FollowersDialog(
             title = "Seguiti",
@@ -181,20 +172,14 @@ fun ProfileScreen(navController: NavController) {
     }
 }
 
-// Composable per mostrare un elemento cliccabile con count
 @Composable
-private fun ClickableStatItem(
-    label: String,
-    count: Int,
-    onClick: () -> Unit
-) {
+private fun ClickableStatItem(label: String, count: Int, onClick: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onClick() }) {
         Text(text = count.toString(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
         Text(text = label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
-// Composable per il dialog follower/following
 @Composable
 fun FollowersDialog(
     title: String,
@@ -205,9 +190,7 @@ fun FollowersDialog(
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 200.dp, max = 500.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp, max = 500.dp),
             shape = MaterialTheme.shapes.large
         ) {
             Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -231,16 +214,12 @@ fun FollowersDialog(
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
-
-                Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                    Text("Chiudi")
-                }
+                Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Chiudi") }
             }
         }
     }
 }
 
-// Composable per la lista utenti nel dialog
 @Composable
 fun UserListItem(user: FollowUser, onClick: () -> Unit) {
     Card(
@@ -257,17 +236,14 @@ fun UserListItem(user: FollowUser, onClick: () -> Unit) {
                     }
                 }
             }
-
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = user.username, style = MaterialTheme.typography.bodyMedium)
             }
-
             Icon(Icons.Default.ChevronRight, contentDescription = "Vedi profilo", tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
-// Composable per mostrare la foto profilo
 @Composable
 private fun ProfileImage(imageUrl: String?) {
     Box(modifier = Modifier.size(120.dp), contentAlignment = Alignment.Center) {
