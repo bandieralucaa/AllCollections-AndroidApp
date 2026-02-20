@@ -27,6 +27,7 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.testTag
 
 @Composable
 fun LoginScreen(
@@ -81,7 +82,7 @@ fun LoginScreen(
                 onValueChange = { email = it },
                 label = { Text("Email") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("campo_email"),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next
@@ -95,7 +96,7 @@ fun LoginScreen(
                 onValueChange = { password = it },
                 label = { Text("Password") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("campo_password"),
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
@@ -134,21 +135,27 @@ fun LoginScreen(
             Button(
                 onClick = {
                     val trimmedEmail = email.trim()
-                    viewModel.login(trimmedEmail, password) { success, error ->
-                        Log.d("LoginScreen", "Tentativo login con email=$trimmedEmail")
-                        if (success) {
-                            navController.navigate(Screens.HomeScreen.route) {
-                                popUpTo(Screens.LoginScreen.route) { inclusive = true }
+                    if (trimmedEmail.isNotEmpty() && password.isNotEmpty()) {
+                        viewModel.login(trimmedEmail, password) { success, error ->
+                            Log.d("LoginScreen", "Tentativo login con email=$trimmedEmail")
+                            if (success) {
+                                navController.navigate(Screens.HomeScreen.route) {
+                                    popUpTo(Screens.LoginScreen.route) { inclusive = true }
+                                }
+                            } else {
+                                errorMessage = error ?: "Errore durante il login"
                             }
-                        } else {
-                            errorMessage = error ?: "Errore durante il login"
                         }
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                enabled = email.isNotBlank() && password.isNotBlank(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("bottone_accedi")
             ) {
                 Text("Accedi")
             }
+
 
             Spacer(modifier = Modifier.height(16.dp))
 
