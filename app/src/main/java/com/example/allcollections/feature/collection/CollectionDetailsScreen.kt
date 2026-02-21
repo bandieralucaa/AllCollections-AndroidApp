@@ -20,7 +20,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -70,10 +69,7 @@ fun CollectionDetailScreen(
 
     var showMenu by remember { mutableStateOf(false) }
 
-    // Like state
     var likesCount by remember { mutableStateOf(0) }
-
-    // Likers dialog
     var showLikersDialog by remember { mutableStateOf(false) }
     var likers by remember { mutableStateOf<List<UserData>>(emptyList()) }
 
@@ -110,7 +106,8 @@ fun CollectionDetailScreen(
             }
         )
         viewModel.loadItems(collectionId)
-        viewModel.getLikesCount(collectionId) { likesCount = it }    }
+        viewModel.getLikesCount(collectionId) { likesCount = it }
+    }
 
     // ===================== CARICAMENTO COMMENTI =====================
     LaunchedEffect(collectionId) {
@@ -122,8 +119,9 @@ fun CollectionDetailScreen(
         }
     }
 
+    // ===================== SICUREZZA INDICE CAROUSEL =====================
     LaunchedEffect(itemsList.size) {
-        currentItemIndex = 0
+        currentItemIndex = currentItemIndex.coerceIn(0, (itemsList.size - 1).coerceAtLeast(0))
     }
 
     // ===================== DIALOG ELIMINA COLLEZIONE =====================
@@ -195,12 +193,12 @@ fun CollectionDetailScreen(
                                     AsyncImage(
                                         model = user.profileImageUrl,
                                         contentDescription = null,
-                                        modifier = Modifier.size(36.dp).clip(androidx.compose.foundation.shape.CircleShape),
+                                        modifier = Modifier.size(36.dp).clip(CircleShape),
                                         contentScale = ContentScale.Crop
                                     )
                                 } else {
                                     Box(
-                                        modifier = Modifier.size(36.dp).clip(androidx.compose.foundation.shape.CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+                                        modifier = Modifier.size(36.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
@@ -258,7 +256,7 @@ fun CollectionDetailScreen(
             item {
                 CollectionHeader(
                     collection = safeCollection,
-                    itemsCount = uiState.items.size,
+                    itemsCount = itemsList.size,
                     commentsCount = comments.size,
                     likesCount = likesCount,
                     isOwner = isOwner,
@@ -292,7 +290,7 @@ fun CollectionDetailScreen(
                 }
             }
 
-            if (uiState.items.isEmpty()) {
+            if (itemsList.isEmpty()) {
                 item {
                     Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
                         Text("Nessun oggetto in questa collezione", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -382,6 +380,8 @@ private fun loadUserData(
         profileViewModel.getUserProfilePhoto(userId) { photoUrl -> userPhotos[userId] = photoUrl ?: "" }
     }
 }
+
+// ================================== COMPONENTI ==================================
 
 @Composable
 fun CollectionHeader(
@@ -487,6 +487,8 @@ fun CollectionHeader(
     }
 }
 
+// ================================== CAROUSEL ==================================
+
 @Composable
 fun ItemsCarousel(
     items: List<CollectionItem>,
@@ -497,38 +499,49 @@ fun ItemsCarousel(
     onDelete: (CollectionItem) -> Unit,
     onImageClick: (String) -> Unit
 ) {
+    if (items.isEmpty()) return
+
+    val safeIndex = currentIndex.coerceIn(0, items.lastIndex)
+    val currentItem = items[safeIndex]
+
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        Text(text = "Oggetto ${currentIndex + 1} di ${items.size}", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(bottom = 8.dp))
+        Text(
+            text = "Oggetto ${safeIndex + 1} di ${items.size}",
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
 
         Box(
             modifier = Modifier.fillMaxWidth().pointerInput(Unit) {
                 detectHorizontalDragGestures { change, dragAmount ->
                     change.consume()
-                    if (dragAmount > 0) { if (currentIndex > 0) onIndexChange(currentIndex - 1) }
-                    else if (dragAmount < 0) { if (currentIndex < items.size - 1) onIndexChange(currentIndex + 1) }
+                    if (dragAmount > 0) if (safeIndex > 0) onIndexChange(safeIndex - 1)
+                    else if (dragAmount < 0) if (safeIndex < items.lastIndex) onIndexChange(safeIndex + 1)
                 }
             }
         ) {
             CarouselItemCard(
-                item = items[currentIndex],
+                item = currentItem,
                 isOwner = isOwner,
-                onEdit = { onEdit(items[currentIndex]) },
-                onDelete = { onDelete(items[currentIndex]) },
+                onEdit = { onEdit(currentItem) },
+                onDelete = { onDelete(currentItem) },
                 onImageClick = onImageClick
             )
 
             IconButton(
-                onClick = { if (currentIndex > 0) onIndexChange(currentIndex - 1) },
-                enabled = currentIndex > 0,
-                modifier = Modifier.align(Alignment.CenterStart).size(48.dp).padding(start = 8.dp).background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                onClick = { if (safeIndex > 0) onIndexChange(safeIndex - 1) },
+                enabled = safeIndex > 0,
+                modifier = Modifier.align(Alignment.CenterStart).size(48.dp)
+                    .background(Color.Black.copy(alpha = 0.3f), CircleShape)
             ) {
                 Icon(Icons.Default.ArrowBack, contentDescription = "Oggetto precedente", tint = Color.White)
             }
 
             IconButton(
-                onClick = { if (currentIndex < items.size - 1) onIndexChange(currentIndex + 1) },
-                enabled = currentIndex < items.size - 1,
-                modifier = Modifier.align(Alignment.CenterEnd).size(48.dp).padding(end = 8.dp).background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                onClick = { if (safeIndex < items.lastIndex) onIndexChange(safeIndex + 1) },
+                enabled = safeIndex < items.lastIndex,
+                modifier = Modifier.align(Alignment.CenterEnd).size(48.dp)
+                    .background(Color.Black.copy(alpha = 0.3f), CircleShape)
             ) {
                 Icon(Icons.Default.ArrowForward, contentDescription = "Oggetto successivo", tint = Color.White)
             }
@@ -538,10 +551,13 @@ fun ItemsCarousel(
             repeat(items.size) { index ->
                 Box(
                     modifier = Modifier
-                        .size(if (index == currentIndex) 12.dp else 8.dp)
+                        .size(if (index == safeIndex) 12.dp else 8.dp)
                         .padding(2.dp)
                         .clip(CircleShape)
-                        .background(if (index == currentIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
+                        .background(
+                            if (index == safeIndex) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                        )
                 )
             }
         }
@@ -569,8 +585,12 @@ fun CarouselItemCard(
                     AsyncImage(
                         model = item.imageUrl,
                         contentDescription = null,
-                        modifier = Modifier.fillMaxWidth().height(350.dp).clickable { item.imageUrl?.let { onImageClick(it) } },
-                        contentScale = ContentScale.Crop
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 200.dp, max = 500.dp)
+                            .background(Color.Black)
+                            .clickable { onImageClick(item.imageUrl) },
+                        contentScale = ContentScale.Fit
                     )
                 } else {
                     Box(
@@ -612,6 +632,8 @@ fun CarouselItemCard(
         }
     }
 }
+
+// ================================== COMMENTI ==================================
 
 @Composable
 fun CommentsSection(
