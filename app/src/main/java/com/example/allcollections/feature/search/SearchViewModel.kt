@@ -4,7 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.allcollections.data.model.UserCollection
 import com.example.allcollections.data.model.UserData
+import com.example.allcollections.feature.collection.CollectionViewModel
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.firestore.ktx.toObject
+import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,151 +18,96 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 data class SearchState(
-    val isLoading: Boolean = false,
-    val error: String? = null,
     val collections: List<UserCollection> = emptyList(),
-    val users: List<UserData> = emptyList()
+    val users: List<UserData> = emptyList(),
+    val error: String? = null
 )
 
-class SearchViewModel : ViewModel() {
+class SearchViewModel(
+    private val collectionViewModel: CollectionViewModel
+) : ViewModel() {
 
-    private val db = FirebaseFirestore.getInstance()
+    private val db: FirebaseFirestore = Firebase.firestore
 
     private val _searchState = MutableStateFlow(SearchState())
     val searchState: StateFlow<SearchState> = _searchState.asStateFlow()
-
-    fun search(query: String, tab: Int, currentUserId: String?) {
-        if (query.length < 2) {
-            clearResults()
-            return
-        }
-
-        viewModelScope.launch {
-            _searchState.value = _searchState.value.copy(isLoading = true, error = null)
-
-            try {
-                val lowercaseQuery = query.lowercase()
-
-                val collections = if (tab != 1) {
-                    searchCollections(lowercaseQuery, currentUserId)
-                } else emptyList()
-
-                val users = if (tab != 0) {
-                    searchUsers(lowercaseQuery, currentUserId)
-                } else emptyList()
-
-                _searchState.value = SearchState(
-                    isLoading = false,
-                    collections = collections,
-                    users = users
-                )
-            } catch (e: Exception) {
-                _searchState.value = SearchState(
-                    isLoading = false,
-                    error = e.message
-                )
-            }
-        }
-    }
 
     fun clearResults() {
         _searchState.value = SearchState()
     }
 
-    private suspend fun searchCollections(query: String, currentUserId: String?): List<UserCollection> {
-        return try {
-            val collections = mutableListOf<UserCollection>()
+    /**
+     * Cerca collezioni, utenti o entrambi a seconda di selectedTab
+     * selectedTab = 0 -> Collezioni
+     * selectedTab = 1 -> Utenti
+     * selectedTab = 2 -> Tutto
+     */
+    fun search(query: String, selectedTab: Int, currentUserId: String?) {
+        viewModelScope.launch {
+            try {
+                val lowerQuery = query.lowercase()
 
-            // Cerca per nome
-            val nameSnapshot = db.collection("collections")
-                .orderBy("name")
-                .startAt(query)
-                .endAt(query + "\uf8ff")
-                .limit(20)
-                .get()
-                .await()
+                // Lista dei risultati
+                var collectionResults: List<UserCollection> = emptyList()
+                var userResults: List<UserData> = emptyList()
 
-            collections.addAll(nameSnapshot.documents.mapNotNull { doc ->
-                doc.toObject(UserCollection::class.java)?.copy(id = doc.id)
-            })
+                // ────────── Collezioni ──────────
+                if (selectedTab != 1) {
+                    val snapshot = db.collection("collections").get().await()
+                    val collections = snapshot.documents.mapNotNull { it.toObject<UserCollection>()?.copy(id = it.id) }
 
-            // Se non ci sono risultati, cerca anche per categoria
-            if (collections.isEmpty()) {
-                val categorySnapshot = db.collection("collections")
-                    .orderBy("category")
-                    .startAt(query)
-                    .endAt(query + "\uf8ff")
-                    .limit(20)
-                    .get()
-                    .await()
+                    // Filtra per nome o categoria contenente query
+                    val filteredCollections = collections.filter {
+                        it.name.lowercase().contains(lowerQuery) ||
+                                (it.category?.lowercase()?.contains(lowerQuery) ?: false)
+                    }
 
-                collections.addAll(categorySnapshot.documents.mapNotNull { doc ->
-                    doc.toObject(UserCollection::class.java)?.copy(id = doc.id)
-                })
+                    // Aggiungi username al volo
+                    collectionResults = filteredCollections.map { coll ->
+                        async {
+                            val username = getUsernameByIdSync(coll.iduser ?: "")
+                            coll.copy(username = username)
+                        }
+                    }.awaitAll()
+                }
+
+                // ────────── Utenti ──────────
+                if (selectedTab != 0) {
+                    val snapshot = db.collection("users").get().await()
+                    val users = snapshot.documents.mapNotNull { doc ->
+                        val user = doc.toObject<UserData>()?.copy(userId = doc.id)
+                        user?.takeIf { it.userId != currentUserId }
+                    }
+
+                    // Filtra per username o nome/cognome
+                    userResults = users.filter {
+                        it.username.lowercase().contains(lowerQuery) ||
+                                it.name.lowercase().contains(lowerQuery) ||
+                                it.surname.lowercase().contains(lowerQuery)
+                    }
+                }
+
+                _searchState.value = SearchState(
+                    collections = collectionResults,
+                    users = userResults,
+                    error = null
+                )
+
+            } catch (e: Exception) {
+                _searchState.value = SearchState(error = e.message ?: "Errore ricerca")
             }
-
-            // Filtra le collezioni dell'utente corrente e rimuovi duplicati
-            collections
-                .filter { it.iduser != currentUserId }
-                .distinctBy { it.id }
-                .take(20)
-
-        } catch (e: Exception) {
-            emptyList()
         }
     }
 
-    private suspend fun searchUsers(query: String, currentUserId: String?): List<UserData> {
+    /**
+     * Funzione sospesa per ottenere username da userId
+     */
+    private suspend fun getUsernameByIdSync(userId: String): String {
         return try {
-            val users = mutableListOf<UserData>()
-
-            // Cerca per username
-            val usernameSnapshot = db.collection("users")
-                .orderBy("username")
-                .startAt(query)
-                .endAt(query + "\uf8ff")
-                .limit(15)
-                .get()
-                .await()
-
-            users.addAll(usernameSnapshot.documents.mapNotNull { doc ->
-                doc.toObject(UserData::class.java)?.copy(userId = doc.id)
-            })
-
-            // Cerca per nome
-            val nameSnapshot = db.collection("users")
-                .orderBy("name")
-                .startAt(query)
-                .endAt(query + "\uf8ff")
-                .limit(15)
-                .get()
-                .await()
-
-            users.addAll(nameSnapshot.documents.mapNotNull { doc ->
-                doc.toObject(UserData::class.java)?.copy(userId = doc.id)
-            })
-
-            // Cerca per cognome
-            val surnameSnapshot = db.collection("users")
-                .orderBy("surname")
-                .startAt(query)
-                .endAt(query + "\uf8ff")
-                .limit(15)
-                .get()
-                .await()
-
-            users.addAll(surnameSnapshot.documents.mapNotNull { doc ->
-                doc.toObject(UserData::class.java)?.copy(userId = doc.id)
-            })
-
-            // Rimuovi l'utente corrente e duplicati
-            users
-                .filter { it.userId != currentUserId }
-                .distinctBy { it.userId }
-                .take(20)
-
-        } catch (e: Exception) {
-            emptyList()
+            val doc = db.collection("users").document(userId).get().await()
+            doc.getString("username") ?: "Utente"
+        } catch (_: Exception) {
+            "Utente"
         }
     }
 }

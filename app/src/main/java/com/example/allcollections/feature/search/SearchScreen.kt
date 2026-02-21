@@ -3,9 +3,6 @@ package com.example.allcollections.feature.search
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,7 +21,6 @@ import com.example.allcollections.feature.search.components.UserSearchCard
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,13 +36,10 @@ fun SearchScreen(
     val currentUserId = Firebase.auth.currentUser?.uid
     val searchState by searchViewModel.searchState.collectAsState()
 
-    val coroutineScope = rememberCoroutineScope()
-
-    // Debounce per la ricerca (aspetta che l'utente finisca di scrivere)
     LaunchedEffect(searchQuery) {
         if (searchQuery.length >= 2) {
             isSearching = true
-            delay(500) // Aspetta 500ms dopo l'ultima digitazione
+            delay(500)
             searchViewModel.search(searchQuery, selectedTab, currentUserId)
             isSearching = false
         } else {
@@ -54,10 +47,7 @@ fun SearchScreen(
         }
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // Barra di ricerca
+    Column(modifier = Modifier.fillMaxSize()) {
         SearchBar(
             query = searchQuery,
             onQueryChange = { searchQuery = it },
@@ -72,18 +62,12 @@ fun SearchScreen(
             }
         )
 
-        // Tabs
-        TabRow(
-            selectedTabIndex = selectedTab,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        ) {
+        TabRow(selectedTabIndex = selectedTab, modifier = Modifier.padding(horizontal = 16.dp)) {
             Tab(
                 selected = selectedTab == 0,
                 onClick = {
                     selectedTab = 0
-                    if (searchQuery.length >= 2) {
-                        searchViewModel.search(searchQuery, 0, currentUserId)
-                    }
+                    if (searchQuery.length >= 2) searchViewModel.search(searchQuery, 0, currentUserId)
                 },
                 text = { Text("Collezioni") }
             )
@@ -91,9 +75,7 @@ fun SearchScreen(
                 selected = selectedTab == 1,
                 onClick = {
                     selectedTab = 1
-                    if (searchQuery.length >= 2) {
-                        searchViewModel.search(searchQuery, 1, currentUserId)
-                    }
+                    if (searchQuery.length >= 2) searchViewModel.search(searchQuery, 1, currentUserId)
                 },
                 text = { Text("Utenti") }
             )
@@ -101,32 +83,21 @@ fun SearchScreen(
                 selected = selectedTab == 2,
                 onClick = {
                     selectedTab = 2
-                    if (searchQuery.length >= 2) {
-                        searchViewModel.search(searchQuery, 2, currentUserId)
-                    }
+                    if (searchQuery.length >= 2) searchViewModel.search(searchQuery, 2, currentUserId)
                 },
                 text = { Text("Tutto") }
             )
         }
 
-        // Contenuto
         when {
-            searchQuery.length < 2 -> {
-                EmptySearchView()
-            }
-            isSearching -> {
-                LoadingSearchView()
-            }
-            searchState.error != null -> {
-                ErrorSearchView(searchState.error!!)
-            }
-            else -> {
-                SearchResults(
-                    searchState = searchState,
-                    selectedTab = selectedTab,
-                    navController = navController
-                )
-            }
+            searchQuery.length < 2 -> EmptySearchView()
+            isSearching -> LoadingSearchView()
+            searchState.error != null -> ErrorSearchView(searchState.error!!)
+            else -> SearchResults(
+                searchState = searchState,
+                selectedTab = selectedTab,
+                navController = navController
+            )
         }
     }
 }
@@ -141,19 +112,15 @@ fun SearchResults(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Collezioni
         if (selectedTab != 1 && searchState.collections.isNotEmpty()) {
-            item {
-                SectionHeader("Collezioni")
-            }
+            item { SectionHeader("Collezioni") }
 
-            item {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+            items(searchState.collections.chunked(2)) { rowCollections ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(searchState.collections) { collection ->
+                    for (collection in rowCollections) {
                         CollectionSearchCard(
                             collection = collection,
                             onCardClick = {
@@ -161,18 +128,18 @@ fun SearchResults(
                             },
                             onUsernameClick = {
                                 navController.navigate(Screens.PublicProfileScreen.createRoute(collection.iduser))
-                            }
+                            },
+                            modifier = Modifier.weight(1f)
                         )
                     }
+
+                    if (rowCollections.size == 1) Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
 
-        // Utenti
         if (selectedTab != 0 && searchState.users.isNotEmpty()) {
-            item {
-                SectionHeader("Utenti")
-            }
+            item { SectionHeader("Utenti") }
 
             items(searchState.users) { user ->
                 UserSearchCard(
@@ -184,11 +151,8 @@ fun SearchResults(
             }
         }
 
-        // Empty state
         if (searchState.collections.isEmpty() && searchState.users.isEmpty()) {
-            item {
-                EmptyResultsView()
-            }
+            item { EmptyResultsView() }
         }
     }
 }
@@ -197,18 +161,16 @@ fun SearchResults(
 fun CollectionSearchCard(
     collection: UserCollection,
     onCardClick: () -> Unit,
-    onUsernameClick: () -> Unit
+    onUsernameClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable { onCardClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(8.dp)
-        ) {
-            // Immagine collezione
+        Column(modifier = Modifier.padding(8.dp)) {
             AsyncImage(
                 model = collection.collectionImageUrl,
                 contentDescription = null,
@@ -221,7 +183,6 @@ fun CollectionSearchCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Nome collezione
             Text(
                 text = collection.name,
                 style = MaterialTheme.typography.titleSmall,
@@ -231,7 +192,6 @@ fun CollectionSearchCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Categoria
             Text(
                 text = collection.category ?: "Senza categoria",
                 style = MaterialTheme.typography.bodySmall,
@@ -242,7 +202,6 @@ fun CollectionSearchCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Username autore
             Text(
                 text = "di @${collection.username}",
                 style = MaterialTheme.typography.bodySmall,
@@ -264,24 +223,12 @@ fun SectionHeader(title: String) {
 
 @Composable
 fun EmptySearchView() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("🔍", fontSize = MaterialTheme.typography.displayLarge.fontSize)
+            Text("Inizia a cercare", style = MaterialTheme.typography.titleLarge)
             Text(
-                text = "🔍",
-                fontSize = MaterialTheme.typography.displayLarge.fontSize
-            )
-            Text(
-                text = "Inizia a cercare",
-                style = MaterialTheme.typography.titleLarge
-            )
-            Text(
-                text = "Digita almeno 2 caratteri per cercare collezioni o utenti",
+                "Digita almeno 2 caratteri per cercare collezioni o utenti",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -293,14 +240,8 @@ fun EmptySearchView() {
 
 @Composable
 fun LoadingSearchView() {
-    Box(
-        modifier = Modifier.fillMaxWidth().padding(32.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             CircularProgressIndicator()
             Text("Ricerca in corso...")
         }
@@ -309,57 +250,22 @@ fun LoadingSearchView() {
 
 @Composable
 fun ErrorSearchView(message: String) {
-    Box(
-        modifier = Modifier.fillMaxWidth().padding(32.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = "❌",
-                fontSize = MaterialTheme.typography.displayLarge.fontSize
-            )
-            Text(
-                text = "Errore",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.error
-            )
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
+    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("❌", fontSize = MaterialTheme.typography.displayLarge.fontSize)
+            Text("Errore", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
+            Text(message, style = MaterialTheme.typography.bodyMedium, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
     }
 }
 
 @Composable
 fun EmptyResultsView() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(32.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = "😕",
-                fontSize = MaterialTheme.typography.displayLarge.fontSize
-            )
-            Text(
-                text = "Nessun risultato",
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                text = "Prova con altri termini di ricerca",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("😕", fontSize = MaterialTheme.typography.displayLarge.fontSize)
+            Text("Nessun risultato", style = MaterialTheme.typography.titleMedium)
+            Text("Prova con altri termini di ricerca", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

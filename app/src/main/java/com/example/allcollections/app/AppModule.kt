@@ -46,6 +46,6 @@ val appModule = module {
     viewModel { ProfileViewModel() }
     viewModel { NotificationViewModel(get()) }
     viewModel { CollectionViewModel() }
-    viewModel { SearchViewModel() }
+    viewModel { SearchViewModel(get()) }
     viewModel { ChatViewModel(get()) }
 }
