@@ -4,8 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Send
@@ -13,8 +13,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.data.model.ChatMessage
 import com.example.allcollections.feature.profile.ProfileViewModel
@@ -39,16 +42,16 @@ fun ChatScreen(
 
     var messageText by remember { mutableStateOf("") }
     var username by remember { mutableStateOf(otherUsername) }
+    var profilePhotoUrl by remember { mutableStateOf<String?>(null) }
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Carica username se non fornito
+    // Carica username e foto profilo
     LaunchedEffect(otherUserId) {
         if (username.isEmpty()) {
-            profileViewModel.getUsernameById(otherUserId) { loadedUsername ->
-                username = loadedUsername
-            }
+            profileViewModel.getUsernameById(otherUserId) { username = it }
         }
+        profileViewModel.getUserProfilePhoto(otherUserId) { profilePhotoUrl = it }
         viewModel.observeMessages(otherUserId)
     }
 
@@ -96,15 +99,10 @@ fun ChatScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(if (username.isNotEmpty()) "@$username" else "Chat") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Indietro")
-                    }
-                },
+            MyTopBar(
+                navController = navController,
+                title = "",
                 actions = {
-                    // Menu a 3 puntini
                     IconButton(onClick = { showMenu = true }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "Opzioni")
                     }
@@ -120,7 +118,11 @@ fun ChatScreen(
                                 showDeleteDialog = true
                             },
                             leadingIcon = {
-                                Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error
+                                )
                             }
                         )
                     }
@@ -133,6 +135,30 @@ fun ChatScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                AsyncImage(
+                    model = profilePhotoUrl,
+                    contentDescription = "Foto profilo",
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = if (username.isNotEmpty()) "@$username" else "Chat",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            HorizontalDivider()
+
             // Lista messaggi
             LazyColumn(
                 modifier = Modifier.weight(1f),

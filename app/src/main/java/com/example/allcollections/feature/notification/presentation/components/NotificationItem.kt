@@ -123,8 +123,8 @@ private fun NotificationContent(notification: Notification) {
             if (!notification.data.collectionName.isNullOrBlank()) append(" \"${notification.data.collectionName}\"")
         }
         NotificationType.NEW_ITEM -> buildString {
-            append("Nuovo oggetto aggiunto")
-            if (!notification.data.collectionName.isNullOrBlank()) append(" in ${notification.data.collectionName}")
+            append("$senderName ha aggiunto un nuovo oggetto")
+            if (!notification.data.collectionName.isNullOrBlank()) append(" in \"${notification.data.collectionName}\"")
         }
         else -> notification.data.pushMessage ?: "Nuova notifica"
     }
