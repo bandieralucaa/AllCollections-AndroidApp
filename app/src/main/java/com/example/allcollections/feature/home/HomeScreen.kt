@@ -188,7 +188,7 @@ fun FilterDialog(
             Column {
                 FilterOption("Tutte le collezioni pubbliche", activeFilter == HomeFilter.All, onSelectAll)
                 FilterOption("Solo utenti seguiti", activeFilter == HomeFilter.Followed, onSelectFollowed)
-                FilterOption("Collezioni con like", activeFilter == HomeFilter.Liked, onSelectLiked)
+                FilterOption("Collezioni preferite", activeFilter == HomeFilter.Liked, onSelectLiked)
             }
         },
         confirmButton = {
