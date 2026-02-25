@@ -63,9 +63,13 @@ fun CollectionDetailScreen(
     var collection by remember { mutableStateOf<com.example.allcollections.data.model.UserCollection?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
+    // Commenti della collezione
     var comments by remember { mutableStateOf<List<Comment>>(emptyList()) }
     val usernames = remember { mutableStateMapOf<String, String>() }
     val userPhotos = remember { mutableStateMapOf<String, String>() }
+
+    // Commenti dell'oggetto corrente nel carousel
+    var itemComments by remember { mutableStateOf<List<Comment>>(emptyList()) }
 
     var showMenu by remember { mutableStateOf(false) }
 
@@ -109,10 +113,23 @@ fun CollectionDetailScreen(
         viewModel.getLikesCount(collectionId) { likesCount = it }
     }
 
-    // ===================== CARICAMENTO COMMENTI =====================
+    // ===================== CARICAMENTO COMMENTI COLLEZIONE =====================
     LaunchedEffect(collectionId) {
         viewModel.getComments(collectionId).collect { commentList ->
             comments = commentList
+            commentList.forEach { comment ->
+                loadUserData(comment.userId, viewModel, profileViewModel, usernames, userPhotos)
+            }
+        }
+    }
+
+    // ===================== CARICAMENTO COMMENTI OGGETTO CORRENTE =====================
+    // Usa itemsList.size + currentItemIndex come chiave così parte solo quando la lista è pronta
+    LaunchedEffect(itemsList.size, currentItemIndex) {
+        val itemId = itemsList.getOrNull(currentItemIndex)?.id ?: return@LaunchedEffect
+        itemComments = emptyList() // reset mentre carica il nuovo oggetto
+        viewModel.getItemComments(collectionId, itemId).collect { commentList ->
+            itemComments = commentList
             commentList.forEach { comment ->
                 loadUserData(comment.userId, viewModel, profileViewModel, usernames, userPhotos)
             }
@@ -312,7 +329,27 @@ fun CollectionDetailScreen(
                             itemToDelete = item
                             showDeleteItemDialog = true
                         },
-                        onImageClick = { fullscreenImageUrl = it }
+                        onImageClick = { fullscreenImageUrl = it },
+                        itemComments = itemComments,
+                        usernames = usernames,
+                        userPhotos = userPhotos,
+                        currentUserId = currentUserId,
+                        onAddItemComment = { text ->
+                            val itemId = itemsList.getOrNull(currentItemIndex)?.id ?: return@ItemsCarousel
+                            if (currentUserId != null) {
+                                val comment = Comment.createForItem(
+                                    collectionId = collectionId,
+                                    itemId = itemId,
+                                    userId = currentUserId,
+                                    text = text,
+                                    username = usernames[currentUserId] ?: ""
+                                )
+                                viewModel.addItemComment(comment, notificationViewModel)
+                            }
+                        },
+                        onDeleteItemComment = { comment -> viewModel.deleteComment(comment.id) },
+                        onEditItemComment = { comment, newText -> viewModel.updateComment(comment.id, newText) },
+                        navController = navController
                     )
                 }
             }
@@ -497,7 +534,15 @@ fun ItemsCarousel(
     isOwner: Boolean,
     onEdit: (CollectionItem) -> Unit,
     onDelete: (CollectionItem) -> Unit,
-    onImageClick: (String) -> Unit
+    onImageClick: (String) -> Unit,
+    itemComments: List<Comment>,
+    usernames: Map<String, String>,
+    userPhotos: Map<String, String>,
+    currentUserId: String?,
+    onAddItemComment: (String) -> Unit,
+    onDeleteItemComment: (Comment) -> Unit,
+    onEditItemComment: (Comment, String) -> Unit,
+    navController: NavController
 ) {
     if (items.isEmpty()) return
 
@@ -525,7 +570,15 @@ fun ItemsCarousel(
                 isOwner = isOwner,
                 onEdit = { onEdit(currentItem) },
                 onDelete = { onDelete(currentItem) },
-                onImageClick = onImageClick
+                onImageClick = onImageClick,
+                itemComments = itemComments,
+                usernames = usernames,
+                userPhotos = userPhotos,
+                currentUserId = currentUserId,
+                onAddItemComment = onAddItemComment,
+                onDeleteItemComment = onDeleteItemComment,
+                onEditItemComment = onEditItemComment,
+                navController = navController
             )
 
             IconButton(
@@ -570,7 +623,15 @@ fun CarouselItemCard(
     isOwner: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onImageClick: (String) -> Unit
+    onImageClick: (String) -> Unit,
+    itemComments: List<Comment>,
+    usernames: Map<String, String>,
+    userPhotos: Map<String, String>,
+    currentUserId: String?,
+    onAddItemComment: (String) -> Unit,
+    onDeleteItemComment: (Comment) -> Unit,
+    onEditItemComment: (Comment, String) -> Unit,
+    navController: NavController
 ) {
     var showItemMenu by remember { mutableStateOf(false) }
 
@@ -629,11 +690,165 @@ fun CarouselItemCard(
                     Text(text = item.description, style = MaterialTheme.typography.bodyLarge)
                 }
             }
+
+            Divider(modifier = Modifier.padding(horizontal = 16.dp))
+            ItemCommentsSection(
+                comments = itemComments,
+                usernames = usernames,
+                userPhotos = userPhotos,
+                currentUserId = currentUserId,
+                onAddComment = onAddItemComment,
+                onDeleteComment = onDeleteItemComment,
+                onEditComment = onEditItemComment,
+                navController = navController
+            )
         }
     }
 }
 
-// ================================== COMMENTI ==================================
+// ================================== COMMENTI OGGETTO ==================================
+
+@Composable
+fun ItemCommentsSection(
+    comments: List<Comment>,
+    usernames: Map<String, String>,
+    userPhotos: Map<String, String>,
+    currentUserId: String?,
+    onAddComment: (String) -> Unit,
+    onDeleteComment: (Comment) -> Unit,
+    onEditComment: (Comment, String) -> Unit,
+    navController: NavController
+) {
+    var newComment by remember { mutableStateOf("") }
+    var showComments by remember { mutableStateOf(false) }
+    var commentToDelete by remember { mutableStateOf<Comment?>(null) }
+    var commentToEdit by remember { mutableStateOf<Comment?>(null) }
+    var editText by remember { mutableStateOf("") }
+
+    commentToDelete?.let { comment ->
+        AlertDialog(
+            onDismissRequest = { commentToDelete = null },
+            title = { Text("Elimina commento") },
+            text = { Text("Sei sicuro di voler eliminare questo commento?") },
+            confirmButton = {
+                TextButton(onClick = { onDeleteComment(comment); commentToDelete = null }) {
+                    Text("Elimina", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { commentToDelete = null }) { Text("Annulla") }
+            }
+        )
+    }
+
+    commentToEdit?.let { comment ->
+        AlertDialog(
+            onDismissRequest = { commentToEdit = null },
+            title = { Text("Modifica commento") },
+            text = {
+                OutlinedTextField(
+                    value = editText,
+                    onValueChange = { editText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 5,
+                    placeholder = { Text("Scrivi il tuo commento...") }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (editText.isNotBlank()) { onEditComment(comment, editText); commentToEdit = null }
+                }) { Text("Salva") }
+            },
+            dismissButton = {
+                TextButton(onClick = { commentToEdit = null }) { Text("Annulla") }
+            }
+        )
+    }
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showComments = !showComments }
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "Commenti oggetto (${comments.size})",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            Icon(
+                if (showComments) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        if (showComments) {
+            if (comments.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "Nessun commento su questo oggetto.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp)) {
+                    items(comments) { comment ->
+                        CommentItem(
+                            comment = comment,
+                            username = usernames[comment.userId] ?: "Utente",
+                            photoUrl = userPhotos[comment.userId],
+                            navController = navController,
+                            onDelete = { commentToDelete = it },
+                            onEdit = { editText = it.text; commentToEdit = it }
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                }
+            }
+
+            if (currentUserId != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = newComment,
+                        onValueChange = { newComment = it },
+                        placeholder = { Text("Commenta questo oggetto...") },
+                        modifier = Modifier.weight(1f),
+                        maxLines = 3,
+                        shape = RoundedCornerShape(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    FloatingActionButton(
+                        onClick = {
+                            if (newComment.isNotBlank()) { onAddComment(newComment); newComment = "" }
+                        },
+                        modifier = Modifier.size(48.dp),
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ) {
+                        Icon(Icons.Default.Send, contentDescription = "Invia", modifier = Modifier.size(20.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ================================== COMMENTI COLLEZIONE ==================================
 
 @Composable
 fun CommentsSection(

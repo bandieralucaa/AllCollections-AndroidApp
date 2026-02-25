@@ -1,7 +1,6 @@
 package com.example.allcollections.feature.notification.domain
 
 import com.example.allcollections.data.model.UserData
-import com.google.firebase.Timestamp
 import java.util.Date
 
 data class Notification(
@@ -12,7 +11,7 @@ data class Notification(
     val timestamp: Date = Date(),
     val read: Boolean = false,
     val data: NotificationData = NotificationData(),
-    val sender: UserData? = null  // Popolato dopo l'enrichment
+    val sender: UserData? = null
 ) {
     val isSystem: Boolean get() = senderId == "system"
 
@@ -26,12 +25,12 @@ data class NotificationData(
     val collectionId: String? = null,
     val collectionName: String? = null,
     val itemId: String? = null,
+    val itemDescription: String? = null,
     val commentText: String? = null,
     val pushTitle: String? = null,
     val pushMessage: String? = null
 )
 
-// Funzione helper (sposta da FormatRelativeTime.kt)
 fun formatRelativeTime(date: Date): String {
     val now = Date()
     val diff = now.time - date.time

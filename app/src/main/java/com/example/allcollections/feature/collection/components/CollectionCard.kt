@@ -77,14 +77,18 @@ private fun HorizontalCollectionCard(
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             collection.collectionImageUrl?.takeIf { it.isNotBlank() }?.let { imageUrl ->
                 AsyncImage(
                     model = imageUrl,
                     contentDescription = "Immagine collezione",
-                    modifier = Modifier.size(72.dp).clip(RoundedCornerShape(8.dp)),
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(RoundedCornerShape(8.dp)),
                     contentScale = ContentScale.Crop
                 )
                 Spacer(modifier = Modifier.width(16.dp))
@@ -108,8 +112,14 @@ private fun HorizontalCollectionCard(
                         Icon(Icons.Default.MoreHoriz, contentDescription = "Opzioni collezione")
                     }
                     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                        DropdownMenuItem(text = { Text("Modifica") }, onClick = { expanded = false; onEdit() })
-                        DropdownMenuItem(text = { Text("Elimina") }, onClick = { expanded = false; onDelete() })
+                        DropdownMenuItem(
+                            text = { Text("Modifica") },
+                            onClick = { expanded = false; onEdit() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Elimina") },
+                            onClick = { expanded = false; onDelete() }
+                        )
                     }
                 }
             }
@@ -135,85 +145,95 @@ private fun VerticalCollectionCard(
         modifier = modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Box {
-            Column(
-                modifier = Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Titolo
+            Text(
+                text = collection.name,
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onCardClick(collection.id) }
+            )
+
+            // Username
+            if (collection.username.isNotBlank()) {
+                val isCurrentUser = currentUserId == collection.iduser
                 Text(
-                    text = collection.name,
-                    style = MaterialTheme.typography.titleMedium,
+                    text = if (isCurrentUser) "Tu" else "@${collection.username}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isCurrentUser) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    modifier = Modifier.fillMaxWidth().clickable { onCardClick(collection.id) }
-                )
-
-                if (collection.username.isNotBlank()) {
-                    val isCurrentUser = currentUserId == collection.iduser
-                    Text(
-                        text = if (isCurrentUser) "Tu" else "@${collection.username}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (isCurrentUser) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                if (isCurrentUser) onMyProfileClick() else onUsernameClick(collection.iduser)
-                            }
-                            .padding(vertical = 4.dp)
-                    )
-                }
-
-                // Immagine
-                Box(
+                    maxLines = 1,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { onCardClick(collection.id) }
-                ) {
-                    if (collection.collectionImageUrl?.isNotBlank() == true) {
-                        AsyncImage(
-                            model = collection.collectionImageUrl,
-                            contentDescription = "Immagine collezione",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = "Nessuna immagine", style = MaterialTheme.typography.labelSmall)
+                        .clickable {
+                            if (isCurrentUser) onMyProfileClick() else onUsernameClick(collection.iduser)
                         }
+                        .padding(vertical = 4.dp)
+                )
+            }
+
+            // Immagine
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { onCardClick(collection.id) }
+            ) {
+                if (collection.collectionImageUrl?.isNotBlank() == true) {
+                    AsyncImage(
+                        model = collection.collectionImageUrl,
+                        contentDescription = "Immagine collezione",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Nessuna immagine",
+                            style = MaterialTheme.typography.labelSmall
+                        )
                     }
                 }
             }
 
-            // Cuoricino in alto a destra della card (solo per non proprietari)
+            // Like in basso a destra (solo per non proprietari)
             if (!isOwner && onLikeClick != null) {
                 Row(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(6.dp)
-                        .clickable { onLikeClick() },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (likesCount > 0) {
-                        Text(
-                            text = likesCount.toString(),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Row(
+                        modifier = Modifier.clickable { onLikeClick() },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        if (likesCount > 0) {
+                            Text(
+                                text = likesCount.toString(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(
+                            imageVector = if (hasLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = "Like",
+                            tint = if (hasLiked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                    Icon(
-                        imageVector = if (hasLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "Like",
-                        tint = if (hasLiked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
                 }
             }
         }

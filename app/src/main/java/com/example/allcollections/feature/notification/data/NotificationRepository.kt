@@ -39,6 +39,7 @@ class NotificationRepository(
 
         awaitClose { listener.remove() }
     }
+
     suspend fun sendFollowNotification(recipientId: String, senderId: String) {
         if (recipientId == senderId) return
 
@@ -68,6 +69,33 @@ class NotificationRepository(
             "type" to NotificationType.COMMENT.value,
             "collectionId" to collectionId,
             "collectionName" to collectionName,
+            "commentText" to commentText,
+            "timestamp" to Timestamp.now(),
+            "read" to false
+        )
+
+        firestore.collection("notifications").add(notification).await()
+    }
+
+    suspend fun sendItemCommentNotification(
+        recipientId: String,
+        senderId: String,
+        collectionId: String,
+        collectionName: String,
+        itemId: String,
+        itemDescription: String?,
+        commentText: String? = null
+    ) {
+        if (recipientId == senderId) return
+
+        val notification = mapOf(
+            "recipientId" to recipientId,
+            "senderId" to senderId,
+            "type" to NotificationType.ITEM_COMMENT.value,
+            "collectionId" to collectionId,
+            "collectionName" to collectionName,
+            "itemId" to itemId,
+            "itemDescription" to itemDescription,
             "commentText" to commentText,
             "timestamp" to Timestamp.now(),
             "read" to false
@@ -184,6 +212,7 @@ class NotificationRepository(
                     collectionId = doc.getString("collectionId"),
                     collectionName = doc.getString("collectionName"),
                     itemId = doc.getString("itemId"),
+                    itemDescription = doc.getString("itemDescription"),
                     commentText = doc.getString("commentText"),
                     pushTitle = doc.getString("pushTitle"),
                     pushMessage = doc.getString("pushMessage")
@@ -195,7 +224,6 @@ class NotificationRepository(
     }
 }
 
-// System user (spostato in un file separato)
 object SystemUser {
     val data = UserData(
         userId = "system",

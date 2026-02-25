@@ -164,6 +164,11 @@ class CollectionViewModel : ViewModel() {
                     val itemsSnapshot = db.collection("collections").document(collectionId).collection("items").get().await()
                     itemsSnapshot.documents.forEach { doc ->
                         doc.getString("publicId")?.let { deleteImageFromCloudinary(it) }
+                        // Elimina anche i commenti degli oggetti
+                        db.collection("comments")
+                            .whereEqualTo("collectionId", collectionId)
+                            .whereEqualTo("itemId", doc.id)
+                            .get().await().documents.forEach { it.reference.delete().await() }
                         doc.reference.delete().await()
                     }
                     db.collection("comments").whereEqualTo("collectionId", collectionId).get().await().documents.forEach { it.reference.delete().await() }
@@ -295,7 +300,6 @@ class CollectionViewModel : ViewModel() {
                             db.collection("collections").document(collectionId).collection("items").add(itemData)
                                 .addOnSuccessListener {
                                     loadItems(collectionId)
-                                    // Notifica chi ha messo like
                                     db.collection("collections").document(collectionId).get()
                                         .addOnSuccessListener { collDoc ->
                                             val collectionName = collDoc.getString("name") ?: ""
@@ -371,6 +375,11 @@ class CollectionViewModel : ViewModel() {
         try {
             val doc = db.collection("collections").document(collectionId).collection("items").document(itemId).get().await()
             doc.getString("publicId")?.let { deleteImageFromCloudinary(it) }
+            // Elimina anche i commenti dell'oggetto
+            db.collection("comments")
+                .whereEqualTo("collectionId", collectionId)
+                .whereEqualTo("itemId", itemId)
+                .get().await().documents.forEach { it.reference.delete().await() }
             db.collection("collections").document(collectionId).collection("items").document(itemId).delete().await()
             loadItems(collectionId)
         } catch (e: Exception) {
@@ -404,7 +413,7 @@ class CollectionViewModel : ViewModel() {
         try { MediaManager.get().cloudinary.uploader().destroy(publicId, mapOf("invalidate" to true)) } catch (_: Exception) {}
     }
 
-    // ────────── COMMENTS ──────────
+    // ────────── COMMENTS (COLLEZIONE) ──────────
 
     fun addComment(comment: Comment, notificationViewModel: NotificationViewModel) {
         val currentUid = auth.currentUser?.uid ?: return
@@ -431,6 +440,7 @@ class CollectionViewModel : ViewModel() {
     fun getComments(collectionId: String): Flow<List<Comment>> = callbackFlow {
         val listenerRegistration = db.collection("comments")
             .whereEqualTo("collectionId", collectionId)
+            .whereEqualTo("itemId", "")
             .orderBy("timestamp")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) { trySend(emptyList()); return@addSnapshotListener }
@@ -455,6 +465,64 @@ class CollectionViewModel : ViewModel() {
             _events.emit(CollectionEvent.Error("Errore modifica commento: ${e.message}"))
         }
     }
+
+    // ────────── COMMENTS (OGGETTO) ──────────
+
+    /**
+     * Aggiunge un commento a un singolo oggetto della collezione.
+     * Riutilizza la stessa collection "comments" su Firestore, distinguendo
+     * i commenti degli oggetti tramite il campo itemId.
+     */
+    fun addItemComment(comment: Comment, notificationViewModel: NotificationViewModel) {
+        val currentUid = auth.currentUser?.uid ?: return
+        val itemId = comment.itemId
+        db.collection("comments").add(comment)
+            .addOnSuccessListener {
+                val collectionId = comment.collectionId
+                if (collectionId.isBlank()) return@addOnSuccessListener
+                db.collection("collections").document(collectionId).get()
+                    .addOnSuccessListener { collDoc ->
+                        val recipientId = collDoc.getString("iduser")
+                        val collectionName = collDoc.getString("name") ?: ""
+                        if (!recipientId.isNullOrBlank() && recipientId != currentUid) {
+                            // Recupera la descrizione dell'oggetto per il testo della notifica
+                            db.collection("collections").document(collectionId)
+                                .collection("items").document(itemId)
+                                .get()
+                                .addOnSuccessListener { itemDoc ->
+                                    val itemDescription = itemDoc.getString("description")
+                                    notificationViewModel.sendItemCommentNotification(
+                                        recipientId = recipientId,
+                                        collectionId = collectionId,
+                                        collectionName = collectionName,
+                                        itemId = itemId,
+                                        itemDescription = itemDescription,
+                                        commentText = comment.text
+                                    )
+                                }
+                        }
+                    }
+            }
+    }
+
+    /**
+     * Ascolta in real-time i commenti di un singolo oggetto.
+     * Filtra per collectionId + itemId per isolare solo i commenti di quell'oggetto.
+     */
+    fun getItemComments(collectionId: String, itemId: String): Flow<List<Comment>> = callbackFlow {
+        val listenerRegistration = db.collection("comments")
+            .whereEqualTo("collectionId", collectionId)
+            .whereEqualTo("itemId", itemId)
+            .orderBy("timestamp")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) { trySend(emptyList()); return@addSnapshotListener }
+                val comments = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject<Comment>()?.copy(id = doc.id)
+                } ?: emptyList()
+                trySend(comments)
+            }
+        awaitClose { listenerRegistration.remove() }
+    }.flowOn(Dispatchers.IO)
 
     fun getUsernameById(userId: String, onResult: (String) -> Unit) {
         db.collection("users").document(userId).get()

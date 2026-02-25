@@ -3,7 +3,7 @@ package com.example.allcollections.feature.collection
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -13,10 +13,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import coil.compose.rememberAsyncImagePainter
+import coil.compose.AsyncImage
 import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.data.model.UserCollection
@@ -117,21 +118,17 @@ fun EditCollectionScreen(
                 }
 
                 // Anteprima immagine
-                val painter = when {
-                    selectedImageUri != null -> rememberAsyncImagePainter(selectedImageUri)
-                    !currentCollection.collectionImageUrl.isNullOrEmpty() -> rememberAsyncImagePainter(currentCollection.collectionImageUrl)
-                    else -> null
-                }
-
-                painter?.let {
-                    Image(
-                        painter = it,
+                val imageModel = selectedImageUri ?: currentCollection.collectionImageUrl.takeIf { !it.isNullOrEmpty() }
+                imageModel?.let { model ->
+                    AsyncImage(
+                        model = model,
                         contentDescription = "Anteprima immagine collezione",
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp)
-                            .clip(RoundedCornerShape(12.dp)),
-                        contentScale = ContentScale.Crop
+                            .heightIn(min = 150.dp, max = 400.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.Black),
+                        contentScale = ContentScale.Fit  // FIX: immagine intera senza crop
                     )
                 }
 

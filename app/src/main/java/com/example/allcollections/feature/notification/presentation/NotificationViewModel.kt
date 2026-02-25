@@ -82,6 +82,28 @@ class NotificationViewModel(
         }
     }
 
+    fun sendItemCommentNotification(
+        recipientId: String,
+        collectionId: String,
+        collectionName: String,
+        itemId: String,
+        itemDescription: String?,
+        commentText: String? = null
+    ) {
+        val senderId = userId ?: return
+        viewModelScope.launch {
+            repository.sendItemCommentNotification(
+                recipientId = recipientId,
+                senderId = senderId,
+                collectionId = collectionId,
+                collectionName = collectionName,
+                itemId = itemId,
+                itemDescription = itemDescription,
+                commentText = commentText
+            )
+        }
+    }
+
     fun markAsRead(notificationId: String) {
         viewModelScope.launch {
             repository.markAsRead(notificationId)

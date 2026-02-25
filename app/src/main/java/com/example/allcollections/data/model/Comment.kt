@@ -5,11 +5,12 @@ import com.google.firebase.Timestamp
 import java.util.Date
 
 /**
- * Modello dati per un commento su una collezione.
+ * Modello dati per un commento su una collezione o su un singolo oggetto.
  * Usa Firebase Timestamp per ordinamento efficiente su Firestore.
  *
  * @property id ID del documento Firestore
  * @property collectionId ID della collezione a cui appartiene il commento
+ * @property itemId ID dell'oggetto a cui appartiene il commento (null = commento sulla collezione)
  * @property userId ID dell'utente che ha scritto il commento
  * @property text Testo del commento
  * @property timestamp Data/ora di creazione (Firebase Timestamp)
@@ -18,6 +19,7 @@ import java.util.Date
 data class Comment(
     val id: String = "",
     val collectionId: String = "",
+    val itemId: String = "",
     val userId: String = "",
     val text: String = "",
     val timestamp: Timestamp = Timestamp.now(),
@@ -30,6 +32,10 @@ data class Comment(
     /** Data di creazione come oggetto Date */
     val createdAt: Date
         get() = timestamp.toDate()
+
+    /** Verifica se il commento appartiene a un oggetto specifico */
+    val isItemComment: Boolean
+        get() = itemId.isNotBlank()
 
     /**
      * Restituisce un testo abbreviato per anteprime
@@ -51,7 +57,7 @@ data class Comment(
         /** Commento vuoto / placeholder */
         fun empty(): Comment = Comment()
 
-        /** Crea un nuovo commento pronto per il salvataggio su Firestore */
+        /** Crea un nuovo commento sulla collezione, pronto per il salvataggio su Firestore */
         fun create(
             collectionId: String,
             userId: String,
@@ -60,6 +66,24 @@ data class Comment(
         ): Comment = Comment(
             id = "",
             collectionId = collectionId,
+            itemId = "",
+            userId = userId,
+            text = text.trim(),
+            timestamp = Timestamp.now(),
+            username = username
+        )
+
+        /** Crea un nuovo commento su un singolo oggetto, pronto per il salvataggio su Firestore */
+        fun createForItem(
+            collectionId: String,
+            itemId: String,
+            userId: String,
+            text: String,
+            username: String = ""
+        ): Comment = Comment(
+            id = "",
+            collectionId = collectionId,
+            itemId = itemId,
             userId = userId,
             text = text.trim(),
             timestamp = Timestamp.now(),

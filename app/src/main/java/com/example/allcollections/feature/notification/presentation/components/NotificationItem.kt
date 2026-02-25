@@ -75,6 +75,7 @@ private fun NotificationAvatar(notification: Notification) {
     val icon = when (notification.type) {
         NotificationType.FOLLOW -> Icons.Default.PersonAdd
         NotificationType.COMMENT -> Icons.Default.Chat
+        NotificationType.ITEM_COMMENT -> Icons.Default.Chat
         NotificationType.LIKE -> Icons.Default.Favorite
         NotificationType.NEW_ITEM -> Icons.Default.Collections
         else -> Icons.Default.Info
@@ -115,8 +116,20 @@ private fun NotificationContent(notification: Notification) {
         NotificationType.FOLLOW -> "$senderName ha iniziato a seguirti"
         NotificationType.COMMENT -> buildString {
             append("$senderName ha commentato")
-            if (!notification.data.collectionName.isNullOrBlank()) append(" in ${notification.data.collectionName}")
+            if (!notification.data.collectionName.isNullOrBlank()) append(" in \"${notification.data.collectionName}\"")
             if (!notification.data.commentText.isNullOrBlank()) append(": \"${notification.data.commentText}\"")
+        }
+        NotificationType.ITEM_COMMENT -> buildString {
+            append("$senderName ha commentato l'oggetto")
+            if (!notification.data.itemDescription.isNullOrBlank()) {
+                append(" \"${notification.data.itemDescription}\"")
+            }
+            if (!notification.data.collectionName.isNullOrBlank()) {
+                append(" nella collezione \"${notification.data.collectionName}\"")
+            }
+            if (!notification.data.commentText.isNullOrBlank()) {
+                append(": \"${notification.data.commentText}\"")
+            }
         }
         NotificationType.LIKE -> buildString {
             append("$senderName ha messo like alla tua collezione")

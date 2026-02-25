@@ -19,8 +19,8 @@ class AllCollections : Application() {
 
         // Inizializza Koin per Dependency Injection
         startKoin {
-            androidContext(this@AllCollections) // Contesto globale dell'app
-            modules(appModule)                  // Moduli dell'app registrati in Koin
+            androidContext(this@AllCollections)
+            modules(appModule)
         }
 
         // Inizializza Cloudinary per la gestione delle immagini remote

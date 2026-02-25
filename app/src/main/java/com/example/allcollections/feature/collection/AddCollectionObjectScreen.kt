@@ -3,6 +3,7 @@ package com.example.allcollections.feature.collection
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -11,6 +12,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -80,10 +83,12 @@ fun AddCollectionObjectScreen(
                     AsyncImage(
                         model = uri,
                         contentDescription = "Anteprima immagine",
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,  // FIX: immagine intera senza crop
                         modifier = Modifier
                             .fillMaxWidth(0.9f)
-                            .height(180.dp)
+                            .heightIn(min = 150.dp, max = 400.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.Black)
                             .padding(4.dp)
                     )
                 }

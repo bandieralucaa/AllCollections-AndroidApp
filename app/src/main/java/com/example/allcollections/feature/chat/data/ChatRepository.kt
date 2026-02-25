@@ -75,11 +75,11 @@ class ChatRepository(
             com.google.firebase.firestore.SetOptions.merge()
         ).await()
 
-        // Ripristina la chat per chi l'aveva eliminata (rimuove deletedFor e deletedAt del receiver)
+        // Rimuove solo il receiver da deletedFor così la chat riappare nella sua lista,
+        // ma lascia intatto deletedAt_receiver così i vecchi messaggi restano nascosti
         chatRef.update(
             mapOf(
-                "deletedFor" to emptyList<String>(),
-                "deletedAt_${message.receiverId}" to FieldValue.delete()
+                "deletedFor" to FieldValue.arrayRemove(message.receiverId)
             )
         ).await()
 
