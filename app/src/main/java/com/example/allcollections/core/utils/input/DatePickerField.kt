@@ -28,16 +28,15 @@ private val DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("dd-
 fun DatePickerField(
     selectedDate: LocalDate,
     modifier: Modifier = Modifier,
-    label: String = "Data",
+    label: String = "Data di nascita",
     onDateSelected: (LocalDate) -> Unit
 ) {
     val context = LocalContext.current
     var showDialog by remember { mutableStateOf(false) }
 
-    // TextField leggibile con icona per aprire il DatePicker
     OutlinedTextField(
         value = selectedDate.format(DATE_FORMATTER),
-        onValueChange = {}, // Campo di sola lettura
+        onValueChange = {},
         label = { Text(label) },
         trailingIcon = {
             IconButton(onClick = { showDialog = true }) {
