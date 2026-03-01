@@ -15,7 +15,6 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.data.model.UserCollection
-import com.example.allcollections.data.model.UserData
 import com.example.allcollections.feature.collection.CollectionViewModel
 import com.example.allcollections.feature.search.components.UserSearchCard
 import com.google.firebase.auth.ktx.auth

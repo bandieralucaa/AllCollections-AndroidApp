@@ -17,16 +17,6 @@ import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.core.theme.ThemeMode
 import com.example.allcollections.core.theme.ThemeState
 
-/**
- * Schermata di selezione tema dell’applicazione.
- *
- * Mostra le opzioni di tema (Light, Dark, System).
- * L’utente può selezionare il tema desiderato.
- *
- * @param state Stato corrente del tema
- * @param onThemeSelected Callback quando l’utente seleziona un tema
- * @param navController Controller di navigazione per tornare indietro
- */
 @Composable
 fun ChooseTheme(
     state: ThemeState,
@@ -38,11 +28,11 @@ fun ChooseTheme(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = { MyTopBar(navController = navController) }
+        topBar = { MyTopBar(navController = navController, title = "Cambia tema") }
     ) { innerPadding ->
         Column(
             modifier = Modifier
-                .selectableGroup() // Gruppo radio button
+                .selectableGroup()
                 .fillMaxSize()
                 .verticalScroll(scrollState)
                 .padding(innerPadding)
@@ -50,7 +40,6 @@ fun ChooseTheme(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Cicla tutte le opzioni di tema
             ThemeMode.entries.forEach { theme ->
                 Row(
                     modifier = Modifier
@@ -66,7 +55,7 @@ fun ChooseTheme(
                 ) {
                     RadioButton(
                         selected = (theme == state.theme),
-                        onClick = null // Il click è gestito dal Row
+                        onClick = null
                     )
                     Text(
                         text = theme.toString(),

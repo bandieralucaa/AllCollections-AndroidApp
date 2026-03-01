@@ -13,22 +13,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.allcollections.core.navigation.Screens
+import com.example.allcollections.core.ui.MyTopBar
 import kotlinx.coroutines.launch
 
-/**
- * Schermata per aggiungere un'immagine principale a una collezione.
- *
- * Mostra un pulsante per selezionare l'immagine dalla galleria,
- * visualizza un'anteprima della selezione e gestisce il caricamento
- * su Cloudinary tramite CollectionViewModel.
- *
- * Se l'utente sceglie "Non ora", viene reindirizzato alla CollectionDetail senza upload.
- */
 @Composable
 fun AddCollectionImageScreen(
     collectionId: String,
@@ -40,14 +33,12 @@ fun AddCollectionImageScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    // Launcher per selezione immagine dalla galleria
     val galleryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         selectedImageUri = uri
     }
 
-    // Effetto: appena l'immagine è selezionata, esegue l'upload
     LaunchedEffect(selectedImageUri) {
         selectedImageUri?.let { uri ->
             isUploading = true
@@ -72,6 +63,9 @@ fun AddCollectionImageScreen(
     }
 
     Scaffold(
+        topBar = {
+            MyTopBar(navController = navController, title = "Aggiungi copertina collezione")
+        },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { innerPadding ->
         Column(
@@ -82,7 +76,6 @@ fun AddCollectionImageScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Anteprima immagine selezionata con bordi arrotondati
             selectedImageUri?.let { uri ->
                 AsyncImage(
                     model = uri,
@@ -92,12 +85,11 @@ fun AddCollectionImageScreen(
                         .heightIn(min = 150.dp, max = 400.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(Color.Black),
-                    contentScale = ContentScale.Fit  // FIX: immagine intera senza crop
+                    contentScale = ContentScale.Fit
                 )
                 Spacer(Modifier.height(16.dp))
             }
 
-            // Pulsante principale: seleziona immagine
             Button(
                 onClick = { galleryLauncher.launch("image/*") },
                 enabled = !isUploading,
@@ -106,13 +98,13 @@ fun AddCollectionImageScreen(
             ) {
                 Text(
                     text = if (isUploading) "Caricamento in corso..." else "Seleziona immagine dalla galleria",
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center
                 )
             }
 
             Spacer(Modifier.height(12.dp))
 
-            // Pulsante secondario: non ora
             OutlinedButton(
                 onClick = {
                     navController.navigate(Screens.CollectionDetailScreen.createRoute(collectionId)) {

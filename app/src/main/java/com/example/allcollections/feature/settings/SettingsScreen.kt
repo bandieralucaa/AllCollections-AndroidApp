@@ -57,7 +57,7 @@ fun SettingsScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = { MyTopBar(navController = navController) }
+        topBar = { MyTopBar(navController = navController, title = "Impostazioni") }
     ) { innerPadding ->
         Column(
             modifier = Modifier
