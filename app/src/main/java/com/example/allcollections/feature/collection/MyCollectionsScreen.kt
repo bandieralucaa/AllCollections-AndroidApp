@@ -36,11 +36,7 @@ fun MyCollectionsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-
-    // Stato per la collezione da eliminare (null = dialog chiuso)
     var collectionToDelete by remember { mutableStateOf<UserCollection?>(null) }
-
-    // Rileva quando lo screen diventa attivo
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     var isScreenActive by remember { mutableStateOf(false) }
 
@@ -54,14 +50,12 @@ fun MyCollectionsScreen(
         }
     }
 
-    // Ricarica le collezioni quando lo screen diventa attivo
     LaunchedEffect(isScreenActive) {
         if (isScreenActive) {
             Firebase.auth.currentUser?.uid?.let { viewModel.loadUserCollections(it) }
         }
     }
 
-    // Ascolta gli eventi di eliminazione
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
@@ -79,7 +73,6 @@ fun MyCollectionsScreen(
         }
     }
 
-    // Mostra eventuali errori con Snackbar
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
             scope.launch {
@@ -88,12 +81,10 @@ fun MyCollectionsScreen(
         }
     }
 
-    // Carica le collezioni al primo avvio
     LaunchedEffect(Unit) {
         Firebase.auth.currentUser?.uid?.let { viewModel.loadUserCollections(it) }
     }
 
-    // AlertDialog di conferma eliminazione
     collectionToDelete?.let { collection ->
         AlertDialog(
             onDismissRequest = { collectionToDelete = null },

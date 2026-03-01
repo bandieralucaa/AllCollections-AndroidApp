@@ -98,7 +98,7 @@ private fun HorizontalCollectionCard(
                 Text(text = collection.name, style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = collection.description,
+                    text = collection.category,
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 2,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -149,7 +149,6 @@ private fun VerticalCollectionCard(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Titolo
             Text(
                 text = collection.name,
                 style = MaterialTheme.typography.titleMedium,
@@ -160,7 +159,6 @@ private fun VerticalCollectionCard(
                     .clickable { onCardClick(collection.id) }
             )
 
-            // Username
             if (collection.username.isNotBlank()) {
                 val isCurrentUser = currentUserId == collection.iduser
                 Text(
@@ -178,7 +176,6 @@ private fun VerticalCollectionCard(
                 )
             }
 
-            // Immagine
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -208,7 +205,6 @@ private fun VerticalCollectionCard(
                 }
             }
 
-            // Like in basso a destra (solo per non proprietari)
             if (!isOwner && onLikeClick != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
