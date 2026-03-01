@@ -103,14 +103,6 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("com.github.dhaval2404:imagepicker:2.1")
 
-    // Debug
-    debugImplementation(libs.androidx.ui.tooling)
-
-    // Test
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
 
 }
