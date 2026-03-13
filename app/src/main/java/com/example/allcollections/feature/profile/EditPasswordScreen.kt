@@ -76,12 +76,6 @@ fun EditPasswordScreen(
                     modifier = Modifier.padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-
-                    Text(
-                        text = "Sicurezza account",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-
                     PasswordField(
                         label = "Password attuale",
                         value = currentPassword,
