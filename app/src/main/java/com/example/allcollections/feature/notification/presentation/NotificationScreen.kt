@@ -126,9 +126,18 @@ private fun handleNotificationClick(
 
     when (notification.type) {
         NotificationType.COMMENT -> {
+            notification.data.collectionId?.let {
+                navController.navigate(Screens.CollectionDetailScreen.createRoute(it))
+            } ?: navController.navigate(Screens.NotificationsScreen.route)
+        }
+        NotificationType.ITEM_COMMENT -> {
+            val collId = notification.data.collectionId
+            val itmId = notification.data.itemId
             when {
-                notification.data.itemId != null -> navController.navigate("item_detail/${notification.data.itemId}")
-                notification.data.collectionId != null -> navController.navigate("collection_detail/${notification.data.collectionId}")
+                collId != null && itmId != null ->
+                    navController.navigate(Screens.CollectionDetailScreen.collectionDetailWithItemRoute(collId, itmId))
+                collId != null ->
+                    navController.navigate(Screens.CollectionDetailScreen.createRoute(collId))
                 else -> navController.navigate(Screens.NotificationsScreen.route)
             }
         }

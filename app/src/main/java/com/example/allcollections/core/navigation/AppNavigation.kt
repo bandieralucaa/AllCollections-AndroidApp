@@ -238,10 +238,18 @@ private fun NavGraphBuilder.collectionNav(navController: NavHostController) {
 
     composable(
         route = Screens.CollectionDetailScreen.route,
-        arguments = listOf(navArgument("collectionId") { type = NavType.StringType })
+        arguments = listOf(
+            navArgument("collectionId") { type = NavType.StringType },
+            navArgument("itemId") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            }
+        )
     ) { entry ->
         val collectionId = requireNotNull(entry.arguments?.getString("collectionId"))
-        CollectionDetailScreen(navController, collectionId, koinViewModel())
+        val itemId = entry.arguments?.getString("itemId")
+        CollectionDetailScreen(navController, collectionId, itemId = itemId, koinViewModel())
     }
 
     composable(

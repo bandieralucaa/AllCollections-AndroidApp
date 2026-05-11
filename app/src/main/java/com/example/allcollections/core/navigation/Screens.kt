@@ -24,11 +24,10 @@ enum class Screens(val route: String) {
     // ─────────── COLLECTION ───────────
     MyCollectionsScreen("my_collections"),
     AddCollectionScreen("add_collection"),
-    CollectionDetailScreen("collection_detail/{collectionId}"),
+    CollectionDetailScreen("collection_detail/{collectionId}?itemId={itemId}"),
     AddCollectionImageScreen("add_image_collection/{collectionId}"),
     AddCollectionObjectScreen("add_object_collection/{collectionId}"),
     EditCollectionItemScreen("edit_collection_item/{collectionId}/{itemId}"),
-
     EditCollectionScreen("edit_collection/{collectionId}"),
 
     // ─────────── HOME / SEARCH / NOTIFICATIONS ───────────
@@ -89,6 +88,6 @@ enum class Screens(val route: String) {
     fun editCollectionRoute(collectionId: String) =
         "edit_collection/$collectionId"
 
-    fun chatRoute(userId: String) =
-        "chat/$userId"
+    fun collectionDetailWithItemRoute(collectionId: String, itemId: String) =
+        "collection_detail/$collectionId?itemId=$itemId"
 }

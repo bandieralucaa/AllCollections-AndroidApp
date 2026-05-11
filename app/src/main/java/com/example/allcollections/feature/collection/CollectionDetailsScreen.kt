@@ -41,6 +41,7 @@ import org.koin.androidx.compose.koinViewModel
 fun CollectionDetailScreen(
     navController: NavController,
     collectionId: String,
+    itemId: String? = null,
     viewModel: CollectionViewModel = viewModel(),
     profileViewModel: ProfileViewModel = viewModel(),
     notificationViewModel: NotificationViewModel = koinViewModel()
@@ -76,6 +77,9 @@ fun CollectionDetailScreen(
     var likesCount by remember { mutableStateOf(0) }
     var showLikersDialog by remember { mutableStateOf(false) }
     var likers by remember { mutableStateOf<List<UserData>>(emptyList()) }
+
+    var initialItemIndexApplied by remember { mutableStateOf(false) }
+
 
     // ===================== ASCOLTA EVENTI =====================
     LaunchedEffect(Unit) {
@@ -139,6 +143,17 @@ fun CollectionDetailScreen(
     // ===================== SICUREZZA INDICE CAROUSEL =====================
     LaunchedEffect(itemsList.size) {
         currentItemIndex = currentItemIndex.coerceIn(0, (itemsList.size - 1).coerceAtLeast(0))
+    }
+
+    // ===================== SCROLL AL ITEM DA NOTIFICA =====================
+    LaunchedEffect(itemsList) {
+        if (itemId != null && !initialItemIndexApplied && itemsList.isNotEmpty()) {
+            val index = itemsList.indexOfFirst { it.id == itemId }
+            if (index >= 0) {
+                currentItemIndex = index
+                initialItemIndexApplied = true
+            }
+        }
     }
 
     // ===================== DIALOG ELIMINA COLLEZIONE =====================
