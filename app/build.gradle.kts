@@ -22,7 +22,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.allcollections"
-        minSdk = 26
+        minSdk = 29
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -31,6 +31,25 @@ android {
         buildConfigField("String", "CLOUDINARY_CLOUD_NAME", "\"$cloudName\"")
         buildConfigField("String", "CLOUDINARY_API_KEY", "\"$apiKey\"")
         buildConfigField("String", "CLOUDINARY_API_SECRET", "\"$apiSecret\"")
+
+        ndk {
+            abiFilters.add("arm64-v8a")
+            abiFilters.add("x86_64")
+        }
+
+        externalNativeBuild {
+            cmake {
+                arguments("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
+            }
+        }
+    }
+
+    ndkVersion = "28.0.13004108"
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+        }
     }
 
     buildTypes {
@@ -44,12 +63,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "17"
     }
 
     buildFeatures {
@@ -83,26 +102,28 @@ dependencies {
     implementation(libs.androidx.navigation.compose.android)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
 
-    // Firebase con BOM (versione aggiornata)
-    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    // Firebase BOM aggiornato
+    implementation(platform("com.google.firebase:firebase-bom:33.13.0"))
     implementation("com.google.firebase:firebase-analytics-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
     implementation("com.google.firebase:firebase-messaging-ktx")
 
-    // Cloudinary (versione più aggiornata)
-    implementation("com.cloudinary:cloudinary-android:3.0.2")
+    // Cloudinary aggiornato
+    implementation("com.cloudinary:cloudinary-android:3.1.2")
 
     // Koin per Dependency Injection
     implementation("io.insert-koin:koin-android:3.5.6")
     implementation("io.insert-koin:koin-androidx-compose:3.5.6")
 
     // Altre librerie
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.datastore:datastore-preferences:1.1.2")
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("com.github.dhaval2404:imagepicker:2.1")
 
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
 
+    implementation("androidx.graphics:graphics-core:1.0.2")
+    implementation("androidx.core:core:1.15.0")
 }
