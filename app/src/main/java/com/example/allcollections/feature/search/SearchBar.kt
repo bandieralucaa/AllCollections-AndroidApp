@@ -13,6 +13,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 
+/**
+ * Barra di ricerca personalizzata con icona lente, campo testo e pulsante "X" per svuotare.
+ *
+ * @param query Testo corrente nel campo di ricerca.
+ * @param onQueryChange Callback invocato ad ogni modifica del testo.
+ * @param onClear Callback invocato quando si preme il pulsante "X".
+ * @param modifier Modifier opzionale per personalizzare la barra.
+ * @param placeholder Testo placeholder mostrato quando il campo è vuoto.
+ * @param enabled `false` per disabilitare l'input (es. durante il caricamento).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchBar(

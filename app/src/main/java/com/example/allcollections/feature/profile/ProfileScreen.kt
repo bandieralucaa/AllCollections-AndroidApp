@@ -27,6 +27,15 @@ import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 
+/**
+ * Schermata del profilo personale dell'utente corrente.
+ *
+ * Mostra foto profilo, username, bio (cliccabile per modificarla), contatori
+ * follower/seguiti (cliccabili per vedere la lista) e i pulsanti di accesso
+ * alle proprie collezioni. Se l'utente non è autenticato naviga al login.
+ *
+ * @param navController NavController per la navigazione.
+ */
 @Composable
 fun ProfileScreen(navController: NavController) {
     val viewModel: ProfileViewModel = viewModel()
@@ -99,9 +108,7 @@ fun ProfileScreen(navController: NavController) {
                 color = if (bio.isNotBlank()) MaterialTheme.colorScheme.onSurfaceVariant
                 else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth(0.8f)
-                    .clickable { navController.navigate(Screens.EditBioScreen.route) }
+                modifier = Modifier.fillMaxWidth(0.8f)
             )
 
             Spacer(Modifier.height(24.dp))
@@ -180,6 +187,15 @@ private fun ClickableStatItem(label: String, count: Int, onClick: () -> Unit) {
     }
 }
 
+/**
+ * Dialog che mostra la lista di follower o seguiti.
+ *
+ * @param title Titolo del dialog ("Follower" o "Seguiti").
+ * @param users Lista di [FollowUser] da visualizzare.
+ * @param isLoading `true` se i dati sono ancora in caricamento.
+ * @param onDismiss Callback per chiudere il dialog.
+ * @param onUserClick Callback con lo userId quando si tocca un utente.
+ */
 @Composable
 fun FollowersDialog(
     title: String,

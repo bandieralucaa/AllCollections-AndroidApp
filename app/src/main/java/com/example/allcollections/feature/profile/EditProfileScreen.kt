@@ -32,23 +32,11 @@ import java.time.LocalDate
 fun EditProfileScreen(
     navController: NavController
 ) {
-    // ----------------------------------------
-    // ViewModel & coroutine
-    // ----------------------------------------
     val profileViewModel: ProfileViewModel = viewModel()
     val scope = rememberCoroutineScope()
-
-    // ----------------------------------------
-    // UI state
-    // ----------------------------------------
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
-
     var isLoading by remember { mutableStateOf(false) }
-
-    // ----------------------------------------
-    // Form state
-    // ----------------------------------------
     var name by remember { mutableStateOf("") }
     var surname by remember { mutableStateOf("") }
     var dateOfBirth by remember { mutableStateOf(LocalDate.now()) }
@@ -56,9 +44,7 @@ fun EditProfileScreen(
     var gender by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
 
-    // ----------------------------------------
-    // Load user data on first composition
-    // ----------------------------------------
+
     LaunchedEffect(Unit) {
         isLoading = true
         profileViewModel.getUserData()?.let { user ->
@@ -72,9 +58,6 @@ fun EditProfileScreen(
         isLoading = false
     }
 
-    // ----------------------------------------
-    // Scaffold
-    // ----------------------------------------
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -106,10 +89,6 @@ fun EditProfileScreen(
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-
-                    // -----------------------------
-                    // Nome
-                    // -----------------------------
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
@@ -118,9 +97,6 @@ fun EditProfileScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // -----------------------------
-                    // Cognome
-                    // -----------------------------
                     OutlinedTextField(
                         value = surname,
                         onValueChange = { surname = it },
@@ -129,25 +105,16 @@ fun EditProfileScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // -----------------------------
-                    // Genere
-                    // -----------------------------
                     GenderSelector(
                         selectedGender = gender,
                         modifier = Modifier.fillMaxWidth()
                     ) { gender = it }
 
-                    // -----------------------------
-                    // Data di nascita
-                    // -----------------------------
                     DatePickerField(
                         selectedDate = dateOfBirth,
                         modifier = Modifier.fillMaxWidth()
                     ) { dateOfBirth = it }
 
-                    // -----------------------------
-                    // Email
-                    // -----------------------------
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
@@ -159,9 +126,6 @@ fun EditProfileScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // -----------------------------
-                    // Username
-                    // -----------------------------
                     OutlinedTextField(
                         value = username,
                         onValueChange = { username = it },
@@ -172,14 +136,10 @@ fun EditProfileScreen(
 
                     Spacer(Modifier.height(8.dp))
 
-                    // -----------------------------
-                    // Save button
-                    // -----------------------------
                     Button(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !isLoading,
                         onClick = {
-                            // Validazione base lato UI
                             if (name.isBlank() || surname.isBlank() || email.isBlank() || username.isBlank()) {
                                 scope.launch {
                                     snackbarHostState.showSnackbar("Compila tutti i campi")

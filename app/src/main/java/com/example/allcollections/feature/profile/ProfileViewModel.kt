@@ -21,6 +21,13 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
+/**
+ * ViewModel per la gestione del profilo utente.
+ *
+ * Gestisce registrazione, login, logout, verifica email, upload foto profilo
+ * su Cloudinary, aggiornamento dati utente, sistema follow/following
+ * e cambio password tramite Firebase Authentication e Firestore.
+ */
 class ProfileViewModel : ViewModel() {
 
     // ----------------------------------
@@ -540,13 +547,17 @@ class ProfileViewModel : ViewModel() {
             }
     }
 
-    // Aggiungi questa funzione in ProfileViewModel.kt
+    /**
+     * Recupera lo username di un utente dato il suo ID.
+     *
+     * @param userId ID dell'utente da cercare.
+     * @param onResult Callback con lo username trovato, o "Utente" come fallback.
+     */
     fun getUsernameById(userId: String, onResult: (String) -> Unit) {
         db.collection("users").document(userId)
             .get()
             .addOnSuccessListener { doc ->
-                val username = doc.getString("username") ?: "Utente"
-                onResult(username)
+                onResult(doc.getString("username") ?: "Utente")
             }
             .addOnFailureListener {
                 onResult("Utente")

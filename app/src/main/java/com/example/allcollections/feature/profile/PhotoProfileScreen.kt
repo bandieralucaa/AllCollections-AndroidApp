@@ -29,6 +29,13 @@ import com.example.allcollections.core.utils.permissions.PermissionStatus
 import com.example.allcollections.core.utils.permissions.rememberPermission
 import kotlinx.coroutines.launch
 
+/**
+ * Schermata per la selezione e il caricamento della foto profilo.
+ *
+ * Permette di scegliere un'immagine dalla galleria o scattarla con la
+ * fotocamera, gestendo i relativi permessi. Usata sia durante la
+ * registrazione che per la modifica del profilo esistente.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PhotoProfileScreen(
@@ -38,35 +45,22 @@ fun PhotoProfileScreen(
     isRegistration: Boolean
 ) {
 
-    // --------------------------------------------------
-    // CONTEXT & STATE
-    // --------------------------------------------------
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(false) }
 
-    // --------------------------------------------------
-    // LAUNCHER GALLERIA
-    // --------------------------------------------------
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         selectedImageUri = uri
     }
 
-    // --------------------------------------------------
-    // LAUNCHER FOTOCAMERA
-    // --------------------------------------------------
     val cameraLauncher = rememberCameraLauncher { uri ->
         selectedImageUri = uri
     }
 
-    // --------------------------------------------------
-    // PERMESSI
-    // --------------------------------------------------
     val cameraPermission = rememberPermission(Manifest.permission.CAMERA)
 
     val galleryPermission = rememberPermission(
@@ -77,9 +71,6 @@ fun PhotoProfileScreen(
         }
     )
 
-    // --------------------------------------------------
-    // SNACKBAR UTILS
-    // --------------------------------------------------
     fun showRationaleSnackbar(message: String, onAction: () -> Unit) {
         scope.launch {
             snackbarHostState.showSnackbar(
@@ -108,9 +99,6 @@ fun PhotoProfileScreen(
         }
     }
 
-    // --------------------------------------------------
-    // HANDLER GALLERIA
-    // --------------------------------------------------
     fun handleGalleryClick() {
         when (galleryPermission.status) {
             PermissionStatus.Granted -> galleryLauncher.launch("image/*")
@@ -123,9 +111,6 @@ fun PhotoProfileScreen(
         }
     }
 
-    // --------------------------------------------------
-    // HANDLER FOTOCAMERA
-    // --------------------------------------------------
     fun handleCameraClick() {
         when (cameraPermission.status) {
             PermissionStatus.Granted -> cameraLauncher.captureImage()
@@ -138,19 +123,14 @@ fun PhotoProfileScreen(
         }
     }
 
-    // --------------------------------------------------
-    // UPLOAD + SALVATAGGIO FOTO (FLUSSO CORRETTO)
-    // --------------------------------------------------
     fun uploadProfileImage() {
         val uri = selectedImageUri ?: return
         isLoading = true
 
-        // 1️⃣ Upload su Cloudinary
         profileViewModel.uploadProfileImage(
             imageUri = uri,
             onSuccess = { imageUrl ->
 
-                // 2️⃣ Salvataggio URL su Firestore
                 profileViewModel.saveProfileImageUrl(
                     userId = userId,
                     imageUrl = imageUrl,
@@ -166,9 +146,8 @@ fun PhotoProfileScreen(
                             Toast.LENGTH_LONG
                         ).show()
 
-                        // 3️⃣ Navigazione finale
                         if (isRegistration) {
-                            profileViewModel.logout() // logout SOLO alla fine
+                            profileViewModel.logout()
                             navController.navigate(Screens.LoginScreen.route) {
                                 popUpTo(navController.graph.startDestinationId) {
                                     inclusive = true
@@ -192,9 +171,6 @@ fun PhotoProfileScreen(
         )
     }
 
-    // --------------------------------------------------
-    // UI
-    // --------------------------------------------------
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
@@ -219,9 +195,6 @@ fun PhotoProfileScreen(
 
             Spacer(Modifier.height(32.dp))
 
-            // --------------------------------------------------
-            // PREVIEW IMMAGINE
-            // --------------------------------------------------
             Card(
                 shape = CircleShape,
                 elevation = CardDefaults.cardElevation(6.dp),
@@ -253,9 +226,6 @@ fun PhotoProfileScreen(
 
             Spacer(Modifier.height(32.dp))
 
-            // --------------------------------------------------
-            // BOTTONI SE NESSUNA IMMAGINE SELEZIONATA
-            // --------------------------------------------------
             if (selectedImageUri == null) {
 
                 Button(

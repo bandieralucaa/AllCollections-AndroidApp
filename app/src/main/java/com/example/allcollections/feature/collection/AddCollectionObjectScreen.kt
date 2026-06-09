@@ -16,7 +16,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.allcollections.core.navigation.Screens
@@ -25,11 +24,27 @@ import com.example.allcollections.feature.notification.presentation.Notification
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
+/**
+ * Schermata per aggiungere un nuovo oggetto a una collezione.
+ *
+ * Permette di inserire una descrizione testuale e selezionare un'immagine
+ * dalla galleria. Il bottone "Aggiungi oggetto" è abilitato solo quando
+ * entrambi i campi sono valorizzati. Al salvataggio:
+ * 1. Carica l'immagine su Cloudinary.
+ * 2. Salva i metadati dell'oggetto su Firestore.
+ * 3. Invia notifiche push agli utenti che hanno messo like alla collezione.
+ * 4. Naviga al dettaglio della collezione.
+ *
+ * @param navController NavController per la navigazione.
+ * @param collectionId ID della collezione a cui aggiungere l'oggetto.
+ * @param viewModel ViewModel che gestisce l'upload e il salvataggio.
+ * @param notificationViewModel ViewModel usato per inviare notifiche ai follower.
+ */
 @Composable
 fun AddCollectionObjectScreen(
     navController: NavController,
     collectionId: String,
-    viewModel: CollectionViewModel = viewModel(),
+    viewModel: CollectionViewModel = koinViewModel(),
     notificationViewModel: NotificationViewModel = koinViewModel()
 ) {
     var description by remember { mutableStateOf("") }
@@ -74,6 +89,7 @@ fun AddCollectionObjectScreen(
                 Text(text = if (isUploading) "Caricamento in corso..." else "Scegli immagine")
             }
 
+            // Anteprima dell'immagine selezionata
             selectedImageUri?.let { uri ->
                 Spacer(modifier = Modifier.height(12.dp))
                 if (isUploading) {
@@ -82,8 +98,8 @@ fun AddCollectionObjectScreen(
                 } else {
                     AsyncImage(
                         model = uri,
-                        contentDescription = "Anteprima immagine",
-                        contentScale = ContentScale.Fit,  // FIX: immagine intera senza crop
+                        contentDescription = "Anteprima immagine oggetto",
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier
                             .fillMaxWidth(0.9f)
                             .heightIn(min = 150.dp, max = 400.dp)
@@ -94,6 +110,7 @@ fun AddCollectionObjectScreen(
                 }
             }
 
+            // Abilitato solo se l'immagine è selezionata, la descrizione non è vuota e non si sta caricando
             Button(
                 enabled = selectedImageUri != null && description.isNotBlank() && !isUploading,
                 onClick = {
@@ -110,7 +127,9 @@ fun AddCollectionObjectScreen(
                                 if (success) {
                                     description = ""
                                     selectedImageUri = null
-                                    navController.navigate(Screens.CollectionDetailScreen.createRoute(collectionId)) {
+                                    navController.navigate(
+                                        Screens.CollectionDetailScreen.createRoute(collectionId)
+                                    ) {
                                         popUpTo(Screens.MyCollectionsScreen.route) { inclusive = false }
                                         launchSingleTop = true
                                     }

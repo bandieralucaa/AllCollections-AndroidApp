@@ -15,12 +15,21 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.core.ui.MyTopBar
+import com.example.allcollections.data.model.Notification
 import com.example.allcollections.feature.notification.components.NotificationItem
-import com.example.allcollections.feature.notification.domain.Notification
 import com.example.allcollections.feature.notification.domain.NotificationType
 import com.example.allcollections.feature.notification.presentation.NotificationViewModel
 import kotlinx.coroutines.launch
+import kotlin.collections.isNotEmpty
 
+/**
+ * Schermata delle notifiche ricevute dall'utente.
+ *
+ * Mostra la lista delle notifiche in ordine cronologico inverso, con
+ * supporto per marcatura come letta al tap e eliminazione di tutte.
+ * Il tap su una notifica naviga alla schermata contestuale in base
+ * al tipo (collezione, oggetto, profilo utente).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationsScreen(

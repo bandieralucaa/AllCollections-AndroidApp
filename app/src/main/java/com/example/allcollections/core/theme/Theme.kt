@@ -12,6 +12,8 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 // ─────────── Color Schemes ───────────
+
+/** Schema colori per la modalità scura, costruito dalla palette in [Color.kt]. */
 private val DarkColorScheme = darkColorScheme(
     primary = PrimaryDark,
     secondary = SecondaryDark,
@@ -25,6 +27,7 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = OnSurfaceDark
 )
 
+/** Schema colori per la modalità chiara, costruito dalla palette in [Color.kt]. */
 private val LightColorScheme = lightColorScheme(
     primary = PrimaryLight,
     secondary = SecondaryLight,
@@ -39,13 +42,18 @@ private val LightColorScheme = lightColorScheme(
 )
 
 /**
- * Theme principale dell'app AllCollections.
+ * Tema principale dell'app AllCollections.
  *
- * Integra la palette moderna, con supporto per dynamic color su Android 12+.
+ * Applica la palette colori, la tipografia e la configurazione della status bar.
+ * Su Android 12+ (API 31) supporta i **Dynamic Color** (Material You): i colori vengono
+ * estratti dallo sfondo del dispositivo; su versioni precedenti viene usata la palette statica.
  *
- * @param darkTheme Se true forza tema scuro, altrimenti light. Default = sistema.
- * @param dynamicColor Se true usa colori dinamici (Material You) su Android 12+, altrimenti palette statica.
- * @param content Contenuto composable a cui applicare il tema.
+ * La status bar viene colorata con il colore `primary` del tema corrente tramite [SideEffect],
+ * e le icone vengono adattate (chiare su dark, scure su light).
+ *
+ * @param darkTheme Se `true` forza la dark mode; default segue il sistema con [isSystemInDarkTheme].
+ * @param dynamicColor Se `true` usa i Dynamic Color su Android 12+; default `true`.
+ * @param content Contenuto Composable a cui applicare il tema.
  */
 @Composable
 fun AllCollectionsTheme(
@@ -53,7 +61,6 @@ fun AllCollectionsTheme(
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    // Se possibile, usare colori dinamici (Material You) su Android 12+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
@@ -63,17 +70,16 @@ fun AllCollectionsTheme(
         else -> LightColorScheme
     }
 
-    // Aggiornamento colore della status bar
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
+            @Suppress("DEPRECATION")
             window.statusBarColor = colorScheme.primary.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
 
-    // Applicazione del tema Material con tipografia moderna
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,

@@ -5,22 +5,35 @@ import com.cloudinary.android.MediaManager
 import com.example.allcollections.BuildConfig
 
 /**
- * Singleton responsabile dell'inizializzazione di Cloudinary.
+ * Singleton responsabile dell'inizializzazione dell'SDK Cloudinary.
  *
- * Deve essere inizializzato UNA SOLA VOLTA all'avvio dell'app
- * (tipicamente nella classe Application).
+ * Deve essere inizializzato **una sola volta** all'avvio dell'app,
+ * tipicamente nel metodo `onCreate` della classe [Application].
+ * Chiamate successive a [init] vengono ignorate in modo sicuro.
+ *
+ * Le credenziali (`cloud_name`, `api_key`, `api_secret`) sono lette da
+ * [BuildConfig] e non hardcodate nel sorgente.
  */
 object CloudinaryManager {
 
-    /** Flag per evitare inizializzazioni multiple */
+    /**
+     * Flag che indica se [MediaManager] è già stato inizializzato.
+     *
+     * Dichiarato `@Volatile` per garantire la visibilità immediata
+     * del valore tra thread diversi (necessario per il double-checked locking).
+     */
     @Volatile
     private var isInitialized = false
 
     /**
-     * Inizializza Cloudinary se non è già stato inizializzato.
+     * Inizializza Cloudinary con le credenziali da [BuildConfig].
      *
-     * Deve essere chiamato con applicationContext
-     * per evitare memory leak.
+     * Utilizza il pattern **double-checked locking** per garantire che
+     * [MediaManager] venga inizializzato al massimo una volta, anche in
+     * presenza di chiamate concorrenti da thread diversi.
+     *
+     * @param context Contesto Android; viene usato [Context.getApplicationContext]
+     *   internamente per evitare memory leak legati ad Activity o Fragment.
      */
     fun init(context: Context) {
         if (isInitialized) return
@@ -39,10 +52,4 @@ object CloudinaryManager {
             isInitialized = true
         }
     }
-
-    /**
-     * Verifica se Cloudinary è già inizializzato.
-     * Utile per debug o controlli di sicurezza.
-     */
-    fun isReady(): Boolean = isInitialized
 }

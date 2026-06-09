@@ -15,18 +15,31 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.core.ui.MyTopBar
 import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 
+/**
+ * Schermata per aggiungere o sostituire la copertina di una collezione.
+ *
+ * Permette di selezionare un'immagine dalla galleria di sistema; non appena
+ * l'immagine viene selezionata, parte automaticamente il caricamento su
+ * Cloudinary. In caso di successo naviga al dettaglio della collezione,
+ * rimuovendo questa schermata dallo stack. È possibile saltare il passaggio
+ * tramite il bottone "Non ora".
+ *
+ * @param collectionId ID della collezione a cui aggiungere la copertina.
+ * @param navController NavController per la navigazione.
+ * @param viewModel ViewModel che gestisce il caricamento su Cloudinary.
+ */
 @Composable
 fun AddCollectionImageScreen(
     collectionId: String,
     navController: NavController,
-    viewModel: CollectionViewModel = viewModel()
+    viewModel: CollectionViewModel = koinViewModel()
 ) {
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var isUploading by remember { mutableStateOf(false) }
@@ -39,6 +52,7 @@ fun AddCollectionImageScreen(
         selectedImageUri = uri
     }
 
+    // Avvia l'upload automaticamente appena viene selezionata un'immagine
     LaunchedEffect(selectedImageUri) {
         selectedImageUri?.let { uri ->
             isUploading = true
@@ -47,7 +61,9 @@ fun AddCollectionImageScreen(
                 imageUri = uri,
                 onSuccess = {
                     isUploading = false
-                    navController.navigate(Screens.CollectionDetailScreen.createRoute(collectionId)) {
+                    navController.navigate(
+                        Screens.CollectionDetailScreen.createRoute(collectionId)
+                    ) {
                         popUpTo(Screens.AddCollectionImageScreen.route) { inclusive = true }
                         launchSingleTop = true
                     }
@@ -76,10 +92,11 @@ fun AddCollectionImageScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // Anteprima dell'immagine selezionata (visibile prima dell'upload)
             selectedImageUri?.let { uri ->
                 AsyncImage(
                     model = uri,
-                    contentDescription = "Anteprima immagine",
+                    contentDescription = "Anteprima immagine copertina",
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 150.dp, max = 400.dp)
@@ -107,7 +124,9 @@ fun AddCollectionImageScreen(
 
             OutlinedButton(
                 onClick = {
-                    navController.navigate(Screens.CollectionDetailScreen.createRoute(collectionId)) {
+                    navController.navigate(
+                        Screens.CollectionDetailScreen.createRoute(collectionId)
+                    ) {
                         popUpTo(Screens.AddCollectionImageScreen.route) { inclusive = true }
                         launchSingleTop = true
                     }

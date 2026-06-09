@@ -16,9 +16,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.example.allcollections.feature.notification.domain.Notification
+import com.example.allcollections.data.model.Notification
 import com.example.allcollections.feature.notification.domain.NotificationType
 
+/**
+ * Composable per la visualizzazione di una singola notifica.
+ *
+ * Mostra avatar del mittente (foto profilo o icona per tipo), testo
+ * descrittivo generato dinamicamente in base al tipo di notifica,
+ * timestamp relativo e indicatore visivo per le notifiche non lette.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationItem(

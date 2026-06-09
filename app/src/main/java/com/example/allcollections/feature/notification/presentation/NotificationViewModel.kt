@@ -2,8 +2,8 @@ package com.example.allcollections.feature.notification.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.allcollections.data.model.Notification
 import com.example.allcollections.feature.notification.data.NotificationRepository
-import com.example.allcollections.feature.notification.domain.Notification
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import kotlinx.coroutines.Job
@@ -14,6 +14,13 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+/**
+ * ViewModel per la gestione delle notifiche.
+ *
+ * Osserva in real-time le notifiche dell'utente corrente, arricchendole
+ * con i dati del mittente. Espone lo stato delle notifiche non lette
+ * e gestisce l'invio di notifiche per follow, commenti, like e nuovi oggetti.
+ */
 class NotificationViewModel(
     private val repository: NotificationRepository
 ) : ViewModel() {

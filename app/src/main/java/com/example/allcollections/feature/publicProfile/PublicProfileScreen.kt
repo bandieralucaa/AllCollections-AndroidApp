@@ -7,7 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.*
@@ -31,6 +30,17 @@ import com.example.allcollections.feature.profile.ProfileViewModel
 import com.google.firebase.auth.FirebaseAuth
 import org.koin.androidx.compose.koinViewModel
 
+/**
+ * Schermata del profilo pubblico di un altro utente.
+ *
+ * Mostra foto profilo, username, bio, contatore follower, pulsanti "Segui/Seguito"
+ * e "Messaggia" e la lista delle collezioni dell'utente con supporto like.
+ * La navigazione follow/unfollow aggiorna il profilo in tempo reale e invia
+ * la notifica push al destinatario.
+ *
+ * @param userId ID dell'utente di cui visualizzare il profilo.
+ * @param navController NavController per la navigazione.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PublicProfileScreen(

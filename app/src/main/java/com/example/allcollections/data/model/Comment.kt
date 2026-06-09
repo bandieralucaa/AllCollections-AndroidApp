@@ -1,20 +1,23 @@
 package com.example.allcollections.data.model
 
-import com.example.allcollections.core.utils.time.formatRelativeTime
 import com.google.firebase.Timestamp
-import java.util.Date
 
 /**
  * Modello dati per un commento su una collezione o su un singolo oggetto.
- * Usa Firebase Timestamp per ordinamento efficiente su Firestore.
  *
- * @property id ID del documento Firestore
- * @property collectionId ID della collezione a cui appartiene il commento
- * @property itemId ID dell'oggetto a cui appartiene il commento (null = commento sulla collezione)
- * @property userId ID dell'utente che ha scritto il commento
- * @property text Testo del commento
- * @property timestamp Data/ora di creazione (Firebase Timestamp)
- * @property username Nome utente per visualizzazione veloce senza query aggiuntive
+ * Un commento è associato sempre a una collezione ([collectionId]); se [itemId] è
+ * non vuoto, il commento si riferisce a un oggetto specifico all'interno di essa,
+ * altrimenti è un commento sulla collezione in generale.
+ *
+ * Usa [Timestamp] di Firebase per un ordinamento efficiente su Firestore.
+ *
+ * @property id ID del documento Firestore (vuoto prima del salvataggio).
+ * @property collectionId ID della collezione a cui appartiene il commento.
+ * @property itemId ID dell'oggetto commentato; stringa vuota se il commento è sulla collezione.
+ * @property userId ID dell'utente autore del commento.
+ * @property text Testo del commento.
+ * @property timestamp Data e ora di creazione.
+ * @property username Nome utente dell'autore, denormalizzato per evitare query aggiuntive.
  */
 data class Comment(
     val id: String = "",
@@ -25,39 +28,17 @@ data class Comment(
     val timestamp: Timestamp = Timestamp.now(),
     val username: String = ""
 ) {
-    /** Verifica se il commento ha testo valido */
-    val hasText: Boolean
-        get() = text.isNotBlank()
-
-    /** Data di creazione come oggetto Date */
-    val createdAt: Date
-        get() = timestamp.toDate()
-
-    /** Verifica se il commento appartiene a un oggetto specifico */
-    val isItemComment: Boolean
-        get() = itemId.isNotBlank()
-
-    /**
-     * Restituisce un testo abbreviato per anteprime
-     * @param maxLength Lunghezza massima (default: 100)
-     */
-    fun getShortText(maxLength: Int = 100): String {
-        val safeMax = maxOf(3, maxLength)
-        return if (text.length <= safeMax) text else text.take(safeMax - 3) + "..."
-    }
-
-    /** Verifica se il commento è recente (ultime 24 ore) */
-    fun isRecent(): Boolean {
-        val now = Timestamp.now()
-        val dayInSeconds = 24 * 60 * 60L
-        return now.seconds - timestamp.seconds < dayInSeconds
-    }
-
     companion object {
-        /** Commento vuoto / placeholder */
-        fun empty(): Comment = Comment()
 
-        /** Crea un nuovo commento sulla collezione, pronto per il salvataggio su Firestore */
+        /**
+         * Crea un nuovo commento sulla collezione, pronto per il salvataggio su Firestore.
+         *
+         * @param collectionId ID della collezione commentata.
+         * @param userId ID dell'utente autore.
+         * @param text Testo del commento (verrà trimmato).
+         * @param username Nome utente dell'autore per la visualizzazione.
+         * @return Nuova istanza di [Comment] con [itemId] vuoto e timestamp corrente.
+         */
         fun create(
             collectionId: String,
             userId: String,
@@ -73,7 +54,16 @@ data class Comment(
             username = username
         )
 
-        /** Crea un nuovo commento su un singolo oggetto, pronto per il salvataggio su Firestore */
+        /**
+         * Crea un nuovo commento su un oggetto specifico, pronto per il salvataggio su Firestore.
+         *
+         * @param collectionId ID della collezione contenente l'oggetto.
+         * @param itemId ID dell'oggetto commentato.
+         * @param userId ID dell'utente autore.
+         * @param text Testo del commento (verrà trimmato).
+         * @param username Nome utente dell'autore per la visualizzazione.
+         * @return Nuova istanza di [Comment] con [itemId] valorizzato e timestamp corrente.
+         */
         fun createForItem(
             collectionId: String,
             itemId: String,
@@ -91,15 +81,3 @@ data class Comment(
         )
     }
 }
-
-/** Extension per validazione rapida prima del salvataggio */
-val Comment.isValid: Boolean
-    get() = collectionId.isNotBlank() && userId.isNotBlank() && text.isNotBlank() && text.length <= 500
-
-/** Extension per ottenere display name ottimizzato per UI */
-val Comment.displayName: String
-    get() = username.takeIf { it.isNotBlank() }?.let { "@$it" } ?: "Utente"
-
-/** Extension per formattazione relativa della data (coerente con altre parti dell'app) */
-val Comment.formattedTime: String
-    get() = formatRelativeTime(timestamp.toDate())

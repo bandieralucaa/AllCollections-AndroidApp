@@ -2,32 +2,12 @@ package com.example.allcollections.feature.collection.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Collections
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +17,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 
+/**
+ * Header della schermata di dettaglio collezione.
+ *
+ * Mostra la copertina con nome e categoria in overlay, le statistiche
+ * (oggetti, commenti, like) e il bottone per aggiungere un oggetto.
+ * Se l'utente è il proprietario mostra il menu contestuale per
+ * modificare o eliminare la collezione.
+ */
 @Composable
 fun CollectionHeader(
     collection: com.example.allcollections.data.model.UserCollection,
@@ -60,25 +48,51 @@ fun CollectionHeader(
                 AsyncImage(
                     model = collection.collectionImageUrl,
                     contentDescription = null,
-                    modifier = Modifier.fillMaxSize().clickable { collection.collectionImageUrl?.let { onImageClick(it) } },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable { collection.collectionImageUrl?.let { onImageClick(it) } },
                     contentScale = ContentScale.Crop
                 )
             } else {
                 Box(
-                    modifier = Modifier.fillMaxSize().background(
-                        Brush.linearGradient(colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer))
-                    ),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.primaryContainer
+                                )
+                            )
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Collections, contentDescription = null, modifier = Modifier.size(80.dp), tint = Color.White.copy(alpha = 0.5f))
+                    Icon(
+                        Icons.Default.Collections,
+                        contentDescription = null,
+                        modifier = Modifier.size(80.dp),
+                        tint = Color.White.copy(alpha = 0.5f)
+                    )
                 }
             }
 
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)))
 
-            Column(modifier = Modifier.align(Alignment.BottomStart).padding(20.dp)) {
-                Text(text = collection.name, style = MaterialTheme.typography.headlineMedium, color = Color.White)
-                Text(text = collection.category ?: "Senza categoria", style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.9f))
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(20.dp)
+            ) {
+                Text(
+                    text = collection.name,
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = Color.White
+                )
+                Text(
+                    text = collection.category ?: "Senza categoria",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.9f)
+                )
             }
 
             Row(
@@ -90,11 +104,17 @@ fun CollectionHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Icon(Icons.Default.Collections, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
                     Text(text = itemsCount.toString(), color = Color.White, style = MaterialTheme.typography.labelLarge)
                 }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
                     Text(text = commentsCount.toString(), color = Color.White, style = MaterialTheme.typography.labelLarge)
                 }
@@ -109,7 +129,11 @@ fun CollectionHeader(
             }
 
             if (isOwner) {
-                Box(modifier = Modifier.align(Alignment.TopStart).padding(16.dp)) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(16.dp)
+                ) {
                     IconButton(onClick = onMenuClick) {
                         Icon(Icons.Default.MoreVert, contentDescription = "Opzioni", tint = Color.White)
                     }
@@ -119,18 +143,28 @@ fun CollectionHeader(
 
         if (!collection.description.isNullOrBlank()) {
             Card(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                )
             ) {
-                Text(text = collection.description, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(16.dp))
+                Text(
+                    text = collection.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(16.dp)
+                )
             }
         }
 
         if (isOwner) {
             Button(
                 onClick = onAddObjectClick,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))

@@ -1,32 +1,25 @@
 package com.example.allcollections.feature.notification.data
 
-import android.content.Context
-import android.content.pm.PackageManager
 import android.os.Build
-import androidx.core.content.ContextCompat
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
+/**
+ * Gestore del token FCM per le notifiche push.
+ *
+ * Si occupa di recuperare il token Firebase Cloud Messaging e salvarlo
+ * su Firestore: nel profilo utente se autenticato, nella collection
+ * "device_tokens" altrimenti. Verifica il permesso notifiche su Android 13+
+ * prima di procedere.
+ */
 class FCMTokenManager(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore
 ) {
-
-    suspend fun initializeToken(context: Context) {
-        if (!hasNotificationPermission(context)) return
-
-        try {
-            val token = FirebaseMessaging.getInstance().token.await()
-            saveToken(token)
-        } catch (e: Exception) {
-            // Log error
-        }
-    }
 
     suspend fun refreshToken(newToken: String) {
         saveToken(newToken)
@@ -45,28 +38,18 @@ class FCMTokenManager(
 
         try {
             if (userId != null) {
-                // Utente loggato - salva nel profilo
                 firestore.collection("users")
                     .document(userId)
                     .update(data)
                     .await()
             } else {
-                // Utente anonimo - salva come dispositivo
                 firestore.collection("device_tokens")
                     .add(data)
                     .await()
             }
         } catch (e: Exception) {
-            // Log error
+            android.util.Log.e("FCMTokenManager", "Errore salvataggio token FCM: ${e.message}", e)
         }
     }
 
-    private fun hasNotificationPermission(context: Context): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(
-                context,
-                android.Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-        } else true
-    }
 }

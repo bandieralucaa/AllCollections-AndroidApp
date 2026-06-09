@@ -17,6 +17,17 @@ import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.core.theme.ThemeMode
 import com.example.allcollections.core.theme.ThemeState
 
+/**
+ * Schermata per la selezione del tema dell'app.
+ *
+ * Mostra i tre temi disponibili ([ThemeMode]) come radio button selezionabili.
+ * Usa `selectableGroup` per l'accessibilità e rispetta la semantica corretta
+ * per i screen reader con `Role.RadioButton`.
+ *
+ * @param state Stato corrente del tema con il valore attivo.
+ * @param onThemeSelected Callback invocato quando l'utente seleziona un tema.
+ * @param navController NavController per tornare indietro.
+ */
 @Composable
 fun ChooseTheme(
     state: ThemeState,

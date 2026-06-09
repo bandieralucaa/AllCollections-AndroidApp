@@ -26,6 +26,22 @@ import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
+/**
+ * Schermata della chat privata tra due utenti.
+ *
+ * Mostra i messaggi in tempo reale tramite Firestore, permette di inviare
+ * nuovi messaggi e di eliminare l'intera conversazione. Lo scroll avviene
+ * automaticamente all'arrivo di ogni nuovo messaggio.
+ *
+ * La lista usa `reverseLayout = true` con i messaggi in ordine inverso:
+ * i più recenti appaiono in fondo e si scorre verso l'alto per i più vecchi.
+ *
+ * @param otherUserId ID dell'altro utente con cui si sta chattando.
+ * @param otherUsername Username dell'altro utente (opzionale; viene caricato se vuoto).
+ * @param navController NavController per la navigazione.
+ * @param viewModel ViewModel che gestisce messaggi e operazioni sulla chat.
+ * @param profileViewModel ViewModel per caricare username e foto profilo dell'interlocutore.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
@@ -36,7 +52,6 @@ fun ChatScreen(
     profileViewModel: ProfileViewModel = koinViewModel()
 ) {
     val messages by viewModel.messages.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
@@ -46,7 +61,7 @@ fun ChatScreen(
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Carica username e foto profilo
+    // Carica username e foto profilo, poi avvia l'ascolto real-time dei messaggi
     LaunchedEffect(otherUserId) {
         if (username.isEmpty()) {
             profileViewModel.getUsernameById(otherUserId) { username = it }
@@ -55,23 +70,19 @@ fun ChatScreen(
         viewModel.observeMessages(otherUserId)
     }
 
-    // Scrolla in basso quando arrivano nuovi messaggi
+    // Scrolla automaticamente all'ultimo messaggio ad ogni nuovo arrivo
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
-            scope.launch {
-                listState.animateScrollToItem(messages.size - 1)
-            }
+            scope.launch { listState.animateScrollToItem(messages.size - 1) }
         }
     }
 
-    // Pulisci i messaggi quando si esce
+    // Svuota i messaggi quando si esce dalla schermata per evitare flash al prossimo accesso
     DisposableEffect(Unit) {
-        onDispose {
-            viewModel.clearMessages()
-        }
+        onDispose { viewModel.clearMessages() }
     }
 
-    // Dialog conferma eliminazione chat
+    // Dialog di conferma eliminazione conversazione
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -90,9 +101,7 @@ fun ChatScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Annulla")
-                }
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Annulla") }
             }
         )
     }
@@ -106,17 +115,13 @@ fun ChatScreen(
                     IconButton(onClick = { showMenu = true }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "Opzioni")
                     }
-
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
                         DropdownMenuItem(
                             text = { Text("Elimina conversazione") },
-                            onClick = {
-                                showMenu = false
-                                showDeleteDialog = true
-                            },
+                            onClick = { showMenu = false; showDeleteDialog = true },
                             leadingIcon = {
                                 Icon(
                                     Icons.Default.Delete,
@@ -135,6 +140,7 @@ fun ChatScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // Header con foto profilo e username dell'interlocutore
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -144,7 +150,7 @@ fun ChatScreen(
             ) {
                 AsyncImage(
                     model = profilePhotoUrl,
-                    contentDescription = "Foto profilo",
+                    contentDescription = "Foto profilo di $username",
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape),
@@ -159,7 +165,8 @@ fun ChatScreen(
 
             HorizontalDivider()
 
-            // Lista messaggi
+            // Lista messaggi: reverseLayout=true + messages.reversed() per avere
+            // i messaggi più recenti in basso e scorrere verso l'alto per i vecchi
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 state = listState,
@@ -172,7 +179,7 @@ fun ChatScreen(
                 }
             }
 
-            // Input messaggio
+            // Barra di input per scrivere e inviare messaggi
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(4.dp)
@@ -216,6 +223,15 @@ fun ChatScreen(
     }
 }
 
+/**
+ * Bolla di un singolo messaggio nella chat.
+ *
+ * I messaggi inviati dall'utente corrente sono allineati a destra con sfondo
+ * [ColorScheme.primaryContainer]; quelli ricevuti sono allineati a sinistra
+ * con sfondo [ColorScheme.surfaceVariant].
+ *
+ * @param message Il messaggio da visualizzare.
+ */
 @Composable
 fun ChatBubble(message: ChatMessage) {
     val currentUserId = Firebase.auth.currentUser?.uid

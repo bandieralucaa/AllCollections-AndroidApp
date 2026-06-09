@@ -2,20 +2,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Permissions esistenti... -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera.any" />
 
-    <!-- Per Android 13+ -->
+    <!-- Accesso alle immagini su Android 13+ (API 33+) -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
-    <!-- Per Android 12 e precedenti -->
+    <!-- Accesso allo storage su Android 12 e precedenti -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
-    <!--Notifiche (Android 13+) -->
+    <!-- Permesso per notifiche push (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
@@ -34,6 +33,7 @@
             android:name=".app.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.AllCollections">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -41,7 +41,7 @@
             </intent-filter>
         </activity>
 
-        <!-- AGGIUNGI QUESTO SERVICE PER LE NOTIFICHE -->
+        <!-- Servizio Firebase Cloud Messaging per notifiche push -->
         <service
             android:name=".feature.notification.service.FirebaseMessagingService"
             android:exported="false">

@@ -1,42 +1,25 @@
 package com.example.allcollections.core.theme
 
 /**
- * Modalità tema disponibili per l'app AllCollections.
+ * Modalità tema disponibili nell'app AllCollections.
  *
- * Definisce se l'app usa tema chiaro, scuro o segue le impostazioni di sistema.
+ * Usato da [ThemeRepository] per la persistenza e da [ThemeViewModel]
+ * per esporre lo stato alla UI.
  */
 enum class ThemeMode {
 
-    /** Tema chiaro (light mode) */
+    /** Forza la modalità chiara indipendentemente dalle impostazioni di sistema. */
     Light,
 
-    /** Tema scuro (dark mode) */
+    /** Forza la modalità scura indipendentemente dalle impostazioni di sistema. */
     Dark,
 
-    /** Segue le impostazioni tema del sistema operativo */
+    /** Segue automaticamente le impostazioni tema del sistema operativo. */
     System;
 
-    /** Nome leggibile dall'utente */
-    val displayName: String
-        get() = when (this) {
-            Light -> "Chiaro"
-            Dark -> "Scuro"
-            System -> "Sistema"
-        }
-
-    /** Nome tecnico per salvataggio/preferenze (lowercase) */
-    val technicalName: String
-        get() = name.lowercase()
-
-    /** Icona rappresentativa (può essere stringa o resource ID) */
-    val iconName: String
-        get() = when (this) {
-            Light -> "sun"
-            Dark -> "moon"
-            System -> "settings"
-        }
-
-    /** Descrizione dettagliata per tooltip o help */
+    /**
+     * Descrizione leggibile del tema, usata in tooltip o testi di aiuto nella UI.
+     */
     val description: String
         get() = when (this) {
             Light -> "Tema chiaro per ambienti luminosi"
@@ -45,7 +28,16 @@ enum class ThemeMode {
         }
 
     companion object {
-        /** Converte una stringa in ThemeMode (case-insensitive). Default = System */
+
+        /**
+         * Converte una stringa nel corrispondente [ThemeMode] (case-insensitive).
+         *
+         * Accetta sia i valori in inglese (es. `"dark"`) che in italiano (es. `"scuro"`).
+         * Se la stringa è `null` o non riconosciuta, ritorna [System] come fallback.
+         *
+         * @param name Stringa da convertire.
+         * @return Il [ThemeMode] corrispondente, o [System] se non riconosciuto.
+         */
         fun fromString(name: String?): ThemeMode = when (name?.lowercase()) {
             "light", "chiaro" -> Light
             "dark", "scuro" -> Dark
@@ -53,31 +45,11 @@ enum class ThemeMode {
             else -> System
         }
 
-        /** Restituisce la lista completa dei temi disponibili */
+        /**
+         * Restituisce la lista completa dei temi disponibili nell'ordine di visualizzazione.
+         *
+         * @return Lista ordinata di tutti i valori di [ThemeMode].
+         */
         fun all(): List<ThemeMode> = listOf(Light, Dark, System)
-
-        /** Verifica se una stringa rappresenta un tema valido */
-        fun isValid(name: String?): Boolean =
-            name?.lowercase() in listOf("light", "dark", "system", "chiaro", "scuro", "sistema")
     }
 }
-
-/** Tema opposto (solo per Light/Dark), null se System */
-val ThemeMode.opposite: ThemeMode?
-    get() = when (this) {
-        ThemeMode.Light -> ThemeMode.Dark
-        ThemeMode.Dark -> ThemeMode.Light
-        ThemeMode.System -> null
-    }
-
-/** Verifica se il tema è fisso (non System) */
-val ThemeMode.isFixed: Boolean
-    get() = this != ThemeMode.System
-
-/** Nome dello schema Material Design da usare */
-val ThemeMode.materialSchemeName: String
-    get() = when (this) {
-        ThemeMode.Light -> "light"
-        ThemeMode.Dark -> "dark"
-        ThemeMode.System -> "dynamic"
-    }

@@ -14,19 +14,26 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.core.ui.MyTopBar
+import com.example.allcollections.data.model.CollectionCardLayout
 import com.example.allcollections.data.model.UserCollection
 import com.example.allcollections.feature.collection.components.CollectionCard
-import com.example.allcollections.feature.collection.components.CollectionCardLayout
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
 
 /**
- * Schermata principale delle collezioni dell'utente.
+ * Schermata principale delle collezioni dell'utente corrente.
  *
- * Mostra tutte le collezioni dell'utente corrente in una lista verticale.
- * Permette di navigare al dettaglio di una collezione e di creare nuove collezioni
- * tramite il FloatingActionButton.
+ * Mostra tutte le proprie collezioni in una lista verticale con layout orizzontale.
+ * Le collezioni vengono ricaricate automaticamente ad ogni ripresa della schermata
+ * (evento `ON_RESUME`) grazie a un [LifecycleEventObserver], in modo da riflettere
+ * eventuali modifiche effettuate in altre schermate (es. modifica, eliminazione).
+ *
+ * Il [FloatingActionButton] naviga alla creazione di una nuova collezione.
+ * Il menu contestuale su ogni card permette modifica o eliminazione con dialog di conferma.
+ *
+ * @param navController NavController per la navigazione.
+ * @param viewModel ViewModel che gestisce il caricamento e l'eliminazione delle collezioni.
  */
 @Composable
 fun MyCollectionsScreen(
@@ -40,14 +47,13 @@ fun MyCollectionsScreen(
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     var isScreenActive by remember { mutableStateOf(false) }
 
+    // Ricarica le collezioni ogni volta che la schermata torna in primo piano
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             isScreenActive = event == androidx.lifecycle.Lifecycle.Event.ON_RESUME
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     LaunchedEffect(isScreenActive) {
@@ -56,6 +62,7 @@ fun MyCollectionsScreen(
         }
     }
 
+    // Ascolta eventi one-shot (eliminazione, errori)
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
@@ -65,26 +72,25 @@ fun MyCollectionsScreen(
                     }
                 }
                 is CollectionViewModel.CollectionEvent.Error -> {
-                    scope.launch {
-                        snackbarHostState.showSnackbar(event.message)
-                    }
+                    scope.launch { snackbarHostState.showSnackbar(event.message) }
                 }
             }
         }
     }
 
+    // Mostra eventuali errori di stato tramite Snackbar
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
-            scope.launch {
-                snackbarHostState.showSnackbar(it)
-            }
+            scope.launch { snackbarHostState.showSnackbar(it) }
         }
     }
 
+    // Caricamento iniziale
     LaunchedEffect(Unit) {
         Firebase.auth.currentUser?.uid?.let { viewModel.loadUserCollections(it) }
     }
 
+    // Dialog di conferma eliminazione
     collectionToDelete?.let { collection ->
         AlertDialog(
             onDismissRequest = { collectionToDelete = null },
@@ -101,9 +107,7 @@ fun MyCollectionsScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { collectionToDelete = null }) {
-                    Text("Annulla")
-                }
+                TextButton(onClick = { collectionToDelete = null }) { Text("Annulla") }
             }
         )
     }
@@ -118,9 +122,7 @@ fun MyCollectionsScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = {
-                    navController.navigate(Screens.AddCollectionScreen.route)
-                }
+                onClick = { navController.navigate(Screens.AddCollectionScreen.route) }
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
@@ -177,11 +179,11 @@ fun MyCollectionsScreen(
                                         Screens.EditCollectionScreen.editCollectionRoute(collection.id)
                                     )
                                 },
-                                onDelete = {
-                                    collectionToDelete = collection
-                                },
+                                onDelete = { collectionToDelete = collection },
                                 onCardClick = { collectionId ->
-                                    navController.navigate("collection_detail/$collectionId")
+                                    navController.navigate(
+                                        Screens.CollectionDetailScreen.collectionDetailRoute(collectionId)
+                                    )
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             )

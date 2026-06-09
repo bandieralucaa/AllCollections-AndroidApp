@@ -5,15 +5,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 
 /**
- * Composable per selezionare il genere tramite dropdown menu.
+ * Campo di selezione del genere tramite dropdown menu.
  *
- * Mostra una TextField leggibile e un menu a tendina con le opzioni disponibili.
+ * Mostra un [TextField] di sola lettura con il valore selezionato e un menu a tendina
+ * con le opzioni disponibili. Se nessun genere è ancora selezionato, mostra un placeholder.
  *
- * @param selectedGender Genere selezionato attualmente.
- * @param modifier Modifier opzionale per personalizzare layout.
- * @param label Label del campo, default = "Genere".
- * @param options Lista di opzioni disponibili. Default: comuni in italiano.
- * @param onGenderSelected Callback chiamato quando l'utente seleziona un genere.
+ * @param selectedGender Genere attualmente selezionato (stringa vuota se non ancora scelto).
+ * @param modifier [Modifier] opzionale per personalizzare dimensioni e posizionamento.
+ * @param label Testo della label del campo; default `"Genere"`.
+ * @param options Lista di opzioni selezionabili; default: le opzioni standard in italiano.
+ * @param onGenderSelected Callback invocato con il genere scelto dall'utente.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,17 +31,15 @@ fun GenderSelector(
     ),
     onGenderSelected: (String) -> Unit
 ) {
-    // Stato per aprire/chiudere il menu
     var expanded by remember { mutableStateOf(false) }
 
-    // Box con TextField + menu a tendina
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = it }
     ) {
         TextField(
             value = selectedGender,
-            onValueChange = {}, // Campo di sola lettura
+            onValueChange = {},
             readOnly = true,
             modifier = modifier.menuAnchor(),
             label = { Text(label) },
@@ -48,7 +47,6 @@ fun GenderSelector(
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
         )
 
-        // Menu a tendina con le opzioni
         ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }

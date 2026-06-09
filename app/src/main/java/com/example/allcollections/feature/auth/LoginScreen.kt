@@ -4,7 +4,9 @@ import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -12,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -25,10 +28,18 @@ import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.feature.profile.ProfileViewModel
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.platform.testTag
 
+/**
+ * Schermata di login.
+ *
+ * Permette all'utente di accedere con email e password tramite Firebase Authentication.
+ * Se l'utente è già autenticato, viene reindirizzato automaticamente alla [Screens.HomeScreen]
+ * tramite [LaunchedEffect]. Il pulsante "Accedi" è abilitato solo quando entrambi i campi
+ * sono non vuoti, per ridurre le chiamate Firebase inutili.
+ *
+ * @param navController Controller per la navigazione tra schermate.
+ * @param viewModel ViewModel del profilo, usato per eseguire il login tramite Firebase.
+ */
 @Composable
 fun LoginScreen(
     navController: NavController,
@@ -41,6 +52,7 @@ fun LoginScreen(
 
     val currentUser = Firebase.auth.currentUser
 
+    // Se l'utente è già loggato, vai direttamente alla Home senza tornare al login
     LaunchedEffect(currentUser) {
         if (currentUser != null) {
             navController.navigate(Screens.HomeScreen.route) {
@@ -62,6 +74,7 @@ fun LoginScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // ─────────── Logo e titolo ───────────
             Image(
                 painter = painterResource(R.drawable.logo),
                 contentDescription = "Logo AllCollections",
@@ -77,12 +90,15 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // ─────────── Campo email ───────────
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
                 label = { Text("Email") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth().testTag("campo_email"),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("campo_email"),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next
@@ -91,19 +107,24 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // ─────────── Campo password con toggle visibilità ───────────
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
                 label = { Text("Password") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth().testTag("campo_password"),
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("campo_password"),
+                visualTransformation = if (passwordVisible) VisualTransformation.None
+                else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Done
                 ),
                 trailingIcon = {
-                    val icon = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                    val icon = if (passwordVisible) Icons.Default.Visibility
+                    else Icons.Default.VisibilityOff
                     val desc = if (passwordVisible) "Nascondi password" else "Mostra password"
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
                         Icon(imageVector = icon, contentDescription = desc)
@@ -113,6 +134,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // ─────────── Link "Password dimenticata?" ───────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth(0.85f)
@@ -132,22 +154,22 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // ─────────── Bottone Accedi ───────────
             Button(
                 onClick = {
                     val trimmedEmail = email.trim()
-                    if (trimmedEmail.isNotEmpty() && password.isNotEmpty()) {
-                        viewModel.login(trimmedEmail, password) { success, error ->
-                            Log.d("LoginScreen", "Tentativo login con email=$trimmedEmail")
-                            if (success) {
-                                navController.navigate(Screens.HomeScreen.route) {
-                                    popUpTo(Screens.LoginScreen.route) { inclusive = true }
-                                }
-                            } else {
-                                errorMessage = error ?: "Errore durante il login"
+                    Log.d("LoginScreen", "Tentativo login con email=$trimmedEmail")
+                    viewModel.login(trimmedEmail, password) { success, error ->
+                        if (success) {
+                            navController.navigate(Screens.HomeScreen.route) {
+                                popUpTo(Screens.LoginScreen.route) { inclusive = true }
                             }
+                        } else {
+                            errorMessage = error ?: "Errore durante il login"
                         }
                     }
                 },
+                // Abilitato solo se entrambi i campi sono valorizzati
                 enabled = email.isNotBlank() && password.isNotBlank(),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -156,13 +178,14 @@ fun LoginScreen(
                 Text("Accedi")
             }
 
-
             Spacer(modifier = Modifier.height(16.dp))
 
+            // ─────────── Link registrazione ───────────
             TextButton(onClick = { navController.navigate(Screens.RegisterScreen.route) }) {
                 Text("Non hai un account? Registrati")
             }
 
+            // ─────────── Messaggio di errore ───────────
             errorMessage?.let { msg ->
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(

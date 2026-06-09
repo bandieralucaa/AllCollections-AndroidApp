@@ -1,8 +1,8 @@
 package com.example.allcollections.feature.notification.data
 
+import com.example.allcollections.data.model.Notification
+import com.example.allcollections.data.model.NotificationPayload
 import com.example.allcollections.data.model.UserData
-import com.example.allcollections.feature.notification.domain.Notification
-import com.example.allcollections.feature.notification.domain.NotificationData
 import com.example.allcollections.feature.notification.domain.NotificationType
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldPath
@@ -14,6 +14,14 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import java.util.Date
 
+/**
+ * Repository per la gestione delle notifiche su Firestore.
+ *
+ * Gestisce l'invio di notifiche push (follow, commento, like, nuovo oggetto),
+ * l'osservazione in real-time delle notifiche ricevute, la marcatura come lette
+ * e l'eliminazione. Include l'arricchimento con i dati del mittente tramite
+ * una singola query batch su Firestore.
+ */
 class NotificationRepository(
     private val firestore: FirebaseFirestore
 ) {
@@ -208,7 +216,7 @@ class NotificationRepository(
                 type = NotificationType.fromString(doc.getString("type")),
                 timestamp = timestamp,
                 read = doc.getBoolean("read") ?: false,
-                data = NotificationData(
+                data = NotificationPayload(
                     collectionId = doc.getString("collectionId"),
                     collectionName = doc.getString("collectionName"),
                     itemId = doc.getString("itemId"),

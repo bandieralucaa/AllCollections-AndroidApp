@@ -22,6 +22,18 @@ import com.example.allcollections.feature.collection.components.PRESET_CATEGORIE
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
+/**
+ * Schermata per la creazione di una nuova collezione.
+ *
+ * Raccoglie nome (obbligatorio), categoria (obbligatoria, da lista predefinita o
+ * personalizzata tramite "Altro") e descrizione (opzionale). Al salvataggio su
+ * Firestore naviga automaticamente ad [AddCollectionImageScreen] per aggiungere
+ * la copertina; lo stato `createdCollectionId` è resettato con un breve delay
+ * per evitare ri-navigazioni spurie al rientro nella schermata.
+ *
+ * @param navController NavController per la navigazione.
+ * @param viewModel ViewModel che gestisce la creazione della collezione su Firestore.
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AddCollectionScreen(
@@ -40,6 +52,7 @@ fun AddCollectionScreen(
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
+    // Naviga alla schermata immagine appena la collezione è stata creata con successo
     LaunchedEffect(createState.createdCollectionId) {
         createState.createdCollectionId?.let { collectionId ->
             navController.navigate(
@@ -48,6 +61,7 @@ fun AddCollectionScreen(
                 popUpTo(Screens.AddCollectionScreen.route) { inclusive = true }
                 launchSingleTop = true
             }
+            // Reset con delay per evitare ri-navigazioni spurie alla prossima composizione
             launch {
                 kotlinx.coroutines.delay(300)
                 viewModel.resetCreateCollectionState()
@@ -55,6 +69,7 @@ fun AddCollectionScreen(
         }
     }
 
+    // Mostra gli errori di creazione tramite Snackbar
     LaunchedEffect(createState.error) {
         createState.error?.let { error ->
             coroutineScope.launch {
@@ -76,7 +91,7 @@ fun AddCollectionScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Campo Nome
+            // ─────────── Nome ───────────
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -86,11 +101,11 @@ fun AddCollectionScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Campo Categoria - SOLUZIONE MIGLIORATA
+            // ─────────── Selettore categoria (read-only + click apre dialog) ───────────
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp) // Altezza standard OutlinedTextField
+                    .height(56.dp)
                     .clickable { showCategoryDialog = true }
             ) {
                 OutlinedTextField(
@@ -100,12 +115,12 @@ fun AddCollectionScreen(
                     isError = (category.isEmpty() && createState.error != null),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .matchParentSize(), // Occupa tutto il Box
+                        .matchParentSize(),
                     trailingIcon = {
                         Icon(
                             Icons.Default.ArrowDropDown,
                             contentDescription = "Apri categorie",
-                            modifier = Modifier.clickable { showCategoryDialog = true } // Anche l'icona è cliccabile
+                            modifier = Modifier.clickable { showCategoryDialog = true }
                         )
                     },
                     colors = TextFieldDefaults.colors(
@@ -119,11 +134,10 @@ fun AddCollectionScreen(
                         else
                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                     ),
-                    enabled = false // Disabilitato perché gestiamo il click dal Box
+                    enabled = false
                 )
             }
 
-            // Messaggio di errore per categoria
             if (category.isEmpty() && createState.error != null) {
                 Text(
                     text = "Seleziona una categoria",
@@ -135,7 +149,7 @@ fun AddCollectionScreen(
                 )
             }
 
-            // Dialog per selezione categoria
+            // ─────────── Dialog selezione categoria ───────────
             if (showCategoryDialog) {
                 Dialog(onDismissRequest = { showCategoryDialog = false }) {
                     Surface(
@@ -185,7 +199,7 @@ fun AddCollectionScreen(
                 }
             }
 
-            // Campo per categoria personalizzata
+            // ─────────── Campo categoria personalizzata ───────────
             if (isCustomCategory) {
                 OutlinedTextField(
                     value = category,
@@ -198,7 +212,7 @@ fun AddCollectionScreen(
                 )
             }
 
-            // Campo Descrizione
+            // ─────────── Descrizione (opzionale) ───────────
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
@@ -207,7 +221,7 @@ fun AddCollectionScreen(
                 minLines = 3
             )
 
-            // Bottone Prosegui
+            // ─────────── Bottone Prosegui ───────────
             Button(
                 onClick = {
                     if (name.isBlank() || category.isBlank()) {
@@ -244,7 +258,6 @@ fun AddCollectionScreen(
                 }
             }
 
-            // Messaggio di caricamento
             if (createState.isLoading) {
                 Text(
                     "Sto creando la tua collezione...",

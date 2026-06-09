@@ -1,31 +1,53 @@
 package com.example.allcollections.feature.home
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.data.model.UserCollection
 import com.example.allcollections.feature.collection.CollectionViewModel
-import com.example.allcollections.feature.collection.components.CollectionCard
-import com.example.allcollections.feature.collection.components.CollectionCardLayout
+import com.example.allcollections.feature.home.components.CollectionsGrid
+import com.example.allcollections.feature.home.components.EmptyView
+import com.example.allcollections.feature.home.components.FilterButton
+import com.example.allcollections.feature.home.components.FilterDialog
+import com.example.allcollections.feature.home.components.LoadingView
+import com.example.allcollections.feature.home.components.loadAllCollections
+import com.example.allcollections.feature.home.components.loadFollowedCollections
 import com.example.allcollections.feature.notification.presentation.NotificationViewModel
 import com.example.allcollections.feature.profile.ProfileViewModel
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import org.koin.androidx.compose.koinViewModel
 
+/**
+ * Schermata principale dell'app.
+ *
+ * Mostra le collezioni pubbliche in una griglia a due colonne, con supporto
+ * per tre filtri: tutte, solo utenti seguiti, solo con like. Gestisce
+ * il caricamento, lo stato vuoto e le interazioni like in tempo reale.
+ */
+
+/**
+ * Schermata principale dell'app (feed collezioni pubbliche).
+ *
+ * Mostra le collezioni in una griglia a due colonne con tre filtri selezionabili:
+ * - [HomeFilter.All] — tutte le collezioni (escluse le proprie).
+ * - [HomeFilter.Followed] — solo collezioni di utenti seguiti.
+ * - [HomeFilter.Liked] — solo collezioni a cui si è messo like.
+ *
+ * I like vengono aggiornati ottimisticamente (UI immediata, Firestore in background).
+ * Se il filtro è [HomeFilter.Liked] e si rimuove un like, la collezione scompare dalla lista.
+ *
+ * @param navController NavController per la navigazione.
+ * @param collectionViewModel ViewModel per like e caricamento collezioni.
+ * @param profileViewModel ViewModel per recuperare gli ID degli utenti seguiti.
+ */
+
+/** Filtri disponibili per la lista delle collezioni nella HomeScreen. */
 enum class HomeFilter { All, Followed, Liked }
 
 @Composable
@@ -106,13 +128,18 @@ fun HomeScreen(
                     HomeFilter.Followed -> "Collezioni seguite"
                     HomeFilter.Liked -> "Collezioni con like"
                 },
-                actions = { FilterButton(activeFilter = activeFilter) { showFilterDialog = true } }
+                actions = {
+                    FilterButton(activeFilter = activeFilter) { showFilterDialog = true }
+                }
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
             if (showFilterDialog) {
                 FilterDialog(
                     activeFilter = activeFilter,
@@ -154,142 +181,11 @@ fun HomeScreen(
                     text = "Mostrando ${filteredCollections.size} collezioni",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp)
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 8.dp)
                 )
             }
-        }
-    }
-}
-
-@Composable
-fun FilterButton(activeFilter: HomeFilter, onClick: () -> Unit) {
-    Box {
-        IconButton(onClick = onClick) {
-            Icon(Icons.Default.FilterList, contentDescription = "Filtra collezioni")
-        }
-        if (activeFilter != HomeFilter.All) {
-            Badge(modifier = Modifier.offset(x = (-8).dp, y = 8.dp))
-        }
-    }
-}
-
-@Composable
-fun FilterDialog(
-    activeFilter: HomeFilter,
-    onDismiss: () -> Unit,
-    onSelectAll: () -> Unit,
-    onSelectFollowed: () -> Unit,
-    onSelectLiked: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Filtra collezioni") },
-        text = {
-            Column {
-                FilterOption("Tutte le collezioni", activeFilter == HomeFilter.All, onSelectAll)
-                FilterOption("Solo utenti seguiti", activeFilter == HomeFilter.Followed, onSelectFollowed)
-                FilterOption("Collezioni preferite", activeFilter == HomeFilter.Liked, onSelectLiked)
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Chiudi") }
-        }
-    )
-}
-
-@Composable
-fun FilterOption(text: String, selected: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        RadioButton(selected = selected, onClick = onClick)
-        Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 8.dp))
-    }
-}
-
-@Composable
-fun CollectionsGrid(
-    collections: List<UserCollection>,
-    navController: NavController,
-    likedMap: Map<String, Boolean>,
-    likesCountMap: Map<String, Int>,
-    onLikeClick: (UserCollection) -> Unit
-) {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier.fillMaxSize()
-    ) {
-        items(collections) { collection ->
-            CollectionCard(
-                collection = collection,
-                layoutType = CollectionCardLayout.Vertical,
-                showMenu = false,
-                onCardClick = { collectionId ->
-                    navController.navigate(Screens.CollectionDetailScreen.createRoute(collectionId))
-                },
-                onUsernameClick = { userId ->
-                    navController.navigate(Screens.PublicProfileScreen.createRoute(userId))
-                },
-                onMyProfileClick = {
-                    navController.navigate(Screens.ProfileScreen.route)
-                },
-                hasLiked = likedMap[collection.id] ?: false,
-                likesCount = likesCountMap[collection.id] ?: 0,
-                onLikeClick = { onLikeClick(collection) },
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    }
-}
-
-@Composable
-fun LoadingView() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            CircularProgressIndicator()
-            Text("Caricamento collezioni...")
-        }
-    }
-}
-
-@Composable
-fun EmptyView(activeFilter: HomeFilter, currentUserId: String?) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.padding(24.dp)
-        ) {
-            val message = when {
-                activeFilter == HomeFilter.Liked -> "Non hai ancora messo like a nessuna collezione"
-                activeFilter == HomeFilter.Followed && currentUserId != null -> "Non segui ancora nessun utente con collezioni pubbliche"
-                activeFilter == HomeFilter.Followed && currentUserId == null -> "Accedi per vedere le collezioni degli utenti che segui"
-                currentUserId != null -> "Nessun'altra collezione pubblica disponibile."
-                else -> "Nessuna collezione pubblica disponibile"
-            }
-            Text(text = message, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
-        }
-    }
-}
-
-private fun loadAllCollections(viewModel: CollectionViewModel, onSuccess: (List<UserCollection>) -> Unit) {
-    viewModel.getAllCollectionsWithUsernames(onSuccess = onSuccess, onFailure = {})
-}
-
-private fun loadFollowedCollections(
-    profileViewModel: ProfileViewModel,
-    collectionViewModel: CollectionViewModel,
-    onResult: (List<UserCollection>) -> Unit
-) {
-    profileViewModel.getFollowedUserIds { followedIds ->
-        if (followedIds.isNotEmpty()) {
-            collectionViewModel.getCollectionsByUserIds(followedIds) { onResult(it) }
-        } else {
-            onResult(emptyList())
         }
     }
 }

@@ -10,25 +10,28 @@ import androidx.compose.ui.platform.LocalContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-// Formato data principale dell'app
+/** Formatter per visualizzare la data nel formato italiano `dd-MM-yyyy`. */
 private val DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy")
 
 /**
- * Composable per selezionare una data tramite TextField + DatePickerDialog.
+ * Campo di input per la selezione di una data tramite [DatePickerDialog].
  *
- * Mostra una TextField leggibile e un'icona per aprire il DatePicker.
- * La TextField è di sola lettura.
+ * Mostra una [OutlinedTextField] di sola lettura con la data corrente formattata
+ * e un'icona calendario che apre il dialog di selezione. Supporta la segnalazione
+ * visiva degli errori tramite il parametro [isError] (es. data non valida o utente minorenne).
  *
- * @param selectedDate Data corrente selezionata.
- * @param modifier Modifier opzionale per personalizzare il layout.
- * @param label Label del campo, default = "Data".
- * @param onDateSelected Callback chiamato quando l'utente seleziona una nuova data.
+ * @param selectedDate Data attualmente selezionata, mostrata nel campo.
+ * @param modifier [Modifier] opzionale per personalizzare dimensioni e posizionamento.
+ * @param label Testo della label del campo; default `"Data di nascita"`.
+ * @param isError Se `true`, evidenzia il campo con il colore di errore del tema.
+ * @param onDateSelected Callback invocato con la nuova [LocalDate] scelta dall'utente.
  */
 @Composable
 fun DatePickerField(
     selectedDate: LocalDate,
     modifier: Modifier = Modifier,
     label: String = "Data di nascita",
+    isError: Boolean = false,
     onDateSelected: (LocalDate) -> Unit
 ) {
     val context = LocalContext.current
@@ -44,14 +47,15 @@ fun DatePickerField(
             }
         },
         readOnly = true,
-        modifier = modifier
+        modifier = modifier,
+        isError = isError
     )
 
-    // Mostra DatePicker solo se showDialog è true
     if (showDialog) {
         DatePickerDialog(
             context,
             { _, year, month, dayOfMonth ->
+                // month è 0-based nel DatePickerDialog, LocalDate usa 1-based
                 onDateSelected(LocalDate.of(year, month + 1, dayOfMonth))
                 showDialog = false
             },

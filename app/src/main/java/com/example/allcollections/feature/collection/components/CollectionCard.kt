@@ -18,9 +18,33 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.example.allcollections.data.model.CollectionCardLayout
 import com.example.allcollections.data.model.UserCollection
 import com.google.firebase.auth.FirebaseAuth
 
+
+/**
+ * Card per la visualizzazione di una collezione.
+ *
+ * Funge da dispatcher tra i due layout disponibili:
+ * - [CollectionCardLayout.Horizontal]: usato nella lista delle proprie collezioni,
+ *   mostra immagine + nome + categoria affiancati e un menu modifica/elimina.
+ * - [CollectionCardLayout.Vertical]: usato nella home e nella ricerca,
+ *   mostra nome, username, immagine e pulsante like.
+ *
+ * @param collection Collezione da visualizzare.
+ * @param layoutType Layout della card. Default = Horizontal.
+ * @param showMenu Mostra il menu contestuale (modifica/elimina). Solo per Horizontal.
+ * @param onEdit Callback per la modifica della collezione.
+ * @param onDelete Callback per l'eliminazione della collezione.
+ * @param onCardClick Callback invocato con l'ID collezione quando si tocca la card.
+ * @param onUsernameClick Callback invocato con lo userId quando si tocca l'username di un altro utente.
+ * @param onMyProfileClick Callback invocato quando si tocca il proprio username ("Tu").
+ * @param hasLiked Indica se l'utente corrente ha già messo like a questa collezione.
+ * @param likesCount Numero totale di like sulla collezione.
+ * @param onLikeClick Callback per il pulsante like. Se null il pulsante non viene mostrato.
+ * @param modifier Modifier opzionale per personalizzare il layout esterno.
+ */
 @Composable
 fun CollectionCard(
     collection: UserCollection,
@@ -31,7 +55,6 @@ fun CollectionCard(
     onCardClick: (String) -> Unit = {},
     onUsernameClick: (String) -> Unit = {},
     onMyProfileClick: () -> Unit = {},
-    // Like
     hasLiked: Boolean = false,
     likesCount: Int = 0,
     onLikeClick: (() -> Unit)? = null,
@@ -59,6 +82,13 @@ fun CollectionCard(
     }
 }
 
+/**
+ * Layout orizzontale della card collezione.
+ *
+ * Mostra immagine a sinistra (se presente), nome e categoria a destra,
+ * e un menu a tre puntini per modificare o eliminare se [showMenu] è true.
+ * Usato principalmente nella schermata "Le mie collezioni".
+ */
 @Composable
 private fun HorizontalCollectionCard(
     collection: UserCollection,
@@ -85,7 +115,7 @@ private fun HorizontalCollectionCard(
             collection.collectionImageUrl?.takeIf { it.isNotBlank() }?.let { imageUrl ->
                 AsyncImage(
                     model = imageUrl,
-                    contentDescription = "Immagine collezione",
+                    contentDescription = "Immagine collezione ${collection.name}",
                     modifier = Modifier
                         .size(72.dp)
                         .clip(RoundedCornerShape(8.dp)),
@@ -127,6 +157,14 @@ private fun HorizontalCollectionCard(
     }
 }
 
+/**
+ * Layout verticale della card collezione.
+ *
+ * Mostra nell'ordine: nome (cliccabile), username dell'autore (con distinzione
+ * tra utente corrente e altri), immagine di copertina e pulsante like con contatore.
+ * Il like è visibile solo se l'utente non è il proprietario e [onLikeClick] non è null.
+ * Usato nella home feed e nella schermata di ricerca.
+ */
 @Composable
 private fun VerticalCollectionCard(
     collection: UserCollection,
@@ -164,13 +202,15 @@ private fun VerticalCollectionCard(
                 Text(
                     text = if (isCurrentUser) "Tu" else "@${collection.username}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isCurrentUser) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+                    color = if (isCurrentUser) MaterialTheme.colorScheme.secondary
+                    else MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            if (isCurrentUser) onMyProfileClick() else onUsernameClick(collection.iduser)
+                            if (isCurrentUser) onMyProfileClick()
+                            else onUsernameClick(collection.iduser)
                         }
                         .padding(vertical = 4.dp)
                 )
@@ -186,7 +226,7 @@ private fun VerticalCollectionCard(
                 if (collection.collectionImageUrl?.isNotBlank() == true) {
                     AsyncImage(
                         model = collection.collectionImageUrl,
-                        contentDescription = "Immagine collezione",
+                        contentDescription = "Immagine collezione ${collection.name}",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
@@ -224,9 +264,11 @@ private fun VerticalCollectionCard(
                             )
                         }
                         Icon(
-                            imageVector = if (hasLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = "Like",
-                            tint = if (hasLiked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
+                            imageVector = if (hasLiked) Icons.Default.Favorite
+                            else Icons.Default.FavoriteBorder,
+                            contentDescription = if (hasLiked) "Rimuovi like" else "Metti like",
+                            tint = if (hasLiked) Color.Red
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -234,9 +276,4 @@ private fun VerticalCollectionCard(
             }
         }
     }
-}
-
-enum class CollectionCardLayout {
-    Horizontal,
-    Vertical
 }

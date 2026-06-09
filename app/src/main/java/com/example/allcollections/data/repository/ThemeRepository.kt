@@ -8,29 +8,36 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.example.allcollections.core.theme.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
 /**
- * Repository responsabile della gestione del tema dell'applicazione.
+ * Repository responsabile della persistenza e del recupero della preferenza tema.
  *
- * - Legge e scrive la preferenza del tema tramite DataStore
- * - Espone un Flow osservabile per aggiornare automaticamente la UI
- * - Fornisce utility per toggle, reset e verifica stato
+ * Utilizza [DataStore] per leggere e scrivere il tema scelto dall'utente in modo
+ * asincrono e sicuro. Espone un [Flow] osservabile così che la UI si aggiorni
+ * automaticamente al cambio di tema senza bisogno di polling.
+ *
+ * @param dataStore Istanza di [DataStore] iniettata tramite Koin (vedi `AppModule`).
  */
 class ThemeRepository(
     private val dataStore: DataStore<Preferences>
 ) {
 
     companion object {
-        /** Chiave DataStore per il tema */
+        /** Chiave DataStore con cui viene salvata la preferenza del tema. */
         private val THEME_KEY = stringPreferencesKey("app_theme")
     }
 
     /**
-     * Flusso osservabile del tema corrente.
-     * In caso di errore IO, ritorna preferenze vuote e fallback a System.
+     * Flusso osservabile del tema corrente selezionato dall'utente.
+     *
+     * In caso di errore di I/O durante la lettura del DataStore, emette
+     * preferenze vuote e ricade sul valore di default [ThemeMode.fromString]
+     * (tipicamente [ThemeMode.System]). Tutti gli altri errori vengono
+     * rilanciati normalmente.
+     *
+     * @return [Flow] che emette il [ThemeMode] corrente ad ogni aggiornamento.
      */
     val theme: Flow<ThemeMode> = dataStore.data
         .catch { exception ->
@@ -46,50 +53,15 @@ class ThemeRepository(
 
     /**
      * Salva in modo persistente il tema selezionato dall'utente.
+     *
+     * La scrittura avviene su un dispatcher IO gestito internamente da DataStore,
+     * quindi questa funzione va chiamata da una coroutine (es. da un ViewModel).
+     *
+     * @param theme Il [ThemeMode] da salvare.
      */
     suspend fun setTheme(theme: ThemeMode) {
         dataStore.edit { preferences ->
             preferences[THEME_KEY] = theme.name
         }
-    }
-
-    /**
-     * Recupera il tema corrente in modo sincrono.
-     * Usato quando serve il valore immediato (es. startup).
-     */
-    suspend fun getCurrentTheme(): ThemeMode = try {
-        val preferences = dataStore.data.first()
-        ThemeMode.fromString(preferences[THEME_KEY])
-    } catch (_: Exception) {
-        ThemeMode.System
-    }
-
-    /**
-     * Reimposta il tema al valore di default (segue il sistema).
-     */
-    suspend fun resetToDefault() {
-        setTheme(ThemeMode.System)
-    }
-
-    /**
-     * Verifica se l'utente ha impostato un tema personalizzato.
-     */
-    suspend fun hasCustomTheme(): Boolean =
-        getCurrentTheme() != ThemeMode.System
-
-    /**
-     * Effettua il toggle tra Light e Dark.
-     * Se il tema è System, viene considerato Dark come default di toggle.
-     *
-     * @return Il nuovo tema applicato
-     */
-    suspend fun toggleLightDark(): ThemeMode {
-        val newTheme = when (getCurrentTheme()) {
-            ThemeMode.Light -> ThemeMode.Dark
-            ThemeMode.Dark,
-            ThemeMode.System -> ThemeMode.Light
-        }
-        setTheme(newTheme)
-        return newTheme
     }
 }

@@ -14,17 +14,19 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 
 /**
- * TopBar personalizzata per l'app AllCollections.
+ * TopBar personalizzata riusabile per tutte le schermate dell'app.
  *
- * Mostra un titolo centrato e opzionalmente un bottone "indietro".
- * - Il back button di default chiama navController.popBackStack().
- * - Può essere fornita una callback personalizzata con onBackClick.
+ * Mostra un titolo centrato, un pulsante "indietro" opzionale a sinistra
+ * e uno slot per azioni aggiuntive a destra (es. icone di menu o modifica).
  *
- * @param navController Controller della navigazione.
- * @param showBackButton Mostra o nasconde il back button (default = true).
- * @param onBackClick Callback opzionale quando si clicca il back button.
- * @param title Titolo centrato della TopBar.
- * @param actions Azioni aggiuntive da mostrare a destra (opzionale).
+ * Il back button chiama [onBackClick] se fornito, altrimenti esegue
+ * [NavController.popBackStack] come comportamento di default.
+ *
+ * @param navController Controller della navigazione, usato per il back di default.
+ * @param showBackButton Se `true` mostra il pulsante indietro; default `true`.
+ * @param onBackClick Callback personalizzato per il back button; se `null` usa `popBackStack`.
+ * @param title Testo del titolo centrato nella barra.
+ * @param actions Slot Composable per azioni aggiuntive allineate a destra (default vuoto).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,9 +40,9 @@ fun MyTopBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp) // Altezza standard AppBar Material3
+            .height(56.dp)
     ) {
-        // ─────────── Bottone Indietro ───────────
+        // ─────────── Pulsante indietro (sinistra) ───────────
         if (showBackButton) {
             IconButton(
                 onClick = { onBackClick?.invoke() ?: navController.popBackStack() },

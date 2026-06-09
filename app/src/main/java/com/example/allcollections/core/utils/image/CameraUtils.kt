@@ -1,7 +1,5 @@
 package com.example.allcollections.core.utils.image
 
-import android.Manifest
-import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -9,31 +7,44 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
-import com.example.allcollections.core.utils.permissions.PermissionHandler
-import com.example.allcollections.core.utils.permissions.PermissionStatus
-import com.example.allcollections.core.utils.permissions.rememberPermission
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.io.File
 
 /**
- * Interfaccia che definisce un launcher per la fotocamera.
+ * Contratto per un launcher della fotocamera che gestisce la cattura di un'immagine.
+ *
+ * Ottenuto tramite [rememberCameraLauncher]; non istanziare direttamente.
  */
 interface CameraLauncher {
+    /** URI temporaneo del file immagine che verrà scritto dalla fotocamera. */
     val capturedImageUri: Uri
+
+    /** Host state per mostrare snackbar in caso di errore o annullamento. */
     val snackbarHostState: SnackbarHostState
+
+    /** Avvia l'intent della fotocamera per acquisire un'immagine. */
     fun captureImage()
 }
 
 /**
- * Composable che restituisce un CameraLauncher per acquisire immagini con la fotocamera.
+ * Composable che crea e ricorda un [CameraLauncher] per la cattura di immagini.
  *
- * Gestisce:
- * - Creazione URI temporaneo
- * - Permessi di scrittura (storage, se necessario)
- * - Snackbar in caso di errori
+ * Crea un file temporaneo `.jpg` nella cache esterna e ne espone l'URI tramite
+ * [FileProvider]. Non richiede il permesso `WRITE_EXTERNAL_STORAGE` perché l'app
+ * ha `minSdk >= 29` (Android 10+), dove lo scoped storage è gestito automaticamente.
  *
- * @param onImageCaptured Callback chiamato con l'URI dell'immagine catturata.
+ * In caso di annullamento o errore della fotocamera, viene mostrata una [Snackbar]
+ * tramite [SnackbarHostState].
+ *
+ * **Utilizzo:**
+ * ```kotlin
+ * val camera = rememberCameraLauncher { uri -> viewModel.onImageCaptured(uri) }
+ * Button(onClick = { camera.captureImage() }) { Text("Scatta foto") }
+ * SnackbarHost(camera.snackbarHostState)
+ * ```
+ *
+ * @param onImageCaptured Callback invocato con l'[Uri] dell'immagine catturata con successo.
+ * @return Un [CameraLauncher] pronto all'uso.
  */
 @Composable
 fun rememberCameraLauncher(
@@ -43,28 +54,20 @@ fun rememberCameraLauncher(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // Permesso di scrittura (solo se necessario)
-    val storagePermission: PermissionHandler = rememberPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-
-    // URI temporaneo per la foto
     val imageUri: Uri = remember {
         val file = File.createTempFile("tmp_image", ".jpg", context.externalCacheDir)
         FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
     }
 
-    // Launcher fotocamera
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success) {
-            handleImageCapture(
-                context = context,
-                imageUri = imageUri,
-                storagePermission = storagePermission,
-                snackbarHostState = snackbarHostState,
-                scope = scope,
-                onImageCaptured = onImageCaptured
-            )
+            onImageCaptured(imageUri)
+        } else {
+            scope.launch {
+                snackbarHostState.showSnackbar("Acquisizione immagine annullata o fallita")
+            }
         }
     }
 
@@ -73,33 +76,7 @@ fun rememberCameraLauncher(
         override val snackbarHostState: SnackbarHostState = snackbarHostState
 
         override fun captureImage() {
-            if (storagePermission.status == PermissionStatus.Granted) {
-                cameraLauncher.launch(imageUri)
-            } else {
-                storagePermission.launchPermissionRequest()
-            }
-        }
-    }
-}
-
-/**
- * Gestisce la cattura dell'immagine e la logica dei permessi.
- */
-private fun handleImageCapture(
-    context: Context,
-    imageUri: Uri,
-    storagePermission: PermissionHandler,
-    snackbarHostState: SnackbarHostState,
-    scope: CoroutineScope,
-    onImageCaptured: (Uri) -> Unit
-) {
-    if (storagePermission.status == PermissionStatus.Granted) {
-        // Salva l'immagine nella cache (funzione definita altrove o implementabile)
-        saveImageToStorage(imageUri, context.contentResolver)
-        onImageCaptured(imageUri)
-    } else {
-        scope.launch {
-            snackbarHostState.showSnackbar("Permesso non concesso per salvare l'immagine")
+            cameraLauncher.launch(imageUri)
         }
     }
 }

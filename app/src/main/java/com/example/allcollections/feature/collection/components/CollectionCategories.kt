@@ -1,5 +1,13 @@
 package com.example.allcollections.feature.collection.components
 
+
+/**
+ * Lista predefinita delle categorie disponibili per una collezione.
+ *
+ * Utilizzata nei form di creazione e modifica collezione per mostrare
+ * un selettore con categorie comuni. L'ultima voce "Altro" permette
+ * all'utente di inserire una categoria personalizzata.
+ */
 val PRESET_CATEGORIES = listOf(
     "Accendini",
     "Action Figure & Funko",

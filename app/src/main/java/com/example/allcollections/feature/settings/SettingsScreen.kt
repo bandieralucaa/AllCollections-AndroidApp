@@ -19,6 +19,18 @@ import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.feature.notification.presentation.NotificationViewModel
 import com.example.allcollections.feature.profile.ProfileViewModel
 
+/**
+ * Schermata delle impostazioni dell'app.
+ *
+ * Mostra una lista cliccabile di voci di impostazione: modifica profilo, password,
+ * foto, bio, tema e logout. Il logout arresta i listener attivi ([NotificationViewModel.stopObserving],
+ * [ProfileViewModel.cleanupListeners]) prima di eseguire il sign-out Firebase,
+ * evitando errori di permessi Firestore su utente non autenticato.
+ *
+ * @param navController NavController per la navigazione alle sotto-schermate.
+ * @param viewModel ViewModel del profilo, usato per logout e recupero userId.
+ * @param notificationViewModel ViewModel notifiche, usato per fermare i listener al logout.
+ */
 @Composable
 fun SettingsScreen(
     navController: NavController,

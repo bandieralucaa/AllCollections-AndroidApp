@@ -4,37 +4,30 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// Formato di default per date lontane (>7 giorni)
-private val DEFAULT_DATE_FORMAT = SimpleDateFormat("dd MMM yyyy", Locale.ITALY)
+private const val ONE_MINUTE_MS = 60_000L
+private const val ONE_HOUR_MS = 3_600_000L
+private const val ONE_DAY_MS = 86_400_000L
 
 /**
- * Restituisce una rappresentazione testuale "relativa" di una data rispetto all'ora corrente.
+ * Formatta una [Date] in una stringa relativa al momento attuale.
  *
- * Esempi di output:
- * - "meno di un minuto fa"
- * - "5 minuti fa"
- * - "ieri"
- * - "3 giorni fa"
- * - "12 ago 2023" (per date più vecchie di una settimana)
+ * | Differenza          | Output esempio   |
+ * |---------------------|------------------|
+ * | < 1 minuto          | `"ora"`          |
+ * | < 1 ora             | `"5m"`           |
+ * | < 1 giorno          | `"3h"`           |
+ * | >= 1 giorno         | `"14/06/25"`     |
  *
- * @param date Data da formattare
- * @return Stringa leggibile in italiano
+ * @param date La data da formattare.
+ * @return Stringa relativa leggibile, localizzata con [Locale.getDefault].
  */
 fun formatRelativeTime(date: Date): String {
-    val now = Date()
-    val diffMillis = now.time - date.time
-
-    val seconds = diffMillis / 1000
-    val minutes = seconds / 60
-    val hours = minutes / 60
-    val days = hours / 24
+    val diff = Date().time - date.time
 
     return when {
-        seconds < 60 -> "meno di un minuto fa"
-        minutes < 60 -> "$minutes minuti fa"
-        hours < 24 -> "$hours ore fa"
-        days == 1L -> "ieri"
-        days < 7 -> "$days giorni fa"
-        else -> DEFAULT_DATE_FORMAT.format(date)
+        diff < ONE_MINUTE_MS -> "ora"
+        diff < ONE_HOUR_MS -> "${diff / ONE_MINUTE_MS}m"
+        diff < ONE_DAY_MS -> "${diff / ONE_HOUR_MS}h"
+        else -> SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(date)
     }
 }

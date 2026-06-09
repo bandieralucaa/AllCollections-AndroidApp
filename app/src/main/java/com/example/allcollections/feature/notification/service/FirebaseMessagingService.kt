@@ -23,6 +23,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+/**
+ * Servizio Firebase Cloud Messaging per la ricezione delle notifiche push.
+ *
+ * Gestisce i messaggi in arrivo salvandoli su Firestore e mostrandoli
+ * come notifiche di sistema. Si occupa anche del refresh del token FCM
+ * quando viene rinnovato da Firebase.
+ */
 class FirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {

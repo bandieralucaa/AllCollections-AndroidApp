@@ -13,18 +13,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.core.ui.MyTopBar
-import com.example.allcollections.feature.chat.data.ChatPreview
+import com.example.allcollections.core.utils.time.formatRelativeTime
+import com.example.allcollections.data.model.ChatPreview
 import com.example.allcollections.feature.profile.ProfileViewModel
 import org.koin.androidx.compose.koinViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
+/**
+ * Schermata con la lista delle conversazioni recenti.
+ *
+ * Mostra una card per ogni conversazione con foto profilo dell'interlocutore,
+ * username, ultimo messaggio troncato, timestamp relativo e badge con il
+ * contatore dei messaggi non letti. Se non ci sono conversazioni, mostra
+ * uno stato vuoto illustrativo.
+ *
+ * @param navController NavController per navigare alla singola schermata di chat.
+ * @param viewModel ViewModel che espone la lista [ChatPreview] delle chat recenti.
+ * @param profileViewModel ViewModel per caricare username e foto profilo di ogni interlocutore.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatsListScreen(
@@ -34,7 +45,7 @@ fun ChatsListScreen(
 ) {
     val recentChats by viewModel.recentChats.collectAsState()
 
-    // Carica le chat recenti
+    // Avvia il listener real-time delle chat al primo ingresso nella schermata
     LaunchedEffect(Unit) {
         viewModel.observeRecentChats()
     }
@@ -48,7 +59,7 @@ fun ChatsListScreen(
         }
     ) { padding ->
         if (recentChats.isEmpty()) {
-            // Schermata vuota
+            // Stato vuoto
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -77,7 +88,6 @@ fun ChatsListScreen(
                 }
             }
         } else {
-            // Lista chat
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -99,6 +109,18 @@ fun ChatsListScreen(
     }
 }
 
+/**
+ * Card di anteprima per una singola conversazione.
+ *
+ * Mostra foto profilo e username dell'interlocutore (caricati in modo asincrono),
+ * l'ultimo messaggio troncato a una riga, il timestamp relativo e un badge con
+ * il numero di messaggi non letti (visibile solo se > 0). Il testo dell'ultimo
+ * messaggio è più marcato se ci sono messaggi non letti.
+ *
+ * @param chat Dati dell'anteprima della conversazione.
+ * @param onClick Callback invocato al tap sulla card per aprire la chat.
+ * @param profileViewModel ViewModel usato per caricare username e foto profilo.
+ */
 @Composable
 fun ChatPreviewItem(
     chat: ChatPreview,
@@ -108,14 +130,10 @@ fun ChatPreviewItem(
     var username by remember { mutableStateOf("Utente") }
     var profileImage by remember { mutableStateOf<String?>(null) }
 
-    // Carica username e foto
+    // Carica i dati dell'interlocutore ogni volta che cambia l'userId della chat
     LaunchedEffect(chat.otherUserId) {
-        profileViewModel.getUsernameById(chat.otherUserId) {
-            username = it
-        }
-        profileViewModel.getUserProfilePhoto(chat.otherUserId) {
-            profileImage = it
-        }
+        profileViewModel.getUsernameById(chat.otherUserId) { username = it }
+        profileViewModel.getUserProfilePhoto(chat.otherUserId) { profileImage = it }
     }
 
     Card(
@@ -130,10 +148,9 @@ fun ChatPreviewItem(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar
             AsyncImage(
                 model = profileImage,
-                contentDescription = null,
+                contentDescription = "Foto profilo di $username",
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape),
@@ -142,10 +159,9 @@ fun ChatPreviewItem(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Info
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
+
+                // Riga superiore: username + timestamp
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
@@ -158,12 +174,13 @@ fun ChatPreviewItem(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = formatChatTime(chat.timestamp),
+                        text = formatRelativeTime(chat.timestamp),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
+                // Riga inferiore: ultimo messaggio + badge non letti
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
@@ -173,18 +190,17 @@ fun ChatPreviewItem(
                         text = chat.lastMessage,
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                        color = if (chat.unreadCount > 0) {
+                        overflow = TextOverflow.Ellipsis,
+                        // Testo più marcato se ci sono messaggi non letti
+                        color = if (chat.unreadCount > 0)
                             MaterialTheme.colorScheme.onSurface
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        }
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
                     )
 
                     if (chat.unreadCount > 0) {
-                        Badge(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        ) {
+                        Badge(containerColor = MaterialTheme.colorScheme.primary) {
                             Text(
                                 text = chat.unreadCount.toString(),
                                 style = MaterialTheme.typography.labelSmall,
@@ -195,17 +211,5 @@ fun ChatPreviewItem(
                 }
             }
         }
-    }
-}
-
-private fun formatChatTime(date: Date): String {
-    val now = Date()
-    val diff = now.time - date.time
-
-    return when {
-        diff < 60000 -> "ora"
-        diff < 3600000 -> "${diff / 60000}m"
-        diff < 86400000 -> "${diff / 3600000}h"
-        else -> SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(date)
     }
 }

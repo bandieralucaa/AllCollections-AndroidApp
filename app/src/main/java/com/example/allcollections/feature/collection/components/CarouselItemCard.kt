@@ -1,45 +1,52 @@
 package com.example.allcollections.feature.collection.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.allcollections.data.model.CollectionItem
 import com.example.allcollections.data.model.Comment
-import com.example.allcollections.feature.collection.ItemCommentsSection
+import com.example.allcollections.feature.comment.CommentItem
 
+/**
+ * Card di un singolo oggetto all'interno del carosello della collezione.
+ *
+ * Mostra l'immagine dell'oggetto (cliccabile per la visualizzazione fullscreen),
+ * la sua descrizione e la sezione commenti dedicata all'oggetto.
+ * Se l'utente è il proprietario mostra i pulsanti per modificare ed eliminare.
+ *
+ * @param item Oggetto della collezione da visualizzare.
+ * @param isOwner Indica se l'utente corrente è il proprietario della collezione.
+ * @param onEdit Callback invocato quando si preme il pulsante di modifica.
+ * @param onDelete Callback invocato quando si preme il pulsante di eliminazione.
+ * @param onImageClick Callback invocato con l'URL dell'immagine per la visualizzazione fullscreen.
+ * @param itemComments Lista dei commenti relativi a questo oggetto.
+ * @param usernames Mappa userId → username per la visualizzazione dei commenti.
+ * @param userPhotos Mappa userId → URL foto profilo per la visualizzazione dei commenti.
+ * @param currentUserId ID dell'utente attualmente loggato, null se non autenticato.
+ * @param onAddItemComment Callback invocato con il testo del nuovo commento da aggiungere.
+ * @param onDeleteItemComment Callback invocato con il commento da eliminare.
+ * @param onEditItemComment Callback invocato con il commento da modificare e il nuovo testo.
+ * @param navController NavController per la navigazione ai profili utente dai commenti.
+ */
 @Composable
 fun CarouselItemCard(
     item: CollectionItem,
@@ -56,75 +63,259 @@ fun CarouselItemCard(
     onEditItemComment: (Comment, String) -> Unit,
     navController: NavController
 ) {
-    var showItemMenu by remember { mutableStateOf(false) }
+    var newComment by remember { mutableStateOf("") }
+    var showItemComments by remember(item.id) { mutableStateOf(true) }
+    var commentToDelete by remember { mutableStateOf<Comment?>(null) }
+    var commentToEdit by remember { mutableStateOf<Comment?>(null) }
+    var editText by remember { mutableStateOf("") }
+
+    // ─────────── Dialog eliminazione commento ───────────
+    commentToDelete?.let { comment ->
+        AlertDialog(
+            onDismissRequest = { commentToDelete = null },
+            title = { Text("Elimina commento") },
+            text = { Text("Sei sicuro di voler eliminare questo commento?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDeleteItemComment(comment)
+                    commentToDelete = null
+                }) {
+                    Text("Elimina", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { commentToDelete = null }) { Text("Annulla") }
+            }
+        )
+    }
+
+    // ─────────── Dialog modifica commento ───────────
+    commentToEdit?.let { comment ->
+        AlertDialog(
+            onDismissRequest = { commentToEdit = null },
+            title = { Text("Modifica commento") },
+            text = {
+                OutlinedTextField(
+                    value = editText,
+                    onValueChange = { editText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 5,
+                    placeholder = { Text("Scrivi il tuo commento...") }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (editText.isNotBlank()) {
+                        onEditItemComment(comment, editText)
+                        commentToEdit = null
+                    }
+                }) { Text("Salva") }
+            },
+            dismissButton = {
+                TextButton(onClick = { commentToEdit = null }) { Text("Annulla") }
+            }
+        )
+    }
 
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column {
-            Box(modifier = Modifier.fillMaxWidth()) {
-                if (!item.imageUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = item.imageUrl,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 200.dp, max = 500.dp)
-                            .background(Color.Black)
-                            .clickable { onImageClick(item.imageUrl) },
-                        contentScale = ContentScale.Fit
+
+            // ─────────── Immagine ───────────
+            if (item.imageUrl.isNotBlank()) {
+                AsyncImage(
+                    model = item.imageUrl,
+                    contentDescription = item.description.ifBlank { "Immagine oggetto" },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(260.dp)
+                        .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                        .clickable { onImageClick(item.imageUrl) },
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = "Nessuna immagine",
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    )
+                }
+            }
+
+            Column(modifier = Modifier.padding(16.dp)) {
+
+                // ─────────── Descrizione ───────────
+                if (item.description.isNotBlank()) {
+                    Text(
+                        text = item.description,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 } else {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(250.dp).background(MaterialTheme.colorScheme.surfaceVariant),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    Text(
+                        text = "Nessuna descrizione",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                    )
                 }
 
+                // ─────────── Pulsanti Owner ───────────
                 if (isOwner) {
-                    Box(modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)) {
-                        IconButton(onClick = { showItemMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Opzioni", tint = Color.White)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onEdit,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Modifica")
                         }
-                        DropdownMenu(expanded = showItemMenu, onDismissRequest = { showItemMenu = false }) {
-                            DropdownMenuItem(
-                                text = { Text("Modifica") },
-                                onClick = { showItemMenu = false; onEdit() },
-                                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                        OutlinedButton(
+                            onClick = onDelete,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
                             )
-                            DropdownMenuItem(
-                                text = { Text("Elimina", color = MaterialTheme.colorScheme.error) },
-                                onClick = { showItemMenu = false; onDelete() },
-                                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
+                        ) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
                             )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Elimina")
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // ─────────── Header commenti oggetto ───────────
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showItemComments = !showItemComments }
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Commenti oggetto (${itemComments.size})",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Icon(
+                        imageVector = if (showItemComments)
+                            Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (showItemComments) "Comprimi" else "Espandi",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // ─────────── Lista commenti oggetto ───────────
+                if (showItemComments) {
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (itemComments.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Nessun commento su questo oggetto.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 300.dp)
+                        ) {
+                            items(
+                                items = itemComments,
+                                key = { it.id }
+                            ) { comment ->
+                                CommentItem(
+                                    comment = comment,
+                                    username = usernames[comment.userId] ?: "Utente",
+                                    photoUrl = userPhotos[comment.userId],
+                                    navController = navController,
+                                    onDelete = { commentToDelete = it },
+                                    onEdit = { editText = it.text; commentToEdit = it }
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                            }
+                        }
+                    }
+
+                    // ─────────── Campo nuovo commento ───────────
+                    if (currentUserId != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = newComment,
+                                onValueChange = { newComment = it },
+                                placeholder = { Text("Commenta questo oggetto...") },
+                                modifier = Modifier.weight(1f),
+                                maxLines = 3,
+                                shape = RoundedCornerShape(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            FloatingActionButton(
+                                onClick = {
+                                    if (newComment.isNotBlank()) {
+                                        onAddItemComment(newComment)
+                                        newComment = ""
+                                    }
+                                },
+                                modifier = Modifier.size(48.dp),
+                                containerColor = MaterialTheme.colorScheme.primary
+                            ) {
+                                Icon(
+                                    Icons.Default.Send,
+                                    contentDescription = "Invia commento",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }
             }
-
-            if (!item.description.isNullOrBlank()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Divider(modifier = Modifier.padding(bottom = 12.dp))
-                    Text(text = "Descrizione", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(bottom = 4.dp))
-                    Text(text = item.description, style = MaterialTheme.typography.bodyLarge)
-                }
-            }
-
-            Divider(modifier = Modifier.padding(horizontal = 16.dp))
-            ItemCommentsSection(
-                comments = itemComments,
-                usernames = usernames,
-                userPhotos = userPhotos,
-                currentUserId = currentUserId,
-                onAddComment = onAddItemComment,
-                onDeleteComment = onDeleteItemComment,
-                onEditComment = onEditItemComment,
-                navController = navController
-            )
         }
     }
 }

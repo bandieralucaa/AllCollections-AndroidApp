@@ -5,12 +5,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.MarkEmailRead
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -21,6 +19,22 @@ import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/**
+ * Schermata di verifica email post-registrazione.
+ *
+ * Mostra l'indirizzo email a cui è stata inviata la verifica e offre
+ * due azioni all'utente:
+ * - **Verifica manuale**: tap su "Ho verificato la mia email" → ricarica il profilo
+ *   e naviga a [Screens.PhotoProfileScreen] se l'email risulta verificata.
+ * - **Reinvio email**: disponibile dopo un cooldown di 60 secondi per evitare spam.
+ *
+ * Un polling automatico ogni 3 secondi controlla in background se l'utente
+ * ha già cliccato il link, navigando automaticamente senza richiedere
+ * un'azione esplicita.
+ *
+ * @param navController Controller per la navigazione.
+ * @param profileViewModel ViewModel usato per ricaricare il profilo e verificare lo stato email.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VerifyEmailScreen(
@@ -30,7 +44,6 @@ fun VerifyEmailScreen(
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
 
     var isResending by remember { mutableStateOf(false) }
     var isChecking by remember { mutableStateOf(false) }
@@ -40,7 +53,7 @@ fun VerifyEmailScreen(
     val currentUser = FirebaseAuth.getInstance().currentUser
     val userEmail = currentUser?.email ?: ""
 
-    // Timer per il pulsante "Reinvia"
+    // Countdown per il bottone "Reinvia email" (cooldown 60 secondi)
     LaunchedEffect(secondsRemaining) {
         if (secondsRemaining > 0 && !canResend) {
             delay(1000)
@@ -50,13 +63,12 @@ fun VerifyEmailScreen(
         }
     }
 
-    // Controllo automatico ogni 3 secondi se l'email è stata verificata
+    // Polling automatico ogni 3 secondi: naviga alla schermata foto se l'email è verificata
     LaunchedEffect(Unit) {
         while (true) {
             delay(3000)
             profileViewModel.reloadUser { success ->
                 if (success && profileViewModel.isEmailVerified()) {
-                    // Email verificata! Vai alla foto profilo
                     currentUser?.uid?.let { userId ->
                         navController.navigate(
                             Screens.PhotoProfileScreen.createRoute(userId, "true")
@@ -87,7 +99,6 @@ fun VerifyEmailScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Icona grande
             Icon(
                 imageVector = Icons.Default.Email,
                 contentDescription = null,
@@ -95,14 +106,13 @@ fun VerifyEmailScreen(
                 tint = MaterialTheme.colorScheme.primary
             )
 
-            // Titolo
             Text(
                 text = "Verifica la tua email",
                 style = MaterialTheme.typography.headlineSmall,
                 textAlign = TextAlign.Center
             )
 
-            // Istruzioni
+            // Card informativa con l'indirizzo email
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -135,7 +145,7 @@ fun VerifyEmailScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Pulsante "Ho verificato"
+            // Pulsante verifica manuale
             Button(
                 onClick = {
                     isChecking = true
@@ -169,7 +179,7 @@ fun VerifyEmailScreen(
                 }
             }
 
-            // Pulsante "Reinvia email"
+            // Pulsante reinvio email con countdown
             OutlinedButton(
                 onClick = {
                     isResending = true
@@ -179,7 +189,7 @@ fun VerifyEmailScreen(
                             coroutineScope.launch {
                                 snackbarHostState.showSnackbar("Email di verifica reinviata!")
                             }
-                            // Reset timer
+                            // Reset del cooldown
                             secondsRemaining = 60
                             canResend = false
                         } else {
@@ -202,7 +212,7 @@ fun VerifyEmailScreen(
                 }
             }
 
-            // Pulsante per tornare al login (se l'utente ha sbagliato email)
+            // Link per usare un'altra email: effettua il logout e torna al login
             TextButton(
                 onClick = {
                     FirebaseAuth.getInstance().signOut()
@@ -215,7 +225,6 @@ fun VerifyEmailScreen(
                 Text("Usa un'altra email")
             }
 
-            // Nota informativa
             Text(
                 text = "Controlla anche la cartella spam",
                 style = MaterialTheme.typography.bodySmall,

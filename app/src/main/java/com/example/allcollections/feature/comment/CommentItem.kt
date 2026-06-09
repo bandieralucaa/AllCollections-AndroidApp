@@ -20,6 +20,14 @@ import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.data.model.Comment
 import com.google.firebase.auth.FirebaseAuth
 
+/**
+ * Composable per la visualizzazione di un singolo commento.
+ *
+ * Mostra foto profilo, username e testo del commento. Se il commento
+ * appartiene all'utente corrente mostra un menu contestuale per
+ * modificarlo o eliminarlo. Il tap su foto e username naviga al
+ * profilo dell'autore.
+ */
 @Composable
 fun CommentItem(
     comment: Comment,
@@ -88,7 +96,6 @@ fun CommentItem(
             )
         }
 
-        // Menu solo per i propri commenti
         if (isMyComment && (onDelete != null || onEdit != null)) {
             Box {
                 IconButton(

@@ -35,25 +35,16 @@ fun EditPasswordScreen(
     profileViewModel: ProfileViewModel
 ) {
 
-    // -------------------------
-    // UI State
-    // -------------------------
     var currentPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
-
     var isSubmitting by remember { mutableStateOf(false) }
-
     var currentVisible by remember { mutableStateOf(false) }
     var newVisible by remember { mutableStateOf(false) }
     var confirmVisible by remember { mutableStateOf(false) }
 
-    // -------------------------
-    // Layout
-    // -------------------------
     Scaffold(
         topBar = { MyTopBar(navController, title = "Modifica password") }
     ) { innerPadding ->
@@ -137,9 +128,6 @@ fun EditPasswordScreen(
                         }
                     }
 
-                    // -------------------------
-                    // Feedback messaggi
-                    // -------------------------
                     AnimatedVisibility(
                         visible = errorMessage != null,
                         enter = fadeIn(),
@@ -166,9 +154,6 @@ fun EditPasswordScreen(
         }
     }
 
-    // -------------------------
-    // Navigazione post-success
-    // -------------------------
     LaunchedEffect(successMessage) {
         if (successMessage != null) {
             delay(900)

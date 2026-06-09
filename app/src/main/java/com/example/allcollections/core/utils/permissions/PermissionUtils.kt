@@ -1,46 +1,62 @@
 package com.example.allcollections.core.utils.permissions
 
 import android.annotation.SuppressLint
+import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 
 /**
- * Stato di un permesso Android.
+ * Stato corrente di un permesso Android.
  */
 enum class PermissionStatus {
-    /** Stato iniziale o sconosciuto */
+
+    /** Stato iniziale; il sistema non ha ancora verificato il permesso. */
     Unknown,
 
-    /** Permesso concesso */
+    /** Il permesso è stato concesso dall'utente. */
     Granted,
 
-    /** Permesso negato, ma l'utente può essere richiesto di nuovo */
+    /** Il permesso è stato negato, ma l'utente può essere richiesto di nuovo. */
     Denied,
 
-    /** Permesso negato permanentemente (Non chiedere più) */
-    PermanentlyDenied;
-
-    /** Indica se il permesso è concesso */
-    val isGranted: Boolean get() = this == Granted
+    /** Il permesso è stato negato permanentemente ("Non chiedere più"). Occorre aprire le impostazioni. */
+    PermanentlyDenied
 }
 
 /**
- * Interfaccia che gestisce un singolo permesso.
+ * Contratto per la gestione di un singolo permesso Android in un Composable.
+ *
+ * Ottenuto tramite [rememberPermission]; non istanziare direttamente.
  */
 interface PermissionHandler {
+    /** Stringa del permesso Android (es. `Manifest.permission.CAMERA`). */
     val permission: String
+
+    /** Stato corrente del permesso (aggiornato automaticamente). */
     val status: PermissionStatus
+
+    /** Avvia la richiesta di permesso al sistema. */
     fun launchPermissionRequest()
 }
 
 /**
- * Composable che ricorda e gestisce lo stato di un permesso.
+ * Composable che crea e ricorda il gestore per un singolo permesso Android.
  *
- * @param permission Permesso Android da richiedere.
- * @param onResult Callback opzionale chiamato quando lo stato del permesso cambia.
+ * Al primo avvio controlla lo stato reale del permesso per determinare se è già
+ * concesso o se è stato precedentemente negato, evitando richieste ridondanti.
+ * Dopo ogni risposta dell'utente, distingue tra negazione semplice
+ * ([PermissionStatus.Denied]) e negazione permanente ([PermissionStatus.PermanentlyDenied]).
+ *
+ * **Nota:** deve essere usato all'interno di una [ComponentActivity]; lancia un
+ * errore a runtime se il contesto non è una `ComponentActivity`.
+ *
+ * @param permission Permesso Android da gestire (es. `Manifest.permission.CAMERA`).
+ * @param onResult Callback opzionale invocato ogni volta che lo stato del permesso cambia.
+ * @return Un [PermissionHandler] pronto all'uso.
  */
 @SuppressLint("ContextCastToActivity")
 @Composable
@@ -48,14 +64,28 @@ fun rememberPermission(
     permission: String,
     onResult: (status: PermissionStatus) -> Unit = {}
 ): PermissionHandler {
-    // Stato osservabile del permesso
     var status by remember { mutableStateOf(PermissionStatus.Unknown) }
 
     val context = LocalContext.current
     val activity = context as? ComponentActivity
         ?: error("rememberPermission deve essere usato in un ComponentActivity")
 
-    // Launcher per la richiesta del permesso
+    // Verifica lo stato del permesso al primo avvio del composable
+    LaunchedEffect(permission) {
+        status = when {
+            ContextCompat.checkSelfPermission(
+                context, permission
+            ) == PackageManager.PERMISSION_GRANTED ->
+                PermissionStatus.Granted
+
+            activity.shouldShowRequestPermissionRationale(permission) ->
+                PermissionStatus.Denied
+
+            else ->
+                PermissionStatus.Unknown
+        }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -67,7 +97,6 @@ fun rememberPermission(
         onResult(status)
     }
 
-    // Restituisce l'oggetto PermissionHandler
     return remember {
         object : PermissionHandler {
             override val permission: String = permission

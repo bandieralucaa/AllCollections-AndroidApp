@@ -1,30 +1,18 @@
 package com.example.allcollections.core.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QuestionAnswer
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.ui.graphics.vector.ImageVector
+import com.example.allcollections.data.model.NavItem
 
 /**
- * Modello dati per un elemento della Bottom Navigation.
+ * Lista degli elementi della Bottom Navigation Bar, nell'ordine in cui vengono visualizzati.
  *
- * @property icon Icona mostrata nella barra di navigazione.
- * @property screen Schermata associata all'elemento.
- */
-data class NavItem(
-    val icon: ImageVector,
-    val screen: Screens
-)
-
-/**
- * Lista dei principali elementi della Bottom Navigation.
- * L'ordine definito qui sarà quello visualizzato nell'interfaccia.
- *
- * Nota: gli screen devono corrispondere ai Composable aggiornati con 'Screen'.
+ * Ogni elemento associa un'icona Material alla schermata di destinazione corrispondente.
+ * Usata in [AppNavigation] per costruire dinamicamente la [BottomNavBar].
  */
 val bottomNavItems: List<NavItem> = listOf(
     NavItem(

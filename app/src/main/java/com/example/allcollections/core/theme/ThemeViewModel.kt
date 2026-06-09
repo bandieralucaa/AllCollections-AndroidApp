@@ -10,57 +10,49 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * Stato osservabile del tema dell'applicazione.
+ * Stato UI del tema dell'applicazione.
  *
- * Contiene solo la modalità tema corrente (Light / Dark / System).
+ * Wrappa il [ThemeMode] corrente in una data class per uniformità
+ * con gli altri stati UI dell'app.
+ *
+ * @property theme Modalità tema attualmente attiva.
  */
 data class ThemeState(val theme: ThemeMode)
 
 /**
  * ViewModel per la gestione del tema dell'app.
  *
- * Interagisce con ThemeRepository per leggere e salvare la preferenza utente.
+ * Legge la preferenza tema da [ThemeRepository] e la espone come [StateFlow],
+ * così che la UI si aggiorni automaticamente ad ogni cambio senza polling.
+ * Utilizza [SharingStarted.WhileSubscribed] con timeout di 5 secondi per
+ * non cancellare la sottoscrizione durante le riconfigurazioni di Activity.
+ *
+ * @param repository Repository da cui leggere e salvare la preferenza tema.
  */
 class ThemeViewModel(
     private val repository: ThemeRepository
 ) : ViewModel() {
 
     /**
-     * Stato osservabile del tema.
+     * Stato osservabile del tema corrente.
      *
-     * StateFlow aggiornato automaticamente quando il repository cambia.
+     * Inizia con [ThemeMode.System] come valore di default finché DataStore
+     * non ha emesso il valore persistito.
      */
     val state: StateFlow<ThemeState> = repository.theme
         .map { theme -> ThemeState(theme) }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000), // Timeout 5 secondi
+            started = SharingStarted.WhileSubscribed(5_000),
             initialValue = ThemeState(ThemeMode.System)
         )
 
     /**
-     * Cambia il tema dell'applicazione e lo salva nel repository.
+     * Cambia il tema dell'applicazione e lo persiste tramite [ThemeRepository].
      *
-     * @param theme Nuovo tema da applicare.
+     * @param theme Nuovo [ThemeMode] da applicare.
      */
     fun changeTheme(theme: ThemeMode) = viewModelScope.launch {
         repository.setTheme(theme)
-    }
-
-    /**
-     * Toggle tra tema chiaro e scuro.
-     *
-     * - Light -> Dark
-     * - Dark -> Light
-     * - System -> Dark (default per toggle)
-     */
-    fun toggleTheme() = viewModelScope.launch {
-        val current = state.value.theme
-        val newTheme = when (current) {
-            ThemeMode.Light -> ThemeMode.Dark
-            ThemeMode.Dark -> ThemeMode.Light
-            ThemeMode.System -> ThemeMode.Dark
-        }
-        repository.setTheme(newTheme)
     }
 }

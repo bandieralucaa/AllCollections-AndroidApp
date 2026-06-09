@@ -2,6 +2,7 @@ package com.example.allcollections.feature.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.allcollections.data.model.SearchState
 import com.example.allcollections.data.model.UserCollection
 import com.example.allcollections.data.model.UserData
 import com.example.allcollections.feature.collection.CollectionViewModel
@@ -17,12 +18,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-data class SearchState(
-    val collections: List<UserCollection> = emptyList(),
-    val users: List<UserData> = emptyList(),
-    val error: String? = null
-)
-
+/**
+ * ViewModel per la ricerca di collezioni e utenti.
+ *
+ * Supporta tre modalità tramite [selectedTab]:
+ * - 0 = solo collezioni
+ * - 1 = solo utenti
+ * - 2 = tutto
+ *
+ * I risultati sono esposti tramite [searchState]. Per cancellare i risultati
+ * precedenti usa [clearResults].
+ */
 class SearchViewModel(
     private val collectionViewModel: CollectionViewModel
 ) : ViewModel() {
@@ -32,22 +38,25 @@ class SearchViewModel(
     private val _searchState = MutableStateFlow(SearchState())
     val searchState: StateFlow<SearchState> = _searchState.asStateFlow()
 
+    /**
+     * Cancella i risultati di ricerca precedenti.
+     */
     fun clearResults() {
         _searchState.value = SearchState()
     }
 
     /**
-     * Cerca collezioni, utenti o entrambi a seconda di selectedTab
-     * selectedTab = 0 -> Collezioni
-     * selectedTab = 1 -> Utenti
-     * selectedTab = 2 -> Tutto
+     * Cerca collezioni, utenti o entrambi a seconda di [selectedTab].
+     *
+     * @param query Testo da cercare (insensibile alle maiuscole).
+     * @param selectedTab 0 = Collezioni, 1 = Utenti, 2 = Tutto.
+     * @param currentUserId ID dell'utente corrente (escluso dai risultati utenti).
      */
     fun search(query: String, selectedTab: Int, currentUserId: String?) {
         viewModelScope.launch {
             try {
                 val lowerQuery = query.lowercase()
 
-                // Lista dei risultati
                 var collectionResults: List<UserCollection> = emptyList()
                 var userResults: List<UserData> = emptyList()
 
@@ -56,10 +65,10 @@ class SearchViewModel(
                     val snapshot = db.collection("collections").get().await()
                     val collections = snapshot.documents.mapNotNull { it.toObject<UserCollection>()?.copy(id = it.id) }
 
-                    // Filtra per nome o categoria contenente query
+                    // Filtra per nome o categoria contenente la query
                     val filteredCollections = collections.filter {
                         it.name.lowercase().contains(lowerQuery) ||
-                                (it.category?.lowercase()?.contains(lowerQuery) ?: false)
+                                it.category.lowercase().contains(lowerQuery)
                     }
 
                     // Aggiungi username al volo

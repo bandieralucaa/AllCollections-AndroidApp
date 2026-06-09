@@ -11,6 +11,13 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.allcollections.core.ui.MyTopBar
 
+/**
+ * Schermata per la modifica della bio del profilo utente.
+ *
+ * Carica la bio attuale e permette di modificarla con un limite
+ * di 150 caratteri. Mostra un contatore in tempo reale e salva
+ * le modifiche su Firestore tramite il ProfileViewModel.
+ */
 @Composable
 fun EditBioScreen(
     navController: NavController,
@@ -22,7 +29,6 @@ fun EditBioScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val maxChars = 150
 
-    // Carica bio attuale
     LaunchedEffect(Unit) {
         val userData = viewModel.getUserData()
         bio = userData?.bio ?: ""

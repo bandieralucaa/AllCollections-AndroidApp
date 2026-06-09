@@ -36,12 +36,6 @@ android {
             abiFilters.add("arm64-v8a")
             abiFilters.add("x86_64")
         }
-
-        externalNativeBuild {
-            cmake {
-                arguments("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
-            }
-        }
     }
 
     ndkVersion = "28.0.13004108"
@@ -54,11 +48,16 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Abilita minificazione e ottimizzazione per il build di release
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        debug {
+            isMinifyEnabled = false
         }
     }
 
@@ -102,7 +101,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose.android)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
 
-    // Firebase BOM aggiornato
+    // Firebase BOM
     implementation(platform("com.google.firebase:firebase-bom:33.13.0"))
     implementation("com.google.firebase:firebase-analytics-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
@@ -110,7 +109,7 @@ dependencies {
     implementation("com.google.firebase:firebase-storage-ktx")
     implementation("com.google.firebase:firebase-messaging-ktx")
 
-    // Cloudinary aggiornato
+    // Cloudinary
     implementation("com.cloudinary:cloudinary-android:3.1.2")
 
     // Koin per Dependency Injection

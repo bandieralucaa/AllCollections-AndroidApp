@@ -32,6 +32,29 @@ import com.example.allcollections.feature.search.SearchScreen
 import com.example.allcollections.feature.settings.*
 import org.koin.androidx.compose.koinViewModel
 
+/**
+ * Grafo di navigazione principale dell'app.
+ *
+ * Definisce tutte le rotte disponibili tramite [NavHost] e gestisce la
+ * [BottomNavBar] (nascosta nelle schermate di autenticazione e foto profilo).
+ * Le destinazioni sono raggruppate per area funzionale in funzioni di estensione
+ * private su [NavGraphBuilder]:
+ * - [authNav] — login, registrazione, verifica email, password dimenticata
+ * - [homeNav] — feed principale
+ * - [searchNav] — ricerca utenti e collezioni
+ * - [notificationsNav] — lista notifiche
+ * - [profileNav] — profilo personale e pubblico, modifica dati
+ * - [collectionNav] — creazione, dettaglio, modifica collezioni e oggetti
+ * - [chatNav] — lista chat e singola conversazione
+ * - [settingsNav] — impostazioni app e scelta tema
+ *
+ * @param navController Controller della navigazione condiviso con tutta l'app.
+ * @param startDestination Rotta iniziale, determinata in [MainActivity] in base allo stato auth.
+ * @param themeState Stato corrente del tema, passato alla schermata di scelta tema.
+ * @param onThemeSelected Callback invocato quando l'utente cambia il tema.
+ * @param notificationViewModel ViewModel condiviso per badge notifiche e navigazione da notifica.
+ * @param chatViewModel ViewModel condiviso per il conteggio messaggi non letti nel badge chat.
+ */
 @Composable
 fun AppNavigation(
     navController: NavHostController,
@@ -56,11 +79,13 @@ fun AppNavigation(
 
     Scaffold(
         bottomBar = {
+            // La bottom bar è nascosta nelle schermate auth e nella schermata foto profilo
             val hideBottomBarRoutes = listOf(
                 Screens.LoginScreen.route,
                 Screens.RegisterScreen.route,
                 Screens.VerifyEmailScreen.route,
-                Screens.ForgotPasswordScreen.route
+                Screens.ForgotPasswordScreen.route,
+                Screens.PhotoProfileScreen.route
             )
             if (currentDestination?.route != null &&
                 hideBottomBarRoutes.none { currentDestination.route!!.startsWith(it) }
@@ -91,7 +116,22 @@ fun AppNavigation(
     }
 }
 
-/* ---------------- BOTTOM BAR ---------------- */
+// ─────────────────────────────────────────────────────────────────────────────
+// BOTTOM BAR
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Bottom Navigation Bar dell'app.
+ *
+ * Mostra i badge per notifiche non lette e messaggi non letti.
+ * La selezione attiva è determinata confrontando la gerarchia della destinazione
+ * corrente con la rotta di ciascun elemento.
+ *
+ * @param currentDestination Destinazione corrente nel back stack.
+ * @param navController Controller per la navigazione al tap su un elemento.
+ * @param hasUnreadNotifications `true` se ci sono notifiche non lette (mostra badge rosso).
+ * @param unreadMessagesCount Numero di messaggi non letti (mostra badge con contatore).
+ */
 @Composable
 private fun BottomNavBar(
     currentDestination: androidx.navigation.NavDestination?,
@@ -118,7 +158,7 @@ private fun BottomNavBar(
                     when {
                         item.screen == Screens.NotificationsScreen && hasUnreadNotifications -> {
                             BadgedBox(badge = { Badge(containerColor = MaterialTheme.colorScheme.error) }) {
-                                Icon(item.icon, null, Modifier.size(28.dp))
+                                Icon(item.icon, contentDescription = null, modifier = Modifier.size(28.dp))
                             }
                         }
                         item.screen == Screens.ChatsListScreen && unreadMessagesCount > 0 -> {
@@ -127,10 +167,10 @@ private fun BottomNavBar(
                                     Text(unreadMessagesCount.toString())
                                 }
                             }) {
-                                Icon(item.icon, null, Modifier.size(28.dp))
+                                Icon(item.icon, contentDescription = null, modifier = Modifier.size(28.dp))
                             }
                         }
-                        else -> Icon(item.icon, null, Modifier.size(28.dp))
+                        else -> Icon(item.icon, contentDescription = null, modifier = Modifier.size(28.dp))
                     }
                 }
             )
@@ -138,7 +178,14 @@ private fun BottomNavBar(
     }
 }
 
-/* ---------------- AUTH NAVIGATION ---------------- */
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Registra le destinazioni del flusso di autenticazione:
+ * login, registrazione, verifica email e recupero password.
+ */
 private fun NavGraphBuilder.authNav(navController: NavHostController) {
     composable(Screens.LoginScreen.route) {
         LoginScreen(navController, koinViewModel())
@@ -154,14 +201,22 @@ private fun NavGraphBuilder.authNav(navController: NavHostController) {
     }
 }
 
-/* ---------------- HOME NAVIGATION ---------------- */
+// ─────────────────────────────────────────────────────────────────────────────
+// HOME
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Registra la destinazione della schermata home (feed principale). */
 private fun NavGraphBuilder.homeNav(navController: NavHostController) {
     composable(Screens.HomeScreen.route) {
         HomeScreen(navController, koinViewModel(), koinViewModel())
     }
 }
 
-/* ---------------- SEARCH NAVIGATION ---------------- */
+// ─────────────────────────────────────────────────────────────────────────────
+// SEARCH
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Registra la destinazione della schermata di ricerca utenti e collezioni. */
 private fun NavGraphBuilder.searchNav(navController: NavHostController) {
     composable(Screens.SearchScreen.route) {
         SearchScreen(
@@ -172,7 +227,16 @@ private fun NavGraphBuilder.searchNav(navController: NavHostController) {
     }
 }
 
-/* ---------------- NOTIFICATIONS NAVIGATION ---------------- */
+// ─────────────────────────────────────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Registra la destinazione della schermata notifiche.
+ *
+ * Il [NotificationViewModel] è passato dall'esterno perché è condiviso con
+ * [AppNavigation] per il badge della bottom bar.
+ */
 private fun NavGraphBuilder.notificationsNav(
     navController: NavHostController,
     notificationViewModel: NotificationViewModel
@@ -182,7 +246,14 @@ private fun NavGraphBuilder.notificationsNav(
     }
 }
 
-/* ---------------- PROFILE NAVIGATION ---------------- */
+// ─────────────────────────────────────────────────────────────────────────────
+// PROFILE
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Registra le destinazioni relative al profilo utente:
+ * profilo personale, modifica profilo/password/bio, foto profilo e profilo pubblico.
+ */
 private fun NavGraphBuilder.profileNav(navController: NavHostController) {
     composable(Screens.ProfileScreen.route) {
         ProfileScreen(navController)
@@ -193,8 +264,6 @@ private fun NavGraphBuilder.profileNav(navController: NavHostController) {
     composable(Screens.EditPasswordScreen.route) {
         EditPasswordScreen(navController, koinViewModel())
     }
-
-    // Public profile
     composable(
         route = Screens.PublicProfileScreen.route,
         arguments = listOf(navArgument("userId") { type = NavType.StringType })
@@ -202,8 +271,6 @@ private fun NavGraphBuilder.profileNav(navController: NavHostController) {
         val userId = requireNotNull(entry.arguments?.getString("userId"))
         PublicProfileScreen(userId, navController)
     }
-
-    // PhotoProfileScreen (registrazione o edit)
     composable(
         route = Screens.PhotoProfileScreen.route,
         arguments = listOf(
@@ -213,7 +280,6 @@ private fun NavGraphBuilder.profileNav(navController: NavHostController) {
     ) { entry ->
         val userId = requireNotNull(entry.arguments?.getString("userId"))
         val isRegistration = requireNotNull(entry.arguments?.getBoolean("isRegistration"))
-
         PhotoProfileScreen(
             navController = navController,
             userId = userId,
@@ -226,16 +292,21 @@ private fun NavGraphBuilder.profileNav(navController: NavHostController) {
     }
 }
 
-/* ---------------- COLLECTION NAVIGATION ---------------- */
+// ─────────────────────────────────────────────────────────────────────────────
+// COLLECTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Registra le destinazioni relative alle collezioni:
+ * lista, aggiunta, dettaglio, aggiunta immagine/oggetto, modifica collezione e oggetto.
+ */
 private fun NavGraphBuilder.collectionNav(navController: NavHostController) {
     composable(Screens.MyCollectionsScreen.route) {
         MyCollectionsScreen(navController, koinViewModel())
     }
-
     composable(Screens.AddCollectionScreen.route) {
         AddCollectionScreen(navController)
     }
-
     composable(
         route = Screens.CollectionDetailScreen.route,
         arguments = listOf(
@@ -251,7 +322,6 @@ private fun NavGraphBuilder.collectionNav(navController: NavHostController) {
         val itemId = entry.arguments?.getString("itemId")
         CollectionDetailScreen(navController, collectionId, itemId = itemId, koinViewModel())
     }
-
     composable(
         route = Screens.AddCollectionImageScreen.route,
         arguments = listOf(navArgument("collectionId") { type = NavType.StringType })
@@ -259,7 +329,6 @@ private fun NavGraphBuilder.collectionNav(navController: NavHostController) {
         val collectionId = requireNotNull(entry.arguments?.getString("collectionId"))
         AddCollectionImageScreen(collectionId, navController, koinViewModel())
     }
-
     composable(
         route = Screens.AddCollectionObjectScreen.route,
         arguments = listOf(navArgument("collectionId") { type = NavType.StringType })
@@ -267,7 +336,6 @@ private fun NavGraphBuilder.collectionNav(navController: NavHostController) {
         val collectionId = requireNotNull(entry.arguments?.getString("collectionId"))
         AddCollectionObjectScreen(navController, collectionId, koinViewModel())
     }
-
     composable(
         route = Screens.EditCollectionItemScreen.route,
         arguments = listOf(
@@ -279,7 +347,6 @@ private fun NavGraphBuilder.collectionNav(navController: NavHostController) {
         val itemId = requireNotNull(entry.arguments?.getString("itemId"))
         EditCollectionItemScreen(navController, collectionId, itemId, koinViewModel())
     }
-
     composable(
         route = Screens.EditCollectionScreen.route,
         arguments = listOf(navArgument("collectionId") { type = NavType.StringType })
@@ -289,12 +356,18 @@ private fun NavGraphBuilder.collectionNav(navController: NavHostController) {
     }
 }
 
-/* ---------------- CHAT NAVIGATION ---------------- */
+// ─────────────────────────────────────────────────────────────────────────────
+// CHAT
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Registra le destinazioni della funzionalità chat:
+ * lista di tutte le conversazioni e singola schermata di chat.
+ */
 private fun NavGraphBuilder.chatNav(navController: NavHostController) {
     composable(Screens.ChatsListScreen.route) {
         ChatsListScreen(navController)
     }
-
     composable(
         route = Screens.ChatScreen.route,
         arguments = listOf(navArgument("userId") { type = NavType.StringType })
@@ -307,12 +380,21 @@ private fun NavGraphBuilder.chatNav(navController: NavHostController) {
     }
 }
 
-/* ---------------- SETTINGS NAVIGATION ---------------- */
+// ─────────────────────────────────────────────────────────────────────────────
+// SETTINGS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Registra le destinazioni delle impostazioni:
+ * schermata principale impostazioni e scelta tema.
+ *
+ * Il [NotificationViewModel] è passato dall'esterno perché condiviso con [AppNavigation].
+ */
 private fun NavGraphBuilder.settingsNav(
     navController: NavHostController,
     themeState: ThemeState,
     onThemeSelected: (ThemeMode) -> Unit,
-    notificationViewModel: NotificationViewModel  // aggiunto
+    notificationViewModel: NotificationViewModel
 ) {
     composable(Screens.SettingsScreen.route) {
         SettingsScreen(navController, koinViewModel(), notificationViewModel)

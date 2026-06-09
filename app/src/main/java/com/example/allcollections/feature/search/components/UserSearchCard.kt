@@ -13,6 +13,15 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.allcollections.data.model.UserData
 
+/**
+ * Card per la visualizzazione di un utente nei risultati di ricerca.
+ *
+ * Mostra foto profilo, nome completo e username. Il badge circolare a destra
+ * è un placeholder per il contatore delle collezioni (attualmente fisso a "0").
+ *
+ * @param user Dati dell'utente da visualizzare.
+ * @param onClick Callback invocato al tap sulla card.
+ */
 @Composable
 fun UserSearchCard(
     user: UserData,
@@ -31,7 +40,6 @@ fun UserSearchCard(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar
             AsyncImage(
                 model = user.profileImageUrl,
                 contentDescription = null,
@@ -58,7 +66,6 @@ fun UserSearchCard(
                 )
             }
 
-            // Badge con numero collezioni (opzionale)
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
@@ -68,7 +75,7 @@ fun UserSearchCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "0", // Qui puoi mettere il numero di collezioni
+                        text = "0",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )

@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -23,6 +22,22 @@ import com.example.allcollections.feature.profile.ProfileViewModel
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
+/**
+ * Schermata di registrazione.
+ *
+ * Raccoglie i dati dell'utente (nome, cognome, genere, data di nascita,
+ * email, username e password) ed esegue le seguenti validazioni:
+ * - Campi obbligatori non vuoti
+ * - Età minima 18 anni
+ * - Corrispondenza tra password e conferma password
+ * - Unicità dello username su Firestore (query asincrona)
+ *
+ * Al successo crea l'account su Firebase Authentication, salva i dati
+ * su Firestore e invia l'email di verifica, quindi naviga a [VerifyEmailScreen].
+ *
+ * @param navController Controller per la navigazione tra schermate.
+ * @param profileViewModel ViewModel usato per registrazione, salvataggio dati e verifica username.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewModel) {
@@ -39,19 +54,17 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
-
-    // Visibilità password
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
-
-    // Stato validazione
     var passwordsMatch by remember { mutableStateOf(true) }
     var showPasswordError by remember { mutableStateOf(false) }
-
-    // Stato per evitare click multipli
+    var showDateError by remember { mutableStateOf(false) }
     var isRegistering by remember { mutableStateOf(false) }
 
-    // Funzione per aggiornare lo stato delle password
+    /**
+     * Aggiorna [passwordsMatch] al cambio di uno dei due campi password
+     * e mostra l'errore solo se l'utente ha già scritto nella conferma.
+     */
     fun updatePasswordsMatch() {
         passwordsMatch = password == confirmPassword
         if (confirmPassword.isNotEmpty()) {
@@ -103,8 +116,21 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                 }
 
                 // ─────────── Data di nascita ───────────
-                DatePickerField(selectedDate = dateOfBirth, modifier = textFieldWidth) {
+                DatePickerField(
+                    selectedDate = dateOfBirth,
+                    modifier = textFieldWidth,
+                    isError = showDateError
+                ) {
                     dateOfBirth = it
+                    showDateError = false
+                }
+                if (showDateError) {
+                    Text(
+                        text = "Devi avere almeno 18 anni per registrarti",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.fillMaxWidth(0.85f)
+                    )
                 }
 
                 // ─────────── Email ───────────
@@ -182,7 +208,6 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                     isError = showPasswordError
                 )
 
-                // Messaggio di errore se le password non coincidono
                 if (showPasswordError) {
                     Text(
                         text = "Le password non coincidono",
@@ -202,7 +227,7 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                         coroutineScope.launch {
                             isRegistering = true
 
-                            // Controllo campi vuoti
+                            // Step 1: Controllo campi obbligatori
                             if (name.isBlank() || surname.isBlank() || email.isBlank() ||
                                 username.isBlank() || password.isBlank() || confirmPassword.isBlank() ||
                                 gender.isBlank()
@@ -212,14 +237,24 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                                 return@launch
                             }
 
-                            // Controllo che le password coincidano
+                            // Step 2: Controllo età minima (18 anni)
+                            val today = LocalDate.now()
+                            if (dateOfBirth.plusYears(18).isAfter(today)) {
+                                snackbarHostState.showSnackbar("Devi avere almeno 18 anni per registrarti")
+                                showDateError = true
+                                isRegistering = false
+                                return@launch
+                            }
+                            showDateError = false
+
+                            // Step 3: Controllo corrispondenza password
                             if (!passwordsMatch) {
                                 snackbarHostState.showSnackbar("Le password non coincidono")
                                 isRegistering = false
                                 return@launch
                             }
 
-                            // Controllo unicità username
+                            // Step 4: Controllo unicità username su Firestore
                             val usernameExists = profileViewModel.isUsernameTaken(username)
                             if (usernameExists) {
                                 snackbarHostState.showSnackbar("Username già in uso")
@@ -227,12 +262,12 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                                 return@launch
                             }
 
-                            // Registrazione utente su Firebase Auth
+                            // Step 5: Creazione account Firebase Auth
                             profileViewModel.registerUser(
                                 email = email,
                                 password = password,
                                 onSuccess = { userId ->
-                                    // Salva subito i dati base con foto default
+                                    // Step 6: Salvataggio dati profilo su Firestore
                                     profileViewModel.saveUserData(
                                         userId = userId,
                                         name = name,
@@ -242,37 +277,28 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                                         gender = gender,
                                         dateOfBirth = dateOfBirth,
                                         onSuccess = {
-                                            // Invia email di verifica
+                                            // Step 7: Invio email di verifica
                                             profileViewModel.sendEmailVerification { success, error ->
-                                                if (success) {
-                                                    // Vai alla schermata di verifica email
-                                                    navController.navigate(Screens.VerifyEmailScreen.route) {
-                                                        popUpTo(Screens.RegisterScreen.route) { inclusive = true }
-                                                    }
-                                                } else {
+                                                if (!success) {
                                                     coroutineScope.launch {
                                                         snackbarHostState.showSnackbar("Errore invio verifica: $error")
                                                     }
-                                                    // Se l'email non viene inviata, comunque vai alla verifica
-                                                    navController.navigate(Screens.VerifyEmailScreen.route) {
-                                                        popUpTo(Screens.RegisterScreen.route) { inclusive = true }
-                                                    }
+                                                }
+                                                // Naviga alla schermata verifica anche se l'invio fallisce
+                                                navController.navigate(Screens.VerifyEmailScreen.route) {
+                                                    popUpTo(Screens.RegisterScreen.route) { inclusive = true }
                                                 }
                                                 isRegistering = false
                                             }
                                         },
                                         onFailure = { msg ->
-                                            coroutineScope.launch {
-                                                snackbarHostState.showSnackbar(msg)
-                                            }
+                                            coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
                                             isRegistering = false
                                         }
                                     )
                                 },
                                 onFailure = { msg ->
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar(msg)
-                                    }
+                                    coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
                                     isRegistering = false
                                 }
                             )

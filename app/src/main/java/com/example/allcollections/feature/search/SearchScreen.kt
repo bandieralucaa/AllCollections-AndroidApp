@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.allcollections.core.navigation.Screens
+import com.example.allcollections.data.model.SearchState
 import com.example.allcollections.data.model.UserCollection
 import com.example.allcollections.feature.collection.CollectionViewModel
 import com.example.allcollections.feature.search.components.UserSearchCard
@@ -21,6 +22,17 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.delay
 
+/**
+ * Schermata di ricerca di collezioni e utenti.
+ *
+ * Supporta tre tab: "Collezioni", "Utenti", "Tutto". La ricerca parte
+ * automaticamente con un debounce di 500ms dopo aver digitato almeno 2 caratteri.
+ * I risultati collezioni sono mostrati in griglia a 2 colonne; gli utenti in lista.
+ *
+ * @param viewModel ViewModel per le operazioni sulle collezioni (non usato direttamente nella ricerca).
+ * @param searchViewModel ViewModel che gestisce la logica di ricerca su Firestore.
+ * @param navController NavController per la navigazione ai dettagli.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
