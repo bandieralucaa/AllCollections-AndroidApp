@@ -11,6 +11,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.core.ui.MyTopBar
@@ -25,16 +28,12 @@ import kotlinx.coroutines.launch
  * Schermata principale delle collezioni dell'utente corrente.
  *
  * Mostra tutte le proprie collezioni in una lista verticale con layout orizzontale.
- * Le collezioni vengono ricaricate automaticamente ad ogni ripresa della schermata
- * (evento `ON_RESUME`) grazie a un [LifecycleEventObserver], in modo da riflettere
- * eventuali modifiche effettuate in altre schermate (es. modifica, eliminazione).
+ * Le collezioni vengono ricaricate automaticamente quando la schermata torna in primo piano.
  *
- * Il [FloatingActionButton] naviga alla creazione di una nuova collezione.
- * Il menu contestuale su ogni card permette modifica o eliminazione con dialog di conferma.
- *
- * @param navController NavController per la navigazione.
+ * @param navController Controller per la navigazione.
  * @param viewModel ViewModel che gestisce il caricamento e l'eliminazione delle collezioni.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyCollectionsScreen(
     navController: NavController,
@@ -44,22 +43,20 @@ fun MyCollectionsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var collectionToDelete by remember { mutableStateOf<UserCollection?>(null) }
-    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
-    var isScreenActive by remember { mutableStateOf(false) }
 
-    // Ricarica le collezioni ogni volta che la schermata torna in primo piano
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    // Ricarica le collezioni quando la schermata torna in primo piano (ON_RESUME)
     DisposableEffect(lifecycleOwner) {
-        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            isScreenActive = event == androidx.lifecycle.Lifecycle.Event.ON_RESUME
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                Firebase.auth.currentUser?.uid?.let { userId ->
+                    viewModel.loadUserCollections(userId)
+                }
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
-    LaunchedEffect(isScreenActive) {
-        if (isScreenActive) {
-            Firebase.auth.currentUser?.uid?.let { viewModel.loadUserCollections(it) }
-        }
     }
 
     // Ascolta eventi one-shot (eliminazione, errori)
@@ -85,7 +82,7 @@ fun MyCollectionsScreen(
         }
     }
 
-    // Caricamento iniziale
+    // Caricamento iniziale al primo avvio
     LaunchedEffect(Unit) {
         Firebase.auth.currentUser?.uid?.let { viewModel.loadUserCollections(it) }
     }
@@ -137,7 +134,7 @@ fun MyCollectionsScreen(
                 .padding(padding)
         ) {
             when {
-                uiState.isLoading -> {
+                uiState.isLoading && uiState.collections.isEmpty() -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
 

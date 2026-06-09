@@ -33,27 +33,27 @@ import com.example.allcollections.feature.settings.*
 import org.koin.androidx.compose.koinViewModel
 
 /**
- * Grafo di navigazione principale dell'app.
+ * Grafo di navigazione principale dell'applicazione.
  *
- * Definisce tutte le rotte disponibili tramite [NavHost] e gestisce la
- * [BottomNavBar] (nascosta nelle schermate di autenticazione e foto profilo).
- * Le destinazioni sono raggruppate per area funzionale in funzioni di estensione
- * private su [NavGraphBuilder]:
- * - [authNav] — login, registrazione, verifica email, password dimenticata
- * - [homeNav] — feed principale
- * - [searchNav] — ricerca utenti e collezioni
- * - [notificationsNav] — lista notifiche
- * - [profileNav] — profilo personale e pubblico, modifica dati
- * - [collectionNav] — creazione, dettaglio, modifica collezioni e oggetti
- * - [chatNav] — lista chat e singola conversazione
- * - [settingsNav] — impostazioni app e scelta tema
+ * Questo componente gestisce tutta la navigazione tramite [NavHost], includendo
+ * la [BottomNavBar] (che viene nascosta automaticamente in determinate schermate).
  *
- * @param navController Controller della navigazione condiviso con tutta l'app.
- * @param startDestination Rotta iniziale, determinata in [MainActivity] in base allo stato auth.
- * @param themeState Stato corrente del tema, passato alla schermata di scelta tema.
- * @param onThemeSelected Callback invocato quando l'utente cambia il tema.
- * @param notificationViewModel ViewModel condiviso per badge notifiche e navigazione da notifica.
- * @param chatViewModel ViewModel condiviso per il conteggio messaggi non letti nel badge chat.
+ * Le destinazioni sono organizzate in blocchi logici separati (auth, home, search,
+ * notifications, profile, collection, chat, settings), ciascuno definito in una
+ * funzione di estensione su [NavGraphBuilder] per mantenere il codice modulare.
+ *
+ * ### Rotte e argomenti
+ * - Le rotte sono definite in [Screens] (oggetto companion).
+ * - Le rotte con parametri usano `navArgument` con tipi esplicitamente dichiarati.
+ * - I ViewModel condivisi ([notificationViewModel], [chatViewModel]) vengono passati
+ *   dall'esterno per mantenere lo stesso stato tra bottom bar e schermate.
+ *
+ * @param navController Controller di navigazione (creato in [MainActivity]).
+ * @param startDestination Rotta iniziale (dipende dallo stato di autenticazione).
+ * @param themeState Stato corrente del tema (per la schermata impostazioni).
+ * @param onThemeSelected Callback per cambiare tema (dal menu impostazioni).
+ * @param notificationViewModel ViewModel delle notifiche (condiviso per badge e listener).
+ * @param chatViewModel ViewModel delle chat (condiviso per badge e recent chats).
  */
 @Composable
 fun AppNavigation(
@@ -67,19 +67,21 @@ fun AppNavigation(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
+    // Osserva i badge per la bottom bar
     val hasUnreadNotifications by notificationViewModel
         .hasUnreadNotifications
         .collectAsState(initial = false)
 
     val unreadMessagesCount by chatViewModel.unreadMessagesCount.collectAsState(initial = 0)
 
+    // Avvia l'osservazione delle chat recenti per aggiornare il badge
     LaunchedEffect(Unit) {
         chatViewModel.observeRecentChats()
     }
 
     Scaffold(
         bottomBar = {
-            // La bottom bar è nascosta nelle schermate auth e nella schermata foto profilo
+            // Nasconde la bottom bar nelle schermate di autenticazione e nella selezione foto profilo
             val hideBottomBarRoutes = listOf(
                 Screens.LoginScreen.route,
                 Screens.RegisterScreen.route,
@@ -121,16 +123,16 @@ fun AppNavigation(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Bottom Navigation Bar dell'app.
+ * Bottom Navigation Bar con cinque voci predefinite (Home, Search, Notifications, Profile, Chats).
  *
- * Mostra i badge per notifiche non lette e messaggi non letti.
- * La selezione attiva è determinata confrontando la gerarchia della destinazione
- * corrente con la rotta di ciascun elemento.
+ * Mostra un badge rosso sulle notifiche se [hasUnreadNotifications] è `true`.
+ * Mostra un badge numerico sulle chat se [unreadMessagesCount] > 0.
+ * La voce selezionata viene evidenziata confrontando la destinazione corrente con la gerarchia.
  *
- * @param currentDestination Destinazione corrente nel back stack.
- * @param navController Controller per la navigazione al tap su un elemento.
- * @param hasUnreadNotifications `true` se ci sono notifiche non lette (mostra badge rosso).
- * @param unreadMessagesCount Numero di messaggi non letti (mostra badge con contatore).
+ * @param currentDestination Destinazione attuale nel back stack di navigazione.
+ * @param navController Controller per navigare alla rotta selezionata.
+ * @param hasUnreadNotifications Se `true`, mostra un badge rosso sull'icona delle notifiche.
+ * @param unreadMessagesCount Numero di messaggi non letti (mostrato nel badge delle chat).
  */
 @Composable
 private fun BottomNavBar(
@@ -141,12 +143,14 @@ private fun BottomNavBar(
 ) {
     NavigationBar(modifier = Modifier.height(72.dp)) {
         bottomNavItems.forEach { item ->
+            // Verifica se la destinazione corrente corrisponde a questa voce
             val selected = currentDestination?.hierarchy?.any { it.route == item.screen.route } == true
 
             NavigationBarItem(
                 selected = selected,
                 onClick = {
                     navController.navigate(item.screen.route) {
+                        // Pop up to the start destination of the graph to avoid building up a large stack
                         popUpTo(navController.graph.findStartDestination().id) {
                             saveState = true
                         }
@@ -156,11 +160,13 @@ private fun BottomNavBar(
                 },
                 icon = {
                     when {
+                        // Badge per notifiche non lette
                         item.screen == Screens.NotificationsScreen && hasUnreadNotifications -> {
                             BadgedBox(badge = { Badge(containerColor = MaterialTheme.colorScheme.error) }) {
                                 Icon(item.icon, contentDescription = null, modifier = Modifier.size(28.dp))
                             }
                         }
+                        // Badge numerico per messaggi non letti
                         item.screen == Screens.ChatsListScreen && unreadMessagesCount > 0 -> {
                             BadgedBox(badge = {
                                 Badge(containerColor = MaterialTheme.colorScheme.error) {
@@ -183,8 +189,14 @@ private fun BottomNavBar(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Registra le destinazioni del flusso di autenticazione:
- * login, registrazione, verifica email e recupero password.
+ * Registra le destinazioni del flusso di autenticazione.
+ *
+ * - [Screens.LoginScreen] – login con email/password.
+ * - [Screens.RegisterScreen] – registrazione nuovo utente.
+ * - [Screens.VerifyEmailScreen] – verifica email dopo registrazione.
+ * - [Screens.ForgotPasswordScreen] – recupero password tramite email.
+ *
+ * @param navController Controller per la navigazione tra schermate.
  */
 private fun NavGraphBuilder.authNav(navController: NavHostController) {
     composable(Screens.LoginScreen.route) {
@@ -205,7 +217,11 @@ private fun NavGraphBuilder.authNav(navController: NavHostController) {
 // HOME
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Registra la destinazione della schermata home (feed principale). */
+/**
+ * Registra la destinazione della schermata home (feed principale).
+ *
+ * @param navController Controller per la navigazione.
+ */
 private fun NavGraphBuilder.homeNav(navController: NavHostController) {
     composable(Screens.HomeScreen.route) {
         HomeScreen(navController, koinViewModel(), koinViewModel())
@@ -216,7 +232,11 @@ private fun NavGraphBuilder.homeNav(navController: NavHostController) {
 // SEARCH
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Registra la destinazione della schermata di ricerca utenti e collezioni. */
+/**
+ * Registra la destinazione della schermata di ricerca (utenti e collezioni).
+ *
+ * @param navController Controller per la navigazione.
+ */
 private fun NavGraphBuilder.searchNav(navController: NavHostController) {
     composable(Screens.SearchScreen.route) {
         SearchScreen(
@@ -232,10 +252,13 @@ private fun NavGraphBuilder.searchNav(navController: NavHostController) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Registra la destinazione della schermata notifiche.
+ * Registra la destinazione della schermata delle notifiche.
  *
- * Il [NotificationViewModel] è passato dall'esterno perché è condiviso con
- * [AppNavigation] per il badge della bottom bar.
+ * Il [NotificationViewModel] viene passato dall'esterno perché condiviso
+ * con [AppNavigation] per il badge della bottom bar.
+ *
+ * @param navController Controller per la navigazione.
+ * @param notificationViewModel ViewModel condiviso delle notifiche.
  */
 private fun NavGraphBuilder.notificationsNav(
     navController: NavHostController,
@@ -251,8 +274,16 @@ private fun NavGraphBuilder.notificationsNav(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Registra le destinazioni relative al profilo utente:
- * profilo personale, modifica profilo/password/bio, foto profilo e profilo pubblico.
+ * Registra le destinazioni relative al profilo utente.
+ *
+ * - [Screens.ProfileScreen] – profilo personale (dettagli e statistiche).
+ * - [Screens.EditProfileScreen] – modifica dati anagrafici.
+ * - [Screens.EditPasswordScreen] – cambio password.
+ * - [Screens.PublicProfileScreen] – profilo pubblico di un altro utente (con parametro `userId`).
+ * - [Screens.PhotoProfileScreen] – upload/modifica foto profilo (con parametri `userId` e `isRegistration`).
+ * - [Screens.EditBioScreen] – modifica biografia.
+ *
+ * @param navController Controller per la navigazione.
  */
 private fun NavGraphBuilder.profileNav(navController: NavHostController) {
     composable(Screens.ProfileScreen.route) {
@@ -297,8 +328,18 @@ private fun NavGraphBuilder.profileNav(navController: NavHostController) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Registra le destinazioni relative alle collezioni:
- * lista, aggiunta, dettaglio, aggiunta immagine/oggetto, modifica collezione e oggetto.
+ * Registra tutte le destinazioni relative alla gestione delle collezioni.
+ *
+ * Rotte e argomenti:
+ * - [Screens.MyCollectionsScreen] – lista delle collezioni dell'utente.
+ * - [Screens.AddCollectionScreen] – creazione nuova collezione.
+ * - [Screens.CollectionDetailScreen] – dettaglio collezione (con `collectionId` e `itemId` opzionale).
+ * - [Screens.AddCollectionImageScreen] – upload immagine copertina (con `collectionId`).
+ * - [Screens.AddCollectionObjectScreen] – aggiunta oggetto (con `collectionId`).
+ * - [Screens.EditCollectionItemScreen] – modifica oggetto (con `collectionId` e `itemId`).
+ * - [Screens.EditCollectionScreen] – modifica dati collezione (con `collectionId`).
+ *
+ * @param navController Controller per la navigazione.
  */
 private fun NavGraphBuilder.collectionNav(navController: NavHostController) {
     composable(Screens.MyCollectionsScreen.route) {
@@ -361,8 +402,12 @@ private fun NavGraphBuilder.collectionNav(navController: NavHostController) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Registra le destinazioni della funzionalità chat:
- * lista di tutte le conversazioni e singola schermata di chat.
+ * Registra le destinazioni per la messaggistica istantanea.
+ *
+ * - [Screens.ChatsListScreen] – elenco delle conversazioni recenti.
+ * - [Screens.ChatScreen] – schermata di chat con un singolo utente (parametro `userId`).
+ *
+ * @param navController Controller per la navigazione.
  */
 private fun NavGraphBuilder.chatNav(navController: NavHostController) {
     composable(Screens.ChatsListScreen.route) {
@@ -385,10 +430,15 @@ private fun NavGraphBuilder.chatNav(navController: NavHostController) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Registra le destinazioni delle impostazioni:
- * schermata principale impostazioni e scelta tema.
+ * Registra le destinazioni delle impostazioni dell'app.
  *
- * Il [NotificationViewModel] è passato dall'esterno perché condiviso con [AppNavigation].
+ * - [Screens.SettingsScreen] – impostazioni principali (logout, navigazione a scelta tema, ecc.).
+ * - [Screens.ChooseThemeScreen] – scelta del tema (chiaro, scuro, sistema).
+ *
+ * @param navController Controller per la navigazione.
+ * @param themeState Stato corrente del tema (per pre-selezionare l'opzione attiva).
+ * @param onThemeSelected Callback per cambiare il tema (passato al ViewModel).
+ * @param notificationViewModel ViewModel condiviso per eliminare notifiche o altre operazioni.
  */
 private fun NavGraphBuilder.settingsNav(
     navController: NavHostController,

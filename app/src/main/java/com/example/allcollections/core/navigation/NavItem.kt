@@ -11,8 +11,26 @@ import com.example.allcollections.data.model.NavItem
 /**
  * Lista degli elementi della Bottom Navigation Bar, nell'ordine in cui vengono visualizzati.
  *
- * Ogni elemento associa un'icona Material alla schermata di destinazione corrispondente.
- * Usata in [AppNavigation] per costruire dinamicamente la [BottomNavBar].
+ * Ogni elemento associa un'icona Material (da [Icons.Default]) alla schermata di destinazione
+ * corrispondente, definita nell'enum [Screens].
+ *
+ * L'ordine delle voci è:
+ * 1. [Screens.HomeScreen] – Home
+ * 2. [Screens.SearchScreen] – Ricerca
+ * 3. [Screens.ChatsListScreen] – Chat
+ * 4. [Screens.NotificationsScreen] – Notifiche
+ * 5. [Screens.ProfileScreen] – Profilo
+ *
+ * Le icone selezionate sono:
+ * - Home: `Icons.Default.Home`
+ * - Ricerca: `Icons.Default.Search`
+ * - Chat: `Icons.Default.QuestionAnswer` (fumetto)
+ * - Notifiche: `Icons.Default.Notifications`
+ * - Profilo: `Icons.Default.Person`
+ *
+ * @see BottomNavBar in AppNavigation.kt
+ * @see NavItem
+ * @see Screens
  */
 val bottomNavItems: List<NavItem> = listOf(
     NavItem(

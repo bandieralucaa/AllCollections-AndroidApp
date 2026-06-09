@@ -12,11 +12,16 @@ import androidx.navigation.NavController
 import com.example.allcollections.core.ui.MyTopBar
 
 /**
- * Schermata per la modifica della bio del profilo utente.
+ * Schermata per la modifica della biografia (bio) del profilo utente.
  *
- * Carica la bio attuale e permette di modificarla con un limite
- * di 150 caratteri. Mostra un contatore in tempo reale e salva
- * le modifiche su Firestore tramite il ProfileViewModel.
+ * Carica la bio attuale dell'utente, permette di modificarla con un limite
+ * di 150 caratteri, mostra un contatore in tempo reale e salva le modifiche
+ * su Firestore tramite [ProfileViewModel.saveBio].
+ *
+ * Al termine del salvataggio, torna alla schermata precedente (profilo).
+ *
+ * @param navController Controller per la navigazione (per tornare indietro).
+ * @param viewModel ViewModel del profilo (per recuperare e salvare la bio).
  */
 @Composable
 fun EditBioScreen(
@@ -29,6 +34,7 @@ fun EditBioScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val maxChars = 150
 
+    // Carica la bio corrente al primo avvio
     LaunchedEffect(Unit) {
         val userData = viewModel.getUserData()
         bio = userData?.bio ?: ""
@@ -39,7 +45,12 @@ fun EditBioScreen(
         topBar = { MyTopBar(navController = navController, title = "Modifica bio") }
     ) { padding ->
         if (isLoading) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
                 CircularProgressIndicator()
             }
             return@Scaffold
@@ -58,6 +69,7 @@ fun EditBioScreen(
                 style = MaterialTheme.typography.titleMedium
             )
 
+            // Campo di testo per la bio con limite caratteri
             OutlinedTextField(
                 value = bio,
                 onValueChange = { if (it.length <= maxChars) bio = it },
@@ -76,10 +88,16 @@ fun EditBioScreen(
                 }
             )
 
+            // Messaggio di errore (se presente)
             errorMessage?.let {
-                Text(text = it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
+            // Pulsante di salvataggio
             Button(
                 onClick = {
                     isSaving = true
@@ -96,7 +114,11 @@ fun EditBioScreen(
                 enabled = !isSaving
             ) {
                 if (isSaving) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
                 } else {
                     Text("Salva")
                 }

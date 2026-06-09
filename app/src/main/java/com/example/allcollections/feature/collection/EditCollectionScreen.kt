@@ -31,15 +31,20 @@ import com.example.allcollections.feature.collection.components.PRESET_CATEGORIE
 import kotlinx.coroutines.launch
 
 /**
- * Schermata per modificare i dettagli di una collezione.
+ * Schermata per modificare i dettagli di una collezione esistente.
  *
  * Permette di aggiornare:
- *  - Nome
- *  - Categoria
- *  - Descrizione
- *  - Immagine di copertina
+ * - Nome
+ * - Categoria (da lista predefinita o personalizzata)
+ * - Descrizione
+ * - Immagine di copertina (selezionabile dalla galleria)
  *
- * Utilizza i metodi del CollectionViewModel per aggiornamenti e upload immagini.
+ * Le modifiche possono essere salvate singolarmente o insieme.
+ * Dopo il salvataggio, si torna alla schermata di dettaglio della collezione.
+ *
+ * @param navController Controller per la navigazione.
+ * @param collectionId ID della collezione da modificare.
+ * @param viewModel ViewModel delle collezioni (per operazioni di aggiornamento).
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -51,15 +56,22 @@ fun EditCollectionScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val scrollState = rememberScrollState()
+
     var collection by remember { mutableStateOf<UserCollection?>(null) }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var selectedChip by remember { mutableStateOf<String?>(null) }
     var isCustomCategory by remember { mutableStateOf(false) }
     var showCategoryDialog by remember { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
+
+    // Launcher per selezionare un'immagine dalla galleria
     val imagePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
-    ) { uri -> selectedImageUri = uri }
+    ) { uri ->
+        if (uri != null) selectedImageUri = uri
+    }
 
+    // Carica i dati della collezione all'avvio
     LaunchedEffect(collectionId) {
         viewModel.getCollectionById(
             collectionId = collectionId,
@@ -99,18 +111,21 @@ fun EditCollectionScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Nome
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Nome") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isSaving
                 )
 
+                // Selettore categoria (read-only, apre dialog)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
-                        .clickable { showCategoryDialog = true }
+                        .clickable(enabled = !isSaving) { showCategoryDialog = true }
                 ) {
                     OutlinedTextField(
                         value = if (category.isNotEmpty()) category else "Seleziona categoria *",
@@ -138,6 +153,7 @@ fun EditCollectionScreen(
                     )
                 }
 
+                // Dialog selezione categoria
                 if (showCategoryDialog) {
                     Dialog(onDismissRequest = { showCategoryDialog = false }) {
                         Surface(
@@ -187,31 +203,38 @@ fun EditCollectionScreen(
                     }
                 }
 
+                // Categoria personalizzata (se "Altro")
                 if (isCustomCategory) {
                     OutlinedTextField(
                         value = category,
                         onValueChange = { category = it },
                         label = { Text("Scrivi la tua categoria...") },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        enabled = !isSaving
                     )
                 }
 
+                // Descrizione
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
                     label = { Text("Descrizione") },
                     modifier = Modifier.fillMaxWidth(),
-                    minLines = 3
+                    minLines = 3,
+                    enabled = !isSaving
                 )
 
+                // Pulsante per selezionare una nuova immagine
                 Button(
                     onClick = { imagePickerLauncher.launch("image/*") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isSaving
                 ) {
                     Text("Scegli nuova immagine")
                 }
 
+                // Anteprima immagine (nuova o esistente)
                 val imageModel = selectedImageUri ?: currentCollection.collectionImageUrl.takeIf { !it.isNullOrEmpty() }
                 imageModel?.let { model ->
                     AsyncImage(
@@ -226,15 +249,20 @@ fun EditCollectionScreen(
                     )
                 }
 
+                // Pulsante Salva modifiche
                 Button(
                     onClick = {
                         scope.launch {
+                            if (isSaving) return@launch
+                            isSaving = true
+
                             val hasFieldChanges = name != currentCollection.name ||
                                     category != (currentCollection.category ?: "") ||
                                     description != (currentCollection.description ?: "")
                             val hasImageChange = selectedImageUri != null
 
                             try {
+                                // Salva modifiche testuali
                                 if (hasFieldChanges) {
                                     viewModel.updateCollection(
                                         updatedCollection = currentCollection.copy(
@@ -251,6 +279,7 @@ fun EditCollectionScreen(
                                     )
                                 }
 
+                                // Salva nuova immagine
                                 if (hasImageChange) {
                                     viewModel.updateCollectionImage(
                                         collectionId = currentCollection.id,
@@ -264,6 +293,7 @@ fun EditCollectionScreen(
                                     )
                                 }
 
+                                // Naviga al dettaglio della collezione
                                 navController.navigate(Screens.CollectionDetailScreen.collectionDetailRoute(currentCollection.id)) {
                                     popUpTo("edit_collection/${currentCollection.id}") { inclusive = true }
                                 }
@@ -272,14 +302,31 @@ fun EditCollectionScreen(
                                 scope.launch {
                                     snackbarHostState.showSnackbar("Errore imprevisto: ${e.message}")
                                 }
+                            } finally {
+                                isSaving = false
                             }
                         }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
+                        .height(56.dp),
+                    enabled = !isSaving
                 ) {
-                    Text("Salva modifiche")
+                    if (isSaving) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Text("Salvataggio in corso...")
+                        }
+                    } else {
+                        Text("Salva modifiche")
+                    }
                 }
             }
         }

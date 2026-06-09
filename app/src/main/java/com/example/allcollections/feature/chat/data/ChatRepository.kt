@@ -14,15 +14,25 @@ import kotlinx.coroutines.tasks.await
 /**
  * Repository per la gestione delle chat in tempo reale su Firestore.
  *
- * Ogni conversazione è identificata da un ID deterministico generato dai due
- * userId ordinati alfabeticamente (`userId1_userId2`), garantendo unicità
- * indipendentemente dall'ordine in cui i due utenti avviano la chat.
+ * ### Struttura del database
+ * - Collezione `chats`: ogni documento rappresenta una conversazione tra due utenti.
+ *   L'ID del documento è generato deterministicamente (vedi [generateChatId]).
+ *   - Campi standard: `participants` (lista di due ID), `lastMessage` (testo), `timestamp` (ultimo messaggio)
+ *   - Campi dinamici per i non letti: `unreadCount_<userId>` (numero messaggi non letti per quell'utente)
+ *   - Campi per eliminazione logica: `deletedFor` (lista degli utenti che hanno eliminato la chat),
+ *     `deletedAt_<userId>` (timestamp di eliminazione per quell'utente)
+ * - Sottocollezione `messages` all'interno di ogni chat: contiene i singoli messaggi.
  *
- * Supporta eliminazione logica per singolo utente: quando un utente elimina
- * la chat, essa viene nascosta solo per lui (campo `deletedFor`); la chat viene
- * fisicamente eliminata solo quando entrambi gli utenti l'hanno eliminata.
+ * ### Eliminazione logica
+ * Quando un utente elimina una chat, essa non viene rimossa fisicamente subito.
+ * Viene aggiunto il suo ID a `deletedFor` e viene salvato `deletedAt_<userId>`.
+ * Nelle query successive, i messaggi antecedenti a quella data vengono nascosti.
+ * Solo quando entrambi gli utenti hanno eliminato la chat, i messaggi e il documento chat
+ * vengono cancellati fisicamente da Firestore.
  *
- * @param firestore Istanza di FirebaseFirestore iniettata tramite Koin.
+ * @param firestore Istanza di FirebaseFirestore (tipicamente iniettata tramite Koin).
+ * @see ChatMessage
+ * @see ChatPreview
  */
 class ChatRepository(
     private val firestore: FirebaseFirestore
@@ -34,10 +44,18 @@ class ChatRepository(
     }
 
     /**
-     * Genera un ID chat deterministico dai due userId.
+     * Genera un ID chat deterministico da due ID utente.
      *
-     * Ordina i due ID alfabeticamente e li unisce con `_`, così che
-     * `generateChatId("A","B") == generateChatId("B","A")`.
+     * L'ID è ottenuto ordinando alfabeticamente i due ID e unendoli con `_`.
+     * Esempio: `generateChatId("abc", "def")` → `"abc_def"`
+     *          `generateChatId("def", "abc")` → `"abc_def"`
+     *
+     * Questa proprietà garantisce che entrambi gli utenti utilizzino lo stesso
+     * documento Firestore indipendentemente dall'ordine dei parametri.
+     *
+     * @param userId1 Primo ID utente.
+     * @param userId2 Secondo ID utente.
+     * @return ID chat univoco per la coppia di utenti.
      */
     private fun generateChatId(userId1: String, userId2: String): String =
         if (userId1 < userId2) "${userId1}_$userId2" else "${userId2}_$userId1"
@@ -45,28 +63,33 @@ class ChatRepository(
     /**
      * Osserva in tempo reale i messaggi di una conversazione.
      *
-     * Filtra i messaggi precedenti alla data di eliminazione logica
-     * ([deletedAt_userId]) così che l'utente veda solo i messaggi
-     * successivi all'ultima eliminazione.
+     * Restituisce un [Flow] che emette la lista dei messaggi ogni volta che
+     * vengono aggiunti, modificati o eliminati. L'ordine è cronologico ascendente
+     * (dal più vecchio al più recente).
      *
-     * @param userId1 ID del primo utente della conversazione.
-     * @param userId2 ID del secondo utente della conversazione.
-     * @return [Flow] che emette la lista aggiornata dei messaggi ad ogni modifica.
+     * **Filtro di eliminazione logica:** vengono nascosti i messaggi la cui data
+     * è antecedente all'ultima eliminazione della chat da parte dell'utente corrente
+     * (campo `deletedAt_<userId>`).
+     *
+     * @param userId1 ID del primo utente (tipicamente l'utente corrente).
+     * @param userId2 ID del secondo utente (l'interlocutore).
+     * @return [Flow] che emette la lista aggiornata dei messaggi.
      */
     fun getMessages(userId1: String, userId2: String): Flow<List<ChatMessage>> = callbackFlow {
         val chatId = generateChatId(userId1, userId2)
         val chatRef = firestore.collection(CHATS_COLLECTION).document(chatId)
 
+        // Listener sui messaggi della chat
         val listener = chatRef
             .collection(MESSAGES_COLLECTION)
             .orderBy("timestamp", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close()
+                    close(error)
                     return@addSnapshotListener
                 }
 
-                // Legge la data di eliminazione logica per userId1
+                // Legge la data di eliminazione logica per userId1 per filtrare i messaggi
                 chatRef.get().addOnSuccessListener { doc ->
                     val deletedAt = doc.getTimestamp("deletedAt_$userId1")
 
@@ -75,11 +98,10 @@ class ChatRepository(
                             ?.copy(id = msgDoc.id)
                             ?: return@mapNotNull null
 
-                        // Nasconde i messaggi precedenti all'ultima eliminazione logica
+                        // Filtra i messaggi più vecchi dell'eliminazione
                         if (deletedAt != null && message.timestamp <= deletedAt) {
                             return@mapNotNull null
                         }
-
                         message
                     } ?: emptyList()
 
@@ -91,13 +113,19 @@ class ChatRepository(
     }
 
     /**
-     * Invia un messaggio e aggiorna i metadati della chat (ultimo messaggio, contatore non letti).
+     * Invia un messaggio e aggiorna i metadati della chat.
      *
-     * Usa [SetOptions.merge] per non sovrascrivere campi esistenti del documento chat.
-     * Prima di aggiungere il messaggio, rimuove il mittente da `deletedFor` così che
-     * la chat ricompaia nella lista del destinatario se l'aveva eliminata.
+     * Operazioni atomiche:
+     * 1. Aggiorna (o crea) il documento chat con merge:
+     *    - `participants` = lista dei due utenti
+     *    - `lastMessage` = testo del messaggio
+     *    - `timestamp` = data del messaggio
+     *    - `unreadCount_<receiverId>` incrementato di 1
+     * 2. Rimuove il destinatario dal campo `deletedFor`, in modo che la chat
+     *    ricompaia nella sua lista se l'aveva eliminata.
+     * 3. Aggiunge il messaggio alla sottocollezione `messages`.
      *
-     * @param message Messaggio da inviare (l'[id][ChatMessage.id] sarà assegnato da Firestore).
+     * @param message Messaggio da inviare. L'ID sarà generato automaticamente da Firestore.
      */
     suspend fun sendMessage(message: ChatMessage) {
         val chatId = generateChatId(message.senderId, message.receiverId)
@@ -114,18 +142,19 @@ class ChatRepository(
             com.google.firebase.firestore.SetOptions.merge()
         ).await()
 
-        // Rimuove il destinatario da deletedFor così che la chat ricompaia nella sua lista
+        // Rimuove il destinatario da deletedFor per fargli riapparire la chat
         chatRef.update(
             mapOf("deletedFor" to FieldValue.arrayRemove(message.receiverId))
         ).await()
 
+        // Aggiunge il messaggio alla sottocollezione
         chatRef.collection(MESSAGES_COLLECTION).add(message).await()
     }
 
     /**
-     * Azzera il contatore di messaggi non letti per [userId] nella chat con [otherUserId].
+     * Azzera il contatore dei messaggi non letti per un utente in una chat.
      *
-     * @param userId ID dell'utente che ha letto i messaggi.
+     * @param userId ID dell'utente che ha letto i messaggi (il suo contatore viene azzerato).
      * @param otherUserId ID dell'altro utente della conversazione.
      */
     suspend fun resetUnreadCount(userId: String, otherUserId: String) {
@@ -140,12 +169,13 @@ class ChatRepository(
     }
 
     /**
-     * Marca come letti tutti i messaggi ricevuti da [userId] nella chat con [otherUserId].
+     * Marca come letti tutti i messaggi ricevuti da un utente in una chat.
      *
-     * Usa un batch write per aggiornare tutti i documenti in un'unica operazione atomica.
+     * Utilizza un batch write per aggiornare tutti i messaggi non letti in una
+     * singola operazione atomica.
      *
-     * @param userId ID dell'utente che sta leggendo i messaggi.
-     * @param otherUserId ID del mittente dei messaggi da marcare come letti.
+     * @param userId ID dell'utente che sta leggendo i messaggi (ricevente).
+     * @param otherUserId ID del mittente (per filtrare i messaggi da lui inviati).
      */
     suspend fun markMessagesAsRead(userId: String, otherUserId: String) {
         val chatId = generateChatId(userId, otherUserId)
@@ -168,13 +198,17 @@ class ChatRepository(
     }
 
     /**
-     * Elimina la chat tra [userId1] e [userId2].
+     * Elimina la chat tra due utenti per uno di loro (eliminazione logica).
      *
-     * Implementa una **doppia eliminazione logica**:
-     * - Se l'altro utente ([userId2]) ha già eliminato la sua copia → elimina fisicamente
-     *   tutti i messaggi e il documento chat.
-     * - Altrimenti → marca la chat come eliminata per [userId1] con timestamp ([deletedAt_userId1])
-     *   e aggiunge [userId1] a `deletedFor`, nascondendo la chat solo per lui.
+     * ### Comportamento dettagliato
+     * - Se l'altro utente ha già eliminato la chat (il suo ID è presente in `deletedFor`),
+     *   allora questa chiamata **elimina fisicamente** l'intera chat (documento principale
+     *   e tutti i messaggi).
+     * - Altrimenti, esegue un'**eliminazione logica** per l'utente corrente:
+     *   - Aggiunge il suo ID al campo `deletedFor`
+     *   - Imposta il timestamp `deletedAt_<userId>` al momento corrente
+     *   - La chat non apparirà più nelle sue [getRecentChats] e i vecchi messaggi
+     *     verranno filtrati da [getMessages].
      *
      * @param userId1 ID dell'utente che sta eliminando la chat.
      * @param userId2 ID dell'altro utente della conversazione.
@@ -187,7 +221,7 @@ class ChatRepository(
         val deletedFor = doc.get("deletedFor") as? List<*> ?: emptyList<String>()
 
         if (deletedFor.contains(userId2)) {
-            // L'altro utente ha già eliminato → elimina fisicamente
+            // L'altro utente ha già eliminato → eliminazione fisica definitiva
             val messagesSnapshot = chatRef.collection(MESSAGES_COLLECTION).get().await()
             if (messagesSnapshot.documents.isNotEmpty()) {
                 val batch = firestore.batch()
@@ -196,7 +230,7 @@ class ChatRepository(
             }
             chatRef.delete().await()
         } else {
-            // Eliminazione logica per userId1
+            // Eliminazione logica solo per userId1
             chatRef.update(
                 mapOf(
                     "deletedFor" to FieldValue.arrayUnion(userId1),
@@ -207,13 +241,16 @@ class ChatRepository(
     }
 
     /**
-     * Osserva in tempo reale la lista delle chat recenti dell'utente.
+     * Osserva in tempo reale la lista delle chat recenti di un utente.
      *
-     * Filtra le chat che l'utente ha eliminato logicamente (campo `deletedFor`).
-     * I risultati sono ordinati per timestamp decrescente (più recenti prima).
+     * Restituisce un [Flow] che emette una lista di [ChatPreview] ogni volta che
+     * viene aggiunto un nuovo messaggio, letto un messaggio, o eliminata una chat.
+     * Le chat sono ordinate per [timestamp] decrescente (più recente prima).
      *
-     * @param userId ID dell'utente di cui caricare le chat recenti.
-     * @return [Flow] che emette la lista aggiornata delle [ChatPreview] ad ogni modifica.
+     * **Filtro:** vengono escluse le chat in cui l'utente corrente è presente in `deletedFor`.
+     *
+     * @param userId ID dell'utente di cui ottenere le chat recenti.
+     * @return [Flow] di [List]<[ChatPreview]>, aggiornato in tempo reale.
      */
     fun getRecentChats(userId: String): Flow<List<ChatPreview>> = callbackFlow {
         val listener = firestore.collection(CHATS_COLLECTION)
@@ -221,7 +258,7 @@ class ChatRepository(
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close()
+                    close(error)
                     return@addSnapshotListener
                 }
 

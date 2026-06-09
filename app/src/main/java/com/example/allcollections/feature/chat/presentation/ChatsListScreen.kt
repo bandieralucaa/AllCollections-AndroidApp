@@ -25,16 +25,27 @@ import com.example.allcollections.feature.profile.ProfileViewModel
 import org.koin.androidx.compose.koinViewModel
 
 /**
- * Schermata con la lista delle conversazioni recenti.
+ * Schermata che mostra la lista delle conversazioni recenti dell'utente.
  *
- * Mostra una card per ogni conversazione con foto profilo dell'interlocutore,
- * username, ultimo messaggio troncato, timestamp relativo e badge con il
- * contatore dei messaggi non letti. Se non ci sono conversazioni, mostra
- * uno stato vuoto illustrativo.
+ * Le conversazioni vengono osservate in tempo reale tramite [ChatViewModel.recentChats]
+ * e mostrate in ordine decrescente di timestamp (la più recente in alto).
  *
- * @param navController NavController per navigare alla singola schermata di chat.
- * @param viewModel ViewModel che espone la lista [ChatPreview] delle chat recenti.
- * @param profileViewModel ViewModel per caricare username e foto profilo di ogni interlocutore.
+ * ### Comportamento
+ * - Se non ci sono conversazioni, viene mostrato uno stato vuoto con icona e messaggio.
+ * - Ogni elemento della lista (card) mostra:
+ *   - Foto profilo dell'interlocutore (placeholder circolare se assente).
+ *   - Username dell'interlocutore (caricato asincronamente tramite [ProfileViewModel]).
+ *   - Ultimo messaggio (troncato a una riga).
+ *   - Timestamp relativo (es. "5m", "2h").
+ *   - Badge con il numero di messaggi non letti (visibile solo se > 0).
+ * - Cliccando su una card si naviga alla schermata di chat con quell'utente.
+ *
+ * @param navController Controller per la navigazione verso [ChatScreen].
+ * @param viewModel ViewModel delle chat (osserva le conversazioni recenti).
+ * @param profileViewModel ViewModel del profilo (per caricare username e foto).
+ *
+ * @see ChatViewModel
+ * @see ChatPreview
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,7 +56,7 @@ fun ChatsListScreen(
 ) {
     val recentChats by viewModel.recentChats.collectAsState()
 
-    // Avvia il listener real-time delle chat al primo ingresso nella schermata
+    // Avvia l'osservazione delle chat recenti quando la schermata viene composta
     LaunchedEffect(Unit) {
         viewModel.observeRecentChats()
     }
@@ -59,7 +70,7 @@ fun ChatsListScreen(
         }
     ) { padding ->
         if (recentChats.isEmpty()) {
-            // Stato vuoto
+            // Stato vuoto: nessuna conversazione
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -88,6 +99,7 @@ fun ChatsListScreen(
                 }
             }
         } else {
+            // Lista delle conversazioni
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -112,14 +124,21 @@ fun ChatsListScreen(
 /**
  * Card di anteprima per una singola conversazione.
  *
- * Mostra foto profilo e username dell'interlocutore (caricati in modo asincrono),
- * l'ultimo messaggio troncato a una riga, il timestamp relativo e un badge con
- * il numero di messaggi non letti (visibile solo se > 0). Il testo dell'ultimo
- * messaggio è più marcato se ci sono messaggi non letti.
+ * Visualizza i dati principali della conversazione e gestisce il caricamento asincrono
+ * di username e foto profilo dell'interlocutore tramite [ProfileViewModel].
+ *
+ * ### Componenti visualizzati
+ * - Foto profilo (circolare, con placeholder se non disponibile)
+ * - Username
+ * - Timestamp relativo (es. "5 minuti fa")
+ * - Ultimo messaggio (troncato)
+ * - Badge con numero di messaggi non letti (evidenziato con colore primario)
+ *
+ * Il testo dell'ultimo messaggio appare più scuro (primary) se ci sono messaggi non letti.
  *
  * @param chat Dati dell'anteprima della conversazione.
- * @param onClick Callback invocato al tap sulla card per aprire la chat.
- * @param profileViewModel ViewModel usato per caricare username e foto profilo.
+ * @param onClick Callback invocato al tap sulla card (solitamente navigazione alla chat).
+ * @param profileViewModel ViewModel per caricare username e foto profilo dell'interlocutore.
  */
 @Composable
 fun ChatPreviewItem(
@@ -130,7 +149,7 @@ fun ChatPreviewItem(
     var username by remember { mutableStateOf("Utente") }
     var profileImage by remember { mutableStateOf<String?>(null) }
 
-    // Carica i dati dell'interlocutore ogni volta che cambia l'userId della chat
+    // Carica i dati dell'interlocutore quando cambia l'userId della chat
     LaunchedEffect(chat.otherUserId) {
         profileViewModel.getUsernameById(chat.otherUserId) { username = it }
         profileViewModel.getUserProfilePhoto(chat.otherUserId) { profileImage = it }
@@ -148,6 +167,7 @@ fun ChatPreviewItem(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Foto profilo (placeholder se non disponibile)
             AsyncImage(
                 model = profileImage,
                 contentDescription = "Foto profilo di $username",
@@ -160,8 +180,7 @@ fun ChatPreviewItem(
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-
-                // Riga superiore: username + timestamp
+                // Riga superiore: username e timestamp
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
@@ -191,7 +210,7 @@ fun ChatPreviewItem(
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        // Testo più marcato se ci sono messaggi non letti
+                        // Se ci sono messaggi non letti, il testo è più scuro (primary)
                         color = if (chat.unreadCount > 0)
                             MaterialTheme.colorScheme.onSurface
                         else

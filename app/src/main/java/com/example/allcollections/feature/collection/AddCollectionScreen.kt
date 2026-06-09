@@ -25,14 +25,26 @@ import org.koin.androidx.compose.koinViewModel
 /**
  * Schermata per la creazione di una nuova collezione.
  *
- * Raccoglie nome (obbligatorio), categoria (obbligatoria, da lista predefinita o
- * personalizzata tramite "Altro") e descrizione (opzionale). Al salvataggio su
- * Firestore naviga automaticamente ad [AddCollectionImageScreen] per aggiungere
- * la copertina; lo stato `createdCollectionId` è resettato con un breve delay
- * per evitare ri-navigazioni spurie al rientro nella schermata.
+ * Raccoglie i seguenti dati:
+ * - **Nome** (obbligatorio)
+ * - **Categoria** (obbligatoria): selezionabile da una lista predefinita (PRESET_CATEGORIES)
+ *   o personalizzata scegliendo "Altro ✏️".
+ * - **Descrizione** (opzionale)
  *
- * @param navController NavController per la navigazione.
- * @param viewModel ViewModel che gestisce la creazione della collezione su Firestore.
+ * Al tap su "Prosegui", viene chiamato [CollectionViewModel.saveCollection].
+ * Se la creazione ha successo, [CreateCollectionState.createdCollectionId] viene
+ * valorizzato e il [LaunchedEffect] naviga automaticamente a [AddCollectionImageScreen]
+ * per aggiungere l'immagine di copertina, resettando poi lo stato con un breve delay
+ * per evitare ri‑navigazioni spurie.
+ *
+ * Gestisce anche gli errori di creazione (mostrati tramite snackbar) e disabilita
+ * il pulsante durante il caricamento.
+ *
+ * @param navController Controller per la navigazione.
+ * @param viewModel ViewModel delle collezioni (iniettato con Koin).
+ *
+ * @see CollectionViewModel
+ * @see Screens.AddCollectionImageScreen
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -52,7 +64,7 @@ fun AddCollectionScreen(
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
-    // Naviga alla schermata immagine appena la collezione è stata creata con successo
+    // Naviga alla schermata di aggiunta immagine non appena la collezione viene creata
     LaunchedEffect(createState.createdCollectionId) {
         createState.createdCollectionId?.let { collectionId ->
             navController.navigate(
@@ -61,7 +73,7 @@ fun AddCollectionScreen(
                 popUpTo(Screens.AddCollectionScreen.route) { inclusive = true }
                 launchSingleTop = true
             }
-            // Reset con delay per evitare ri-navigazioni spurie alla prossima composizione
+            // Reset con delay per evitare ri‑navigazioni alla successiva ricomposizione
             launch {
                 kotlinx.coroutines.delay(300)
                 viewModel.resetCreateCollectionState()
@@ -91,7 +103,7 @@ fun AddCollectionScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ─────────── Nome ───────────
+            // Nome (obbligatorio)
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -101,7 +113,7 @@ fun AddCollectionScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // ─────────── Selettore categoria (read-only + click apre dialog) ───────────
+            // Selettore categoria (read‑only, apre dialog al click)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -149,7 +161,7 @@ fun AddCollectionScreen(
                 )
             }
 
-            // ─────────── Dialog selezione categoria ───────────
+            // Dialog per la selezione della categoria (con chip predefiniti + "Altro")
             if (showCategoryDialog) {
                 Dialog(onDismissRequest = { showCategoryDialog = false }) {
                     Surface(
@@ -199,7 +211,7 @@ fun AddCollectionScreen(
                 }
             }
 
-            // ─────────── Campo categoria personalizzata ───────────
+            // Campo per categoria personalizzata (se "Altro" è stato scelto)
             if (isCustomCategory) {
                 OutlinedTextField(
                     value = category,
@@ -212,7 +224,7 @@ fun AddCollectionScreen(
                 )
             }
 
-            // ─────────── Descrizione (opzionale) ───────────
+            // Descrizione (opzionale)
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
@@ -221,7 +233,7 @@ fun AddCollectionScreen(
                 minLines = 3
             )
 
-            // ─────────── Bottone Prosegui ───────────
+            // Pulsante di invio
             Button(
                 onClick = {
                     if (name.isBlank() || category.isBlank()) {

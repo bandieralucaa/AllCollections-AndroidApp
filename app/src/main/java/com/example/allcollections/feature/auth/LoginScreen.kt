@@ -30,21 +30,35 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 
 /**
- * Schermata di login.
+ * Schermata di login dell'applicazione.
  *
  * Permette all'utente di accedere con email e password tramite Firebase Authentication.
- * Se l'utente è già autenticato, viene reindirizzato automaticamente alla [Screens.HomeScreen]
- * tramite [LaunchedEffect]. Il pulsante "Accedi" è abilitato solo quando entrambi i campi
- * sono non vuoti, per ridurre le chiamate Firebase inutili.
+ *
+ * ### Comportamento
+ * - Se l'utente è già autenticato (Firebase auth ha un utente corrente), viene reindirizzato
+ *   automaticamente alla [Screens.HomeScreen] con reset completo della back stack.
+ * - Il pulsante "Accedi" è abilitato **solo** quando entrambi i campi (email e password)
+ *   sono non vuoti, per ridurre chiamate Firebase inutili.
+ * - La password può essere mostrata/nascosta tramite l'icona di toggle.
+ * - In caso di errore di autenticazione, viene mostrato un messaggio sotto il pulsante.
+ *
+ * ### Navigazione
+ * - "Password dimenticata?" → [Screens.ForgotPasswordScreen]
+ * - "Registrati" → [Screens.RegisterScreen]
+ * - Login riuscito → [Screens.HomeScreen] con `popUpTo` che rimuove LoginScreen dalla back stack.
  *
  * @param navController Controller per la navigazione tra schermate.
- * @param viewModel ViewModel del profilo, usato per eseguire il login tramite Firebase.
+ * @param viewModel ViewModel del profilo, che espone il metodo [ProfileViewModel.login].
+ *
+ * @see ProfileViewModel
+ * @see Screens
  */
 @Composable
 fun LoginScreen(
     navController: NavController,
     viewModel: ProfileViewModel
 ) {
+    // Stato UI locale
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -52,7 +66,7 @@ fun LoginScreen(
 
     val currentUser = Firebase.auth.currentUser
 
-    // Se l'utente è già loggato, vai direttamente alla Home senza tornare al login
+    // Se l'utente è già loggato, naviga direttamente alla Home e rimuove il login dalla back stack
     LaunchedEffect(currentUser) {
         if (currentUser != null) {
             navController.navigate(Screens.HomeScreen.route) {
@@ -74,7 +88,7 @@ fun LoginScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // ─────────── Logo e titolo ───────────
+            // Logo dell'app
             Image(
                 painter = painterResource(R.drawable.logo),
                 contentDescription = "Logo AllCollections",
@@ -90,7 +104,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // ─────────── Campo email ───────────
+            // Campo email
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
@@ -107,7 +121,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ─────────── Campo password con toggle visibilità ───────────
+            // Campo password con toggle visibilità
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -134,7 +148,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ─────────── Link "Password dimenticata?" ───────────
+            // Link "Password dimenticata?"
             Row(
                 modifier = Modifier
                     .fillMaxWidth(0.85f)
@@ -154,7 +168,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ─────────── Bottone Accedi ───────────
+            // Pulsante di login (abilitato solo se campi non vuoti)
             Button(
                 onClick = {
                     val trimmedEmail = email.trim()
@@ -169,7 +183,6 @@ fun LoginScreen(
                         }
                     }
                 },
-                // Abilitato solo se entrambi i campi sono valorizzati
                 enabled = email.isNotBlank() && password.isNotBlank(),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -180,12 +193,12 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ─────────── Link registrazione ───────────
+            // Link per la registrazione
             TextButton(onClick = { navController.navigate(Screens.RegisterScreen.route) }) {
                 Text("Non hai un account? Registrati")
             }
 
-            // ─────────── Messaggio di errore ───────────
+            // Messaggio di errore (se presente)
             errorMessage?.let { msg ->
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(

@@ -12,22 +12,33 @@ import kotlinx.coroutines.launch
 /**
  * Stato UI del tema dell'applicazione.
  *
- * Wrappa il [ThemeMode] corrente in una data class per uniformità
- * con gli altri stati UI dell'app.
+ * Wrapper semplice del [ThemeMode] corrente, utilizzato per uniformare
+ * la gestione dello stato UI con gli altri ViewModel dell'app.
  *
- * @property theme Modalità tema attualmente attiva.
+ * @property theme Modalità tema attualmente attiva (chiaro, scuro, sistema).
  */
 data class ThemeState(val theme: ThemeMode)
 
 /**
- * ViewModel per la gestione del tema dell'app.
+ * ViewModel per la gestione del tema dell'applicazione (chiaro, scuro, sistema).
  *
- * Legge la preferenza tema da [ThemeRepository] e la espone come [StateFlow],
- * così che la UI si aggiorni automaticamente ad ogni cambio senza polling.
- * Utilizza [SharingStarted.WhileSubscribed] con timeout di 5 secondi per
- * non cancellare la sottoscrizione durante le riconfigurazioni di Activity.
+ * Si interfaccia con [ThemeRepository] per leggere e salvare la preferenza
+ * dell'utente in DataStore. Espone uno [StateFlow] osservabile che la UI può
+ * utilizzare per applicare il tema e per mostrare l'opzione selezionata
+ * nella schermata di scelta tema.
  *
- * @param repository Repository da cui leggere e salvare la preferenza tema.
+ * ### Comportamento del flusso
+ * - Il flusso [state] viene inizializzato con [ThemeMode.System] come valore
+ *   predefinito, in attesa che DataStore emetta il valore persistito.
+ * - Utilizza [SharingStarted.WhileSubscribed] con un timeout di 5 secondi:
+ *   la sottoscrizione rimane attiva durante le riconfigurazioni dell'Activity
+ *   (es. rotazione schermo) ma viene cancellata se nessun osservatore rimane
+ *   per più di 5 secondi (ottimizzazione delle risorse).
+ *
+ * @param repository Repository che gestisce la persistenza del tema (DataStore).
+ * @see ThemeRepository
+ * @see ThemeMode
+ * @see ThemeState
  */
 class ThemeViewModel(
     private val repository: ThemeRepository
@@ -36,8 +47,15 @@ class ThemeViewModel(
     /**
      * Stato osservabile del tema corrente.
      *
-     * Inizia con [ThemeMode.System] come valore di default finché DataStore
-     * non ha emesso il valore persistito.
+     * La UI dovrebbe collezionare questo flusso per applicare il tema
+     * (usando `DynamicColor` o `MaterialTheme`) e per evidenziare
+     * l'opzione attiva nella schermata delle impostazioni.
+     *
+     * Esempio di utilizzo in un composable:
+     * ```
+     * val themeState by viewModel.state.collectAsState()
+     * // themeState.theme contiene il ThemeMode corrente
+     * ```
      */
     val state: StateFlow<ThemeState> = repository.theme
         .map { theme -> ThemeState(theme) }
@@ -48,9 +66,12 @@ class ThemeViewModel(
         )
 
     /**
-     * Cambia il tema dell'applicazione e lo persiste tramite [ThemeRepository].
+     * Cambia il tema dell'applicazione e lo persiste in modo permanente.
      *
-     * @param theme Nuovo [ThemeMode] da applicare.
+     * La modifica viene salvata su DataStore tramite [ThemeRepository.setTheme]
+     * e automaticamente propagata a tutti gli osservatori di [state].
+     *
+     * @param theme Nuova modalità tema da applicare (Light, Dark, System).
      */
     fun changeTheme(theme: ThemeMode) = viewModelScope.launch {
         repository.setTheme(theme)

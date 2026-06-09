@@ -14,34 +14,43 @@ import java.io.IOException
 /**
  * Repository responsabile della persistenza e del recupero della preferenza tema.
  *
- * Utilizza [DataStore] per leggere e scrivere il tema scelto dall'utente in modo
+ * Utilizza [DataStore] per leggere/scrivere il tema scelto dall'utente in modo
  * asincrono e sicuro. Espone un [Flow] osservabile così che la UI si aggiorni
- * automaticamente al cambio di tema senza bisogno di polling.
+ * automaticamente senza polling.
  *
- * @param dataStore Istanza di [DataStore] iniettata tramite Koin (vedi `AppModule`).
+ * ### Comportamento in caso di errore di I/O
+ * Il flusso [theme] emette un valore di fallback (tema di sistema) e poi si
+ * arresta permanentemente. Se desideri un ripristino automatico, considera
+ * l'aggiunta di un operatore `.retry()` prima del `.catch`.
+ *
+ * @see ThemeMode per i valori supportati
+ * @see androidx.datastore.preferences.core.Preferences
+ *
+ * @param dataStore Istanza di [DataStore] iniettata (es. tramite Koin in [AppModule]).
  */
 class ThemeRepository(
     private val dataStore: DataStore<Preferences>
 ) {
 
     companion object {
-        /** Chiave DataStore con cui viene salvata la preferenza del tema. */
+        /** Chiave DataStore per salvare il tema. */
         private val THEME_KEY = stringPreferencesKey("app_theme")
     }
 
     /**
-     * Flusso osservabile del tema corrente selezionato dall'utente.
+     * Flusso osservabile del tema corrente.
      *
-     * In caso di errore di I/O durante la lettura del DataStore, emette
-     * preferenze vuote e ricade sul valore di default [ThemeMode.fromString]
-     * (tipicamente [ThemeMode.System]). Tutti gli altri errori vengono
-     * rilanciati normalmente.
+     * In caso di [IOException] durante la lettura (es. file corrotto o permessi),
+     * il flusso emette un [emptyPreferences] come fallback e poi termina.
+     * Se il DataStore è sano, il flusso continua a emettere ogni aggiornamento.
      *
-     * @return [Flow] che emette il [ThemeMode] corrente ad ogni aggiornamento.
+     * @return [Flow] che emette il [ThemeMode] corrente o il default ([ThemeMode.System]).
      */
     val theme: Flow<ThemeMode> = dataStore.data
         .catch { exception ->
             if (exception is IOException) {
+                // Fallback: emetti preferenze vuote per evitare crash
+                // Nota: il flusso finirà qui senza riprovare automaticamente
                 emit(emptyPreferences())
             } else {
                 throw exception
@@ -52,10 +61,10 @@ class ThemeRepository(
         }
 
     /**
-     * Salva in modo persistente il tema selezionato dall'utente.
+     * Salva in modo persistente il tema selezionato.
      *
-     * La scrittura avviene su un dispatcher IO gestito internamente da DataStore,
-     * quindi questa funzione va chiamata da una coroutine (es. da un ViewModel).
+     * La scrittura avviene su un dispatcher IO (gestito da DataStore).
+     * Chiamare questa funzione da una coroutine (es. ViewModel) con `viewModelScope.launch`.
      *
      * @param theme Il [ThemeMode] da salvare.
      */

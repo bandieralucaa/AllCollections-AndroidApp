@@ -31,18 +31,28 @@ import org.koin.androidx.compose.koinViewModel
 /**
  * Schermata della chat privata tra due utenti.
  *
- * Mostra i messaggi in tempo reale tramite Firestore, permette di inviare
- * nuovi messaggi e di eliminare l'intera conversazione. Lo scroll avviene
- * automaticamente all'arrivo di ogni nuovo messaggio.
+ * Questa schermata gestisce l'invio e la visualizzazione in tempo reale dei messaggi
+ * tra l'utente corrente e un altro utente identificato da [otherUserId].
  *
- * La lista usa `reverseLayout = true` con i messaggi in ordine inverso:
- * i più recenti appaiono in fondo e si scorre verso l'alto per i più vecchi.
+ * ### Caratteristiche principali
+ * - I messaggi vengono osservati in tempo reale tramite [ChatViewModel.observeMessages].
+ * - La lista dei messaggi è in ordine cronologico (dal più vecchio al più nuovo)
+ *   ma visualizzata con `reverseLayout = true` e `messages.reversed()` in modo che
+ *   i messaggi più recenti appaiano in fondo e lo scroll naturale vada verso l'alto.
+ * - Scroll automatico all'ultimo messaggio quando arriva un nuovo messaggio.
+ * - All'uscita dalla schermata, i messaggi vengono cancellati dalla memoria locale
+ *   tramite [ChatViewModel.clearMessages] per evitare "flash" alla riapertura.
+ * - È possibile eliminare l'intera conversazione con un dialog di conferma.
+ * - Il profilo dell'interlocutore (foto, username) è cliccabile e porta al suo profilo pubblico.
  *
  * @param otherUserId ID dell'altro utente con cui si sta chattando.
- * @param otherUsername Username dell'altro utente (opzionale; viene caricato se vuoto).
- * @param navController NavController per la navigazione.
- * @param viewModel ViewModel che gestisce messaggi e operazioni sulla chat.
+ * @param otherUsername Username dell'altro utente (opzionale; se vuoto, viene caricato).
+ * @param navController Controller per la navigazione (profilo pubblico, back stack).
+ * @param viewModel ViewModel che gestisce i messaggi e le operazioni sulla chat.
  * @param profileViewModel ViewModel per caricare username e foto profilo dell'interlocutore.
+ *
+ * @see ChatViewModel
+ * @see ChatBubble
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,13 +67,14 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
+    // Stato UI locale
     var messageText by remember { mutableStateOf("") }
     var username by remember { mutableStateOf(otherUsername) }
     var profilePhotoUrl by remember { mutableStateOf<String?>(null) }
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Carica username e foto profilo, poi avvia l'ascolto real-time dei messaggi
+    // Carica i dati dell'interlocutore e avvia l'osservazione dei messaggi
     LaunchedEffect(otherUserId) {
         if (username.isEmpty()) {
             profileViewModel.getUsernameById(otherUserId) { username = it }
@@ -72,19 +83,29 @@ fun ChatScreen(
         viewModel.observeMessages(otherUserId)
     }
 
-    // Scrolla automaticamente all'ultimo messaggio ad ogni nuovo arrivo
+    // Scroll automatico all'ultimo messaggio quando la lista si aggiorna
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
-            scope.launch { listState.animateScrollToItem(messages.size - 1) }
+            scope.launch {
+                // messages.size - 1 è l'indice dell'ultimo messaggio (più recente)
+                // Poiché la LazyColumn ha reverseLayout = true, dobbiamo scorrere all'indice 0?
+                // No: con reverseLayout = true, l'indice 0 è l'ultimo elemento in fondo.
+                // La formula corretta è: scrollare all'indice 0 quando reverseLayout = true.
+                // Ma messages.reversed() viene usato nella LazyColumn, quindi l'ultimo messaggio
+                // originale (più recente) diventa il primo elemento della lista invertita.
+                // Quindi listState.animateScrollToItem(0) funziona.
+                // Tuttavia, per semplicità e dato che la lista è piccola, scrolliamo all'indice 0.
+                listState.animateScrollToItem(0)
+            }
         }
     }
 
-    // Svuota i messaggi quando si esce dalla schermata per evitare flash al prossimo accesso
+    // Pulisce i messaggi quando si esce dalla schermata per evitare "flash" alla prossima apertura
     DisposableEffect(Unit) {
         onDispose { viewModel.clearMessages() }
     }
 
-    // Dialog di conferma eliminazione conversazione
+    // Dialog di conferma per l'eliminazione della conversazione
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -142,7 +163,7 @@ fun ChatScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Header con foto profilo e username dell'interlocutore
+            // Header con foto profilo e username dell'interlocutore (cliccabile)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -170,21 +191,22 @@ fun ChatScreen(
 
             HorizontalDivider()
 
-            // Lista messaggi: reverseLayout=true + messages.reversed() per avere
-            // i messaggi più recenti in basso e scorrere verso l'alto per i vecchi
+            // Lista dei messaggi in ordine inverso (più recente in basso)
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 state = listState,
-                reverseLayout = true,
+                reverseLayout = true,          // Inverte l'ordine di layout: l'elemento 0 è in fondo
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // messages.reversed() viene usato perché la LazyColumn ha reverseLayout = true
+                // In questo modo l'ultimo messaggio (più recente) viene posizionato in fondo.
                 items(messages.reversed()) { message ->
                     ChatBubble(message = message)
                 }
             }
 
-            // Barra di input per scrivere e inviare messaggi
+            // Barra di input per inviare nuovi messaggi
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(4.dp)
@@ -231,11 +253,13 @@ fun ChatScreen(
 /**
  * Bolla di un singolo messaggio nella chat.
  *
- * I messaggi inviati dall'utente corrente sono allineati a destra con sfondo
- * [ColorScheme.primaryContainer]; quelli ricevuti sono allineati a sinistra
- * con sfondo [ColorScheme.surfaceVariant].
+ * Questo componente visualizza un messaggio con stili diversi a seconda del mittente:
+ * - **Messaggi propri** (inviati dall'utente corrente) → allineati a destra, sfondo [ColorScheme.primaryContainer].
+ * - **Messaggi ricevuti** → allineati a sinistra, sfondo [ColorScheme.surfaceVariant].
  *
- * @param message Il messaggio da visualizzare.
+ * Il testo è avvolto in una [Card] con padding e stile tipografico [MaterialTheme.typography.bodyMedium].
+ *
+ * @param message Il messaggio da visualizzare (contiene testo, mittente, timestamp, ecc.).
  */
 @Composable
 fun ChatBubble(message: ChatMessage) {

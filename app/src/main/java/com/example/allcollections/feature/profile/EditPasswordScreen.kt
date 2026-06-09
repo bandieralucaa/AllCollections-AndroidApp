@@ -21,12 +21,17 @@ import com.example.allcollections.core.ui.MyTopBar
 import kotlinx.coroutines.delay
 
 /**
- * Screen per la modifica della password utente.
+ * Schermata per la modifica della password dell'utente corrente.
  *
- * UX pensata per:
- * - evitare errori comuni
- * - dare feedback chiaro
- * - mantenere focus sull’azione principale
+ * Richiede:
+ * - Password attuale (per reautenticazione su Firebase)
+ * - Nuova password (minimo 6 caratteri)
+ * - Conferma nuova password (deve coincidere)
+ *
+ * Dopo il successo, mostra un messaggio temporaneo e torna indietro automaticamente.
+ *
+ * @param navController Controller per la navigazione.
+ * @param profileViewModel ViewModel del profilo (per il cambio password).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,28 +39,33 @@ fun EditPasswordScreen(
     navController: NavController,
     profileViewModel: ProfileViewModel
 ) {
-
     var currentPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
     var isSubmitting by remember { mutableStateOf(false) }
+
+    // Toggle visibilità per ogni campo
     var currentVisible by remember { mutableStateOf(false) }
     var newVisible by remember { mutableStateOf(false) }
     var confirmVisible by remember { mutableStateOf(false) }
 
+    // Reset dei messaggi quando l'utente modifica i campi
+    LaunchedEffect(currentPassword, newPassword, confirmPassword) {
+        errorMessage = null
+        successMessage = null
+    }
+
     Scaffold(
         topBar = { MyTopBar(navController, title = "Modifica password") }
     ) { innerPadding ->
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
             contentAlignment = Alignment.Center
         ) {
-
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -67,6 +77,7 @@ fun EditPasswordScreen(
                     modifier = Modifier.padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Password attuale
                     PasswordField(
                         label = "Password attuale",
                         value = currentPassword,
@@ -75,6 +86,7 @@ fun EditPasswordScreen(
                         onToggleVisibility = { currentVisible = !currentVisible }
                     )
 
+                    // Nuova password
                     PasswordField(
                         label = "Nuova password",
                         value = newPassword,
@@ -83,6 +95,7 @@ fun EditPasswordScreen(
                         onToggleVisibility = { newVisible = !newVisible }
                     )
 
+                    // Conferma nuova password
                     PasswordField(
                         label = "Conferma nuova password",
                         value = confirmPassword,
@@ -91,6 +104,7 @@ fun EditPasswordScreen(
                         onToggleVisibility = { confirmVisible = !confirmVisible }
                     )
 
+                    // Pulsante di invio
                     Button(
                         onClick = {
                             errorMessage = validatePasswords(
@@ -121,13 +135,15 @@ fun EditPasswordScreen(
                         if (isSubmitting) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
                             )
                         } else {
                             Text("Salva nuova password")
                         }
                     }
 
+                    // Messaggio di errore (animato)
                     AnimatedVisibility(
                         visible = errorMessage != null,
                         enter = fadeIn(),
@@ -139,6 +155,7 @@ fun EditPasswordScreen(
                         )
                     }
 
+                    // Messaggio di successo (animato)
                     AnimatedVisibility(
                         visible = successMessage != null,
                         enter = fadeIn(),
@@ -146,7 +163,7 @@ fun EditPasswordScreen(
                     ) {
                         Text(
                             text = successMessage.orEmpty(),
-                            color = Color(0xFF2E7D32) // verde "success"
+                            color = Color(0xFF2E7D32) // verde successo
                         )
                     }
                 }
@@ -154,6 +171,7 @@ fun EditPasswordScreen(
         }
     }
 
+    // Naviga indietro automaticamente dopo il successo (con un breve delay)
     LaunchedEffect(successMessage) {
         if (successMessage != null) {
             delay(900)
@@ -163,8 +181,14 @@ fun EditPasswordScreen(
 }
 
 /**
- * Validazione centralizzata delle password.
- * Mantiene la UI pulita e la logica testabile.
+ * Validazione centralizzata dei campi password.
+ *
+ * Controlli eseguiti:
+ * - Nessun campo vuoto
+ * - Nuova password ≥ 6 caratteri
+ * - Nuova password e conferma coincidono
+ *
+ * @return Messaggio di errore, o `null` se tutto è valido.
  */
 private fun validatePasswords(
     current: String,
@@ -181,8 +205,13 @@ private fun validatePasswords(
 }
 
 /**
- * Campo password riutilizzabile con toggle visibilità.
- * Usato in più screen senza duplicazioni.
+ * Campo password riutilizzabile con toggle di visibilità.
+ *
+ * @param label Etichetta del campo.
+ * @param value Valore corrente.
+ * @param visible Se `true`, mostra la password in chiaro.
+ * @param onValueChange Callback per aggiornare il valore.
+ * @param onToggleVisibility Callback per invertire la visibilità.
  */
 @Composable
 private fun PasswordField(
@@ -197,18 +226,12 @@ private fun PasswordField(
         onValueChange = onValueChange,
         label = { Text(label) },
         singleLine = true,
-        visualTransformation = if (visible)
-            VisualTransformation.None
-        else
-            PasswordVisualTransformation(),
+        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
         trailingIcon = {
             IconButton(onClick = onToggleVisibility) {
                 Icon(
-                    imageVector = if (visible)
-                        Icons.Default.Visibility
-                    else
-                        Icons.Default.VisibilityOff,
-                    contentDescription = null
+                    imageVector = if (visible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                    contentDescription = if (visible) "Nascondi password" else "Mostra password"
                 )
             }
         },

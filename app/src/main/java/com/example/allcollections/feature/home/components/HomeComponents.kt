@@ -1,6 +1,5 @@
 package com.example.allcollections.feature.home.components
 
-import com.example.allcollections.feature.home.HomeFilter
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -9,7 +8,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -19,13 +18,20 @@ import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.data.model.CollectionCardLayout
 import com.example.allcollections.data.model.UserCollection
 import com.example.allcollections.feature.collection.components.CollectionCard
+import com.example.allcollections.feature.home.HomeFilter
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Filtri
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Componenti UI della HomeScreen.
+ * Pulsante che apre il dialog di selezione filtro.
  *
- * Raggruppa i composable riutilizzabili della home: bottone filtro,
- * dialog di selezione filtro, griglia delle collezioni, vista di
- * caricamento e vista per lista vuota.
+ * Mostra un'icona di filtro e, se il filtro attivo non è [HomeFilter.All],
+ * visualizza un piccolo badge di notifica in sovraimpressione.
+ *
+ * @param activeFilter Filtro attualmente selezionato.
+ * @param onClick Callback invocato al tap sul pulsante (per mostrare il dialog).
  */
 @Composable
 fun FilterButton(activeFilter: HomeFilter, onClick: () -> Unit) {
@@ -33,12 +39,27 @@ fun FilterButton(activeFilter: HomeFilter, onClick: () -> Unit) {
         IconButton(onClick = onClick) {
             Icon(Icons.Default.FilterList, contentDescription = "Filtra collezioni")
         }
+        // Badge visibile solo se il filtro non è "Tutte"
         if (activeFilter != HomeFilter.All) {
             Badge(modifier = Modifier.offset(x = (-8).dp, y = 8.dp))
         }
     }
 }
 
+/**
+ * Dialog per la selezione del filtro delle collezioni.
+ *
+ * Presenta tre opzioni tramite [FilterOption]:
+ * - Tutte le collezioni
+ * - Solo utenti seguiti
+ * - Collezioni preferite (con like)
+ *
+ * @param activeFilter Filtro attualmente selezionato (per evidenziare l'opzione corretta).
+ * @param onDismiss Callback per chiudere il dialog.
+ * @param onSelectAll Callback quando si seleziona "Tutte le collezioni".
+ * @param onSelectFollowed Callback quando si seleziona "Solo utenti seguiti".
+ * @param onSelectLiked Callback quando si seleziona "Collezioni preferite".
+ */
 @Composable
 fun FilterDialog(
     activeFilter: HomeFilter,
@@ -63,6 +84,15 @@ fun FilterDialog(
     )
 }
 
+/**
+ * Singola opzione di filtro all'interno di [FilterDialog].
+ *
+ * Combina un [RadioButton] con un'etichetta testuale. L'intera riga è cliccabile.
+ *
+ * @param text Etichetta dell'opzione.
+ * @param selected Se `true`, il radio button è selezionato.
+ * @param onClick Callback invocato al tap sull'opzione.
+ */
 @Composable
 fun FilterOption(text: String, selected: Boolean, onClick: () -> Unit) {
     Row(
@@ -81,6 +111,22 @@ fun FilterOption(text: String, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Griglia e stati
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Griglia a due colonne che mostra le collezioni come card.
+ *
+ * Ogni card è renderizzata da [CollectionCard] e supporta like, click per navigare
+ * ai dettagli della collezione, click sull'username per il profilo pubblico.
+ *
+ * @param collections Lista delle collezioni da visualizzare.
+ * @param navController Controller per la navigazione.
+ * @param likedMap Mappa `collectionId -> liked` (true se l'utente ha messo like).
+ * @param likesCountMap Mappa `collectionId -> conteggio like`.
+ * @param onLikeClick Callback invocato al tap sul pulsante like di una collezione.
+ */
 @Composable
 fun CollectionsGrid(
     collections: List<UserCollection>,
@@ -119,6 +165,11 @@ fun CollectionsGrid(
     }
 }
 
+/**
+ * Vista di caricamento mostrata mentre le collezioni vengono caricate.
+ *
+ * Visualizza un [CircularProgressIndicator] centrato e un messaggio testuale.
+ */
 @Composable
 fun LoadingView() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -132,6 +183,14 @@ fun LoadingView() {
     }
 }
 
+/**
+ * Vista mostrata quando la lista delle collezioni è vuota.
+ *
+ * Il messaggio varia in base al filtro attivo e allo stato di autenticazione.
+ *
+ * @param activeFilter Filtro attualmente selezionato.
+ * @param currentUserId ID dell'utente corrente (può essere `null` se non autenticato).
+ */
 @Composable
 fun EmptyView(activeFilter: HomeFilter, currentUserId: String?) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

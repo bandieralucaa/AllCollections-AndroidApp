@@ -14,19 +14,36 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 
 /**
- * TopBar personalizzata riusabile per tutte le schermate dell'app.
+ * TopBar personalizzata e riutilizzabile per tutte le schermate dell'app.
  *
- * Mostra un titolo centrato, un pulsante "indietro" opzionale a sinistra
- * e uno slot per azioni aggiuntive a destra (es. icone di menu o modifica).
+ * Questa barra superiore fornisce un layout standardizzato con:
+ * - Pulsante di navigazione indietro (opzionale) allineato a sinistra
+ * - Titolo centrato
+ * - Slot per azioni personalizzate allineato a destra (es. menu, modifica, salvataggio)
  *
- * Il back button chiama [onBackClick] se fornito, altrimenti esegue
- * [NavController.popBackStack] come comportamento di default.
+ * ### Comportamento del pulsante indietro
+ * - Se [onBackClick] è fornito, viene eseguito al suo posto.
+ * - Altrimenti, chiama [NavController.popBackStack] per tornare alla schermata precedente.
+ * - Se [showBackButton] è `false`, il pulsante non viene mostrato.
  *
- * @param navController Controller della navigazione, usato per il back di default.
- * @param showBackButton Se `true` mostra il pulsante indietro; default `true`.
- * @param onBackClick Callback personalizzato per il back button; se `null` usa `popBackStack`.
- * @param title Testo del titolo centrato nella barra.
- * @param actions Slot Composable per azioni aggiuntive allineate a destra (default vuoto).
+ * ### Esempio di utilizzo
+ * ```
+ * MyTopBar(
+ *     navController = navController,
+ *     title = "Profilo",
+ *     actions = {
+ *         IconButton(onClick = { /* modifica profilo */ }) {
+ *             Icon(Icons.Default.Edit, contentDescription = "Modifica")
+ *         }
+ *     }
+ * )
+ * ```
+ *
+ * @param navController Controller di navigazione (usato per popBackStack di default).
+ * @param showBackButton Se `true`, mostra il pulsante indietro. Default `true`.
+ * @param onBackClick Callback personalizzato per il back. Se `null`, usa `navController.popBackStack()`.
+ * @param title Titolo da centrare nella barra. Può essere vuoto.
+ * @param actions Slot composable per icone o elementi sulla destra. Default vuoto.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,7 +59,7 @@ fun MyTopBar(
             .fillMaxWidth()
             .height(56.dp)
     ) {
-        // ─────────── Pulsante indietro (sinistra) ───────────
+        // Pulsante indietro (allineato a sinistra) - opzionale
         if (showBackButton) {
             IconButton(
                 onClick = { onBackClick?.invoke() ?: navController.popBackStack() },
@@ -56,7 +73,7 @@ fun MyTopBar(
             }
         }
 
-        // ─────────── Titolo centrato ───────────
+        // Titolo centrato
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
@@ -64,7 +81,7 @@ fun MyTopBar(
             modifier = Modifier.align(Alignment.Center)
         )
 
-        // ─────────── Azioni (destra) ───────────
+        // Slot per azioni aggiuntive (allineato a destra)
         Box(
             modifier = Modifier
                 .align(Alignment.CenterEnd)

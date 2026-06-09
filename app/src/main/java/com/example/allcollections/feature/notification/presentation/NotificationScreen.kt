@@ -16,19 +16,29 @@ import androidx.navigation.NavController
 import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.data.model.Notification
-import com.example.allcollections.feature.notification.components.NotificationItem
+import com.example.allcollections.feature.notification.presentation.components.NotificationItem
 import com.example.allcollections.feature.notification.domain.NotificationType
 import com.example.allcollections.feature.notification.presentation.NotificationViewModel
 import kotlinx.coroutines.launch
-import kotlin.collections.isNotEmpty
 
 /**
- * Schermata delle notifiche ricevute dall'utente.
+ * Schermata delle notifiche ricevute dall'utente corrente.
  *
- * Mostra la lista delle notifiche in ordine cronologico inverso, con
- * supporto per marcatura come letta al tap e eliminazione di tutte.
- * Il tap su una notifica naviga alla schermata contestuale in base
- * al tipo (collezione, oggetto, profilo utente).
+ * Mostra la lista delle notifiche in ordine cronologico inverso (più recente in alto)
+ * ottenute in tempo reale tramite [NotificationViewModel.notifications].
+ *
+ * ### Funzionalità
+ * - Tap su una notifica: la marca come letta (se non lo era) e naviga alla schermata
+ *   corrispondente in base al tipo (collezione, commento, follow, like, nuovo oggetto).
+ * - Pulsante "Elimina tutte" (icona cestino in alto a destra) che cancella tutte le notifiche
+ *   dell'utente dopo conferma tramite [AlertDialog].
+ * - Stato vuoto: mostra un'icona e messaggi descrittivi quando non ci sono notifiche.
+ *
+ * @param navController Controller per la navigazione.
+ * @param viewModel ViewModel delle notifiche (osserva la lista, gestisce operazioni).
+ *
+ * @see NotificationViewModel
+ * @see NotificationItem
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +52,7 @@ fun NotificationsScreen(
 
     var showDeleteAllDialog by remember { mutableStateOf(false) }
 
+    // Dialog di conferma per eliminare tutte le notifiche
     if (showDeleteAllDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteAllDialog = false },
@@ -68,6 +79,7 @@ fun NotificationsScreen(
                 navController = navController,
                 title = "Notifiche",
                 actions = {
+                    // Mostra l'icona "Elimina tutte" solo se ci sono notifiche
                     if (notifications.isNotEmpty()) {
                         IconButton(onClick = { showDeleteAllDialog = true }) {
                             Icon(Icons.Default.Delete, contentDescription = "Elimina tutte")
@@ -92,6 +104,17 @@ fun NotificationsScreen(
     }
 }
 
+/**
+ * Lista delle notifiche in un [LazyColumn].
+ *
+ * Ogni notifica è renderizzata da [NotificationItem] e supporta l'animazione
+ * di inserimento/rimozione tramite [Modifier.animateItem].
+ *
+ * @param notifications Lista delle notifiche da visualizzare.
+ * @param viewModel ViewModel per marcare come letta ed eliminare.
+ * @param navController Controller per la navigazione al tap.
+ * @param snackbarHostState Per mostrare snackbar in caso di errori (opzionale).
+ */
 @Composable
 private fun NotificationsList(
     notifications: List<Notification>,
@@ -115,22 +138,66 @@ private fun NotificationsList(
     }
 }
 
+/**
+ * Vista mostrata quando la lista delle notifiche è vuota.
+ *
+ * Mostra un'icona stilizzata e due messaggi di testo.
+ */
 @Composable
 private fun EmptyNotificationsView() {
-    Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
-            Text("Nessuna notifica", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Quando riceverai notifiche, appariranno qui", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), textAlign = TextAlign.Center)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                Icons.Default.Notifications,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
+            Text(
+                "Nessuna notifica",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                "Quando riceverai notifiche, appariranno qui",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
 
+/**
+ * Gestisce la navigazione al tap su una notifica in base al suo tipo.
+ *
+ * La notifica viene marcata come letta (se non lo era) prima di navigare.
+ *
+ * ### Regole di navigazione
+ * - [NotificationType.COMMENT] → dettaglio della collezione (con `collectionId`).
+ * - [NotificationType.ITEM_COMMENT] → dettaglio della collezione con scroll all'oggetto (se `itemId` presente).
+ * - [NotificationType.LIKE] o [NotificationType.NEW_ITEM] → dettaglio della collezione.
+ * - [NotificationType.FOLLOW] → profilo pubblico dell'utente che ha seguito.
+ * - Altri tipi → schermata home.
+ *
+ * @param notification Notifica ricevuta.
+ * @param navController Controller per la navigazione.
+ * @param viewModel ViewModel per marcare come letta.
+ */
 private fun handleNotificationClick(
     notification: Notification,
     navController: NavController,
     viewModel: NotificationViewModel
 ) {
+    // Marca come letta se non lo è già
     if (!notification.read) viewModel.markAsRead(notification.id)
 
     when (notification.type) {
@@ -150,14 +217,9 @@ private fun handleNotificationClick(
                 else -> navController.navigate(Screens.NotificationsScreen.route)
             }
         }
-        NotificationType.LIKE -> {
+        NotificationType.LIKE, NotificationType.NEW_ITEM -> {
             notification.data.collectionId?.let {
-                navController.navigate("collection_detail/$it")
-            } ?: navController.navigate(Screens.HomeScreen.route)
-        }
-        NotificationType.NEW_ITEM -> {
-            notification.data.collectionId?.let {
-                navController.navigate("collection_detail/$it")
+                navController.navigate(Screens.CollectionDetailScreen.createRoute(it))
             } ?: navController.navigate(Screens.HomeScreen.route)
         }
         NotificationType.FOLLOW -> {

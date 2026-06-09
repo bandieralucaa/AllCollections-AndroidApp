@@ -27,13 +27,20 @@ import org.koin.androidx.compose.koinViewModel
  *
  * Permette di selezionare un'immagine dalla galleria di sistema; non appena
  * l'immagine viene selezionata, parte automaticamente il caricamento su
- * Cloudinary. In caso di successo naviga al dettaglio della collezione,
- * rimuovendo questa schermata dallo stack. È possibile saltare il passaggio
- * tramite il bottone "Non ora".
+ * Cloudinary tramite [CollectionViewModel.uploadImageToCloudinary].
+ *
+ * In caso di successo, naviga al dettaglio della collezione ([Screens.CollectionDetailScreen])
+ * rimuovendo questa schermata dallo stack (l'utente non torna indietro).
+ *
+ * È possibile saltare il passaggio tramite il bottone "Non ora", navigando comunque
+ * al dettaglio della collezione senza immagine di copertina.
  *
  * @param collectionId ID della collezione a cui aggiungere la copertina.
- * @param navController NavController per la navigazione.
- * @param viewModel ViewModel che gestisce il caricamento su Cloudinary.
+ * @param navController Controller per la navigazione.
+ * @param viewModel ViewModel delle collezioni (gestisce l'upload su Cloudinary).
+ *
+ * @see CollectionViewModel.uploadImageToCloudinary
+ * @see Screens.CollectionDetailScreen
  */
 @Composable
 fun AddCollectionImageScreen(
@@ -46,6 +53,7 @@ fun AddCollectionImageScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
+    // Launcher per selezionare un'immagine dalla galleria
     val galleryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -61,6 +69,7 @@ fun AddCollectionImageScreen(
                 imageUri = uri,
                 onSuccess = {
                     isUploading = false
+                    // Naviga al dettaglio della collezione e rimuove questa schermata dalla back stack
                     navController.navigate(
                         Screens.CollectionDetailScreen.createRoute(collectionId)
                     ) {
@@ -107,6 +116,7 @@ fun AddCollectionImageScreen(
                 Spacer(Modifier.height(16.dp))
             }
 
+            // Pulsante per selezionare l'immagine (disabilitato durante l'upload)
             Button(
                 onClick = { galleryLauncher.launch("image/*") },
                 enabled = !isUploading,
@@ -122,6 +132,7 @@ fun AddCollectionImageScreen(
 
             Spacer(Modifier.height(12.dp))
 
+            // Pulsante per saltare l'aggiunta della copertina
             OutlinedButton(
                 onClick = {
                     navController.navigate(

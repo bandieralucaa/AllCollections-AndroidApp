@@ -10,32 +10,39 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.core.utils.input.DatePickerField
 import com.example.allcollections.core.utils.input.GenderSelector
 import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 import java.time.LocalDate
 
 /**
- * Screen di modifica del profilo utente.
+ * Schermata per la modifica dei dati anagrafici del profilo utente.
  *
- * Funzionalità:
- * - Caricamento dati utente
- * - Modifica dati anagrafici
- * - Validazioni base lato UI
- * - Feedback tramite Snackbar
- * - UX pulita e coerente
+ * Permette di aggiornare:
+ * - Nome
+ * - Cognome
+ * - Genere (dropdown)
+ * - Data di nascita (DatePicker)
+ * - Email
+ * - Username
+ *
+ * Carica i dati correnti al primo avvio e, al salvataggio, aggiorna Firestore
+ * tramite [ProfileViewModel.updateUserData]. Al termine, torna alla schermata profilo.
+ *
+ * @param navController Controller per la navigazione.
  */
 @Composable
 fun EditProfileScreen(
     navController: NavController
 ) {
-    val profileViewModel: ProfileViewModel = viewModel()
+    val profileViewModel: ProfileViewModel = koinViewModel()
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
+
     var isLoading by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var surname by remember { mutableStateOf("") }
@@ -44,7 +51,7 @@ fun EditProfileScreen(
     var gender by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
 
-
+    // Carica i dati dell'utente corrente
     LaunchedEffect(Unit) {
         isLoading = true
         profileViewModel.getUserData()?.let { user ->
@@ -67,14 +74,12 @@ fun EditProfileScreen(
             )
         }
     ) { innerPadding ->
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
             contentAlignment = Alignment.TopCenter
         ) {
-
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -82,67 +87,76 @@ fun EditProfileScreen(
                 elevation = CardDefaults.cardElevation(6.dp),
                 shape = MaterialTheme.shapes.large
             ) {
-
                 Column(
                     modifier = Modifier
                         .verticalScroll(scrollState)
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+                    // Nome
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
                         label = { Text("Nome") },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isLoading
                     )
 
+                    // Cognome
                     OutlinedTextField(
                         value = surname,
                         onValueChange = { surname = it },
                         label = { Text("Cognome") },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isLoading
                     )
 
+                    // Genere (dropdown)
                     GenderSelector(
                         selectedGender = gender,
                         modifier = Modifier.fillMaxWidth()
                     ) { gender = it }
 
+                    // Data di nascita (DatePicker)
                     DatePickerField(
                         selectedDate = dateOfBirth,
                         modifier = Modifier.fillMaxWidth()
                     ) { dateOfBirth = it }
 
+                    // Email
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
                         label = { Text("Email") },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Email
-                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isLoading
                     )
 
+                    // Username
                     OutlinedTextField(
                         value = username,
                         onValueChange = { username = it },
                         label = { Text("Username") },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isLoading
                     )
 
                     Spacer(Modifier.height(8.dp))
 
+                    // Pulsante Salva modifiche
                     Button(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !isLoading,
                         onClick = {
+                            // Validazione campi obbligatori
                             if (name.isBlank() || surname.isBlank() || email.isBlank() || username.isBlank()) {
                                 scope.launch {
-                                    snackbarHostState.showSnackbar("Compila tutti i campi")
+                                    snackbarHostState.showSnackbar("Compila tutti i campi obbligatori")
                                 }
                                 return@Button
                             }
@@ -157,9 +171,7 @@ fun EditProfileScreen(
                                 gender = gender,
                                 username = username
                             ) { success, error ->
-
                                 isLoading = false
-
                                 scope.launch {
                                     if (success) {
                                         snackbarHostState.showSnackbar("Profilo aggiornato")
@@ -176,7 +188,8 @@ fun EditProfileScreen(
                         if (isLoading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
                             )
                         } else {
                             Text("Salva modifiche")

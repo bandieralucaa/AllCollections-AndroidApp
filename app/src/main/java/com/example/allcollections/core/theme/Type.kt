@@ -9,17 +9,24 @@ import androidx.compose.ui.unit.sp
 /**
  * Scala tipografica dell'app AllCollections.
  *
- * Segue le specifiche Material Design 3 per `Typography`.
- * Usa [FontFamily.SansSerif] (Inter su dispositivi moderni) con dimensioni
- * e `lineHeight` ottimizzate per la leggibilità su mobile.
+ * Segue le specifiche Material Design 3 per [Typography].
+ * Usa [FontFamily.SansSerif] (che su dispositivi moderni corrisponde a Inter/Roboto)
+ * con dimensioni e `lineHeight` ottimizzate per la leggibilità su dispositivi mobili.
  *
- * Referenziato in [AllCollectionsTheme] come parametro `typography` di [MaterialTheme].
+ * Questa tipografia viene referenziata in [AllCollectionsTheme] come parametro `typography`
+ * del composable [MaterialTheme].
+ *
+ * @see AllCollectionsTheme
+ * @see MaterialTheme
  */
 val Typography = Typography(
 
     // ─────────── Body — testi principali ───────────
 
-    /** Testo principale, usato per descrizioni e contenuti lunghi. */
+    /**
+     * Testo principale, usato per descrizioni e contenuti lunghi.
+     * Dimensione 16sp, interlinea 26sp.
+     */
     bodyLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
@@ -28,7 +35,10 @@ val Typography = Typography(
         letterSpacing = 0.5.sp
     ),
 
-    /** Testo secondario, usato per sottotitoli e dettagli. */
+    /**
+     * Testo secondario, usato per sottotitoli e dettagli.
+     * Dimensione 15sp, interlinea 22sp.
+     */
     bodyMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
@@ -37,7 +47,10 @@ val Typography = Typography(
         letterSpacing = 0.25.sp
     ),
 
-    /** Testo di supporto, usato per caption, label di input e hint. */
+    /**
+     * Testo di supporto, usato per caption, label di input e hint.
+     * Dimensione 13sp, interlinea 18sp.
+     */
     bodySmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
@@ -48,7 +61,10 @@ val Typography = Typography(
 
     // ─────────── Titles — titoli e intestazioni ───────────
 
-    /** Titolo grande, usato nelle TopBar e nelle intestazioni di schermata. */
+    /**
+     * Titolo grande, usato nelle TopBar e nelle intestazioni di schermata.
+     * Dimensione 24sp, peso SemiBold.
+     */
     titleLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
@@ -57,7 +73,10 @@ val Typography = Typography(
         letterSpacing = 0.sp
     ),
 
-    /** Titolo medio, usato per nomi di sezione e card header. */
+    /**
+     * Titolo medio, usato per nomi di sezione e card header.
+     * Dimensione 18sp, peso Medium.
+     */
     titleMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Medium,
@@ -66,7 +85,10 @@ val Typography = Typography(
         letterSpacing = 0.15.sp
     ),
 
-    /** Titolo piccolo, usato per label e etichette di categoria. */
+    /**
+     * Titolo piccolo, usato per label e etichette di categoria.
+     * Dimensione 14sp, peso Medium.
+     */
     titleSmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Medium,

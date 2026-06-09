@@ -112,7 +112,6 @@ fun VerifyEmailScreen(
                 textAlign = TextAlign.Center
             )
 
-            // Card informativa con l'indirizzo email
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -145,7 +144,6 @@ fun VerifyEmailScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Pulsante verifica manuale
             Button(
                 onClick = {
                     isChecking = true
@@ -179,7 +177,6 @@ fun VerifyEmailScreen(
                 }
             }
 
-            // Pulsante reinvio email con countdown
             OutlinedButton(
                 onClick = {
                     isResending = true
@@ -189,7 +186,6 @@ fun VerifyEmailScreen(
                             coroutineScope.launch {
                                 snackbarHostState.showSnackbar("Email di verifica reinviata!")
                             }
-                            // Reset del cooldown
                             secondsRemaining = 60
                             canResend = false
                         } else {
@@ -212,7 +208,6 @@ fun VerifyEmailScreen(
                 }
             }
 
-            // Link per usare un'altra email: effettua il logout e torna al login
             TextButton(
                 onClick = {
                     FirebaseAuth.getInstance().signOut()

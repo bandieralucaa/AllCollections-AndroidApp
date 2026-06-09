@@ -24,9 +24,18 @@ import java.time.LocalDate
 /**
  * ViewModel per la gestione del profilo utente.
  *
- * Gestisce registrazione, login, logout, verifica email, upload foto profilo
- * su Cloudinary, aggiornamento dati utente, sistema follow/following
- * e cambio password tramite Firebase Authentication e Firestore.
+ * Questo ViewModel gestisce tutte le operazioni relative all'utente autenticato:
+ * - Registrazione, login, logout, verifica email
+ * - Lettura e aggiornamento dei dati del profilo (nome, cognome, username, bio, data di nascita, genere)
+ * - Upload dell'immagine profilo su Cloudinary
+ * - Sistema follow/following (segui/non seguire utenti, conteggi, liste)
+ * - Cambio password con reautenticazione
+ * - Esposizione di stato UI (loading, errori, liste follower/following)
+ *
+ * Utilizza Firebase Auth per l'autenticazione e Firestore per i dati utente e le relazioni di follow.
+ * Per le immagini profilo, sfrutta Cloudinary tramite MediaManager.
+ *
+ * @see ProfileViewModel.Companion per costanti e percorsi Firestore
  */
 class ProfileViewModel : ViewModel() {
 
@@ -39,37 +48,46 @@ class ProfileViewModel : ViewModel() {
     // ----------------------------------
     // LISTENER REGISTRATIONS
     // ----------------------------------
+    /** Lista dei listener Firestore attivi (es. per follow in tempo reale). */
     private val listeners = mutableListOf<ListenerRegistration>()
 
     // ----------------------------------
     // UI STATE
     // ----------------------------------
     private val _profileImageUrl = mutableStateOf<String?>(null)
+    /** URL dell'immagine profilo dell'utente corrente (osservabile). */
     val profileImageUrl: State<String?> = _profileImageUrl
 
     private val _isLoading = mutableStateOf(false)
+    /** Indica se un'operazione di upload o salvataggio è in corso. */
     val isLoading: State<Boolean> = _isLoading
 
     private val _errorMessage = mutableStateOf<String?>(null)
+    /** Messaggio di errore da mostrare nella UI. */
     val errorMessage: State<String?> = _errorMessage
 
     private val _followersList = mutableStateOf<List<FollowUser>>(emptyList())
+    /** Lista dei follower dell'utente osservato (aggiornata in tempo reale). */
     val followersList: State<List<FollowUser>> = _followersList
 
     private val _followingList = mutableStateOf<List<FollowUser>>(emptyList())
+    /** Lista degli utenti seguiti dall'utente osservato (aggiornata in tempo reale). */
     val followingList: State<List<FollowUser>> = _followingList
 
     private val _isLoadingFollowers = mutableStateOf(false)
+    /** Flag di caricamento per la lista follower. */
     val isLoadingFollowers: State<Boolean> = _isLoadingFollowers
 
     private val _isLoadingFollowing = mutableStateOf(false)
+    /** Flag di caricamento per la lista following. */
     val isLoadingFollowing: State<Boolean> = _isLoadingFollowing
 
-
     companion object {
+        // Costanti per i nomi delle collezioni Firestore
         private const val USERS = "users"
         private const val FOLLOWS = "follows"
 
+        // Nomi dei campi nel documento utente
         private const val FIELD_NAME = "name"
         private const val FIELD_SURNAME = "surname"
         private const val FIELD_USERNAME = "username"
@@ -78,9 +96,11 @@ class ProfileViewModel : ViewModel() {
         private const val FIELD_DATE = "dateOfBirth"
         private const val FIELD_PROFILE_IMAGE = "profileImageUrl"
 
+        // Nomi dei campi nella collezione follows
         private const val FIELD_FOLLOWER_ID = "followerId"
         private const val FIELD_FOLLOWED_ID = "followedId"
 
+        /** URL dell'immagine profilo predefinita (Cloudinary). */
         const val DEFAULT_PROFILE_IMAGE =
             "https://res.cloudinary.com/dqtr2napz/image/upload/v1758965362/default_image_profile_okdl8h.png"
     }
@@ -90,7 +110,8 @@ class ProfileViewModel : ViewModel() {
     // ======================================================
 
     /**
-     * Rimuove tutti i listener attivi per evitare errori di permessi dopo il logout
+     * Rimuove tutti i listener Firestore attivi per evitare errori di permessi dopo il logout.
+     * Deve essere chiamato prima di [logout].
      */
     fun cleanupListeners() {
         listeners.forEach { it.remove() }
@@ -102,6 +123,14 @@ class ProfileViewModel : ViewModel() {
     // REGISTRAZIONE
     // ======================================================
 
+    /**
+     * Registra un nuovo utente con email e password su Firebase Auth.
+     *
+     * @param email Email dell'utente.
+     * @param password Password scelta.
+     * @param onSuccess Callback con l'UID del nuovo utente.
+     * @param onFailure Callback con messaggio di errore.
+     */
     fun registerUser(
         email: String,
         password: String,
@@ -118,6 +147,19 @@ class ProfileViewModel : ViewModel() {
             }
     }
 
+    /**
+     * Salva i dati anagrafici dell'utente su Firestore dopo la registrazione.
+     *
+     * @param userId UID dell'utente.
+     * @param name Nome.
+     * @param surname Cognome.
+     * @param username Username univoco.
+     * @param email Email.
+     * @param gender Genere.
+     * @param dateOfBirth Data di nascita (convertita in stringa ISO).
+     * @param onSuccess Callback di successo.
+     * @param onFailure Callback con messaggio di errore.
+     */
     fun saveUserData(
         userId: String,
         name: String,
@@ -146,10 +188,10 @@ class ProfileViewModel : ViewModel() {
     }
 
     /**
-     * Verifica se uno username è già presente nel database.
+     * Verifica se uno username è già presente nel database (controllo univocità).
      *
-     * @param username Lo username da controllare
-     * @return true se lo username esiste già, false altrimenti
+     * @param username Lo username da controllare.
+     * @return `true` se lo username esiste già, `false` altrimenti.
      */
     suspend fun isUsernameTaken(username: String): Boolean {
         return try {
@@ -168,7 +210,9 @@ class ProfileViewModel : ViewModel() {
     // ======================================================
 
     /**
-     * Invia email di verifica all'utente corrente
+     * Invia un'email di verifica all'utente corrente.
+     *
+     * @param onResult Callback (successo, messaggioErrore).
      */
     fun sendEmailVerification(onResult: (Boolean, String?) -> Unit) {
         val user = auth.currentUser
@@ -187,14 +231,18 @@ class ProfileViewModel : ViewModel() {
     }
 
     /**
-     * Controlla se l'email dell'utente corrente è verificata
+     * Controlla se l'email dell'utente corrente è verificata.
+     *
+     * @return `true` se verificata, `false` altrimenti.
      */
     fun isEmailVerified(): Boolean {
         return auth.currentUser?.isEmailVerified == true
     }
 
     /**
-     * Ricarica i dati dell'utente per aggiornare lo stato di verifica email
+     * Ricarica i dati dell'utente da Firebase Auth per aggiornare lo stato di verifica email.
+     *
+     * @param onComplete Callback con esito del ricaricamento.
      */
     fun reloadUser(onComplete: (Boolean) -> Unit) {
         val user = auth.currentUser ?: run {
@@ -215,6 +263,13 @@ class ProfileViewModel : ViewModel() {
     // CLOUDINARY (usato sia in registrazione che edit)
     // ======================================================
 
+    /**
+     * Carica un'immagine profilo su Cloudinary (unsigned upload).
+     *
+     * @param imageUri URI locale dell'immagine da caricare.
+     * @param onSuccess Callback con l'URL pubblico Cloudinary.
+     * @param onFailure Callback con descrizione dell'errore.
+     */
     fun uploadProfileImage(
         imageUri: Uri,
         onSuccess: (String) -> Unit,
@@ -223,7 +278,7 @@ class ProfileViewModel : ViewModel() {
         _isLoading.value = true
 
         MediaManager.get().upload(imageUri)
-            .unsigned("android_unsigned_upload")
+            .unsigned("android_unsigned_upload") // Presigned upload preset
             .callback(object : UploadCallback {
 
                 override fun onSuccess(requestId: String, resultData: Map<*, *>) {
@@ -250,6 +305,14 @@ class ProfileViewModel : ViewModel() {
     // SALVATAGGIO / UPDATE FOTO PROFILO
     // ======================================================
 
+    /**
+     * Aggiorna il campo `profileImageUrl` su Firestore e nello stato locale.
+     *
+     * @param userId UID dell'utente.
+     * @param imageUrl URL dell'immagine (Cloudinary).
+     * @param onSuccess Callback di successo.
+     * @param onFailure Callback con messaggio di errore.
+     */
     fun saveProfileImageUrl(
         userId: String,
         imageUrl: String,
@@ -272,6 +335,17 @@ class ProfileViewModel : ViewModel() {
     // EDIT PROFILE (DATI UTENTE)
     // ======================================================
 
+    /**
+     * Aggiorna i dati anagrafici dell'utente corrente.
+     *
+     * @param name Nome.
+     * @param surname Cognome.
+     * @param username Username.
+     * @param email Email.
+     * @param gender Genere.
+     * @param dateOfBirth Data di nascita.
+     * @param onResult Callback (successo, messaggioErrore).
+     */
     fun updateUserData(
         name: String,
         surname: String,
@@ -302,6 +376,12 @@ class ProfileViewModel : ViewModel() {
             .addOnFailureListener { onResult(false, it.message) }
     }
 
+    /**
+     * Aggiorna solo la biografia (bio) dell'utente corrente.
+     *
+     * @param bio Nuova biografia (verrà trimmata).
+     * @param onResult Callback (successo, messaggioErrore).
+     */
     fun saveBio(bio: String, onResult: (Boolean, String?) -> Unit) {
         val userId = auth.currentUser?.uid ?: run {
             onResult(false, "Utente non autenticato")
@@ -317,12 +397,20 @@ class ProfileViewModel : ViewModel() {
     // LETTURA PROFILO
     // ======================================================
 
+    /**
+     * Recupera i dati completi dell'utente corrente da Firestore (sospeso).
+     *
+     * @return [UserData] se l'utente è autenticato e il documento esiste, altrimenti `null`.
+     */
     suspend fun getUserData(): UserData? = withContext(Dispatchers.IO) {
         val userId = auth.currentUser?.uid ?: return@withContext null
         val doc = db.collection(USERS).document(userId).get().await()
         doc.toObject(UserData::class.java)?.copy(userId = userId)
     }
 
+    /**
+     * Carica l'URL dell'immagine profilo dell'utente corrente nello stato [profileImageUrl].
+     */
     fun loadProfileImage() {
         viewModelScope.launch {
             val userId = auth.currentUser?.uid ?: return@launch
@@ -331,11 +419,21 @@ class ProfileViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Restituisce l'UID dell'utente corrente (se autenticato).
+     *
+     * @return UID o `null`.
+     */
     fun getCurrentUserId(): String? {
         return auth.currentUser?.uid
     }
 
-
+    /**
+     * Recupera l'URL della foto profilo di un qualsiasi utente (callback).
+     *
+     * @param userId ID dell'utente.
+     * @param onResult Callback con URL (default [DEFAULT_PROFILE_IMAGE] in caso di errore).
+     */
     fun getUserProfilePhoto(userId: String, onResult: (String?) -> Unit) {
         db.collection(USERS).document(userId).get()
             .addOnSuccessListener { doc ->
@@ -347,6 +445,12 @@ class ProfileViewModel : ViewModel() {
             }
     }
 
+    /**
+     * Recupera la biografia (bio) di un qualsiasi utente.
+     *
+     * @param userId ID dell'utente.
+     * @param onResult Callback con il testo della bio (stringa vuota in caso di errore).
+     */
     fun getUserBio(userId: String, onResult: (String) -> Unit) {
         db.collection(USERS).document(userId)
             .get()
@@ -362,14 +466,24 @@ class ProfileViewModel : ViewModel() {
     // LOGIN / LOGOUT
     // ======================================================
 
+    /**
+     * Esegue il login con email e password.
+     *
+     * @param email Email.
+     * @param password Password.
+     * @param onResult Callback (successo, messaggioErrore).
+     */
     fun login(email: String, password: String, onResult: (Boolean, String?) -> Unit) {
         auth.signInWithEmailAndPassword(email, password)
             .addOnSuccessListener { onResult(true, null) }
             .addOnFailureListener { onResult(false, it.message) }
     }
 
+    /**
+     * Esegue il logout, pulendo prima i listener Firestore.
+     */
     fun logout() {
-        cleanupListeners()  // ← Pulisce i listener PRIMA del logout
+        cleanupListeners()  // Pulisce i listener PRIMA del logout
         auth.signOut()
     }
 
@@ -377,6 +491,13 @@ class ProfileViewModel : ViewModel() {
     // FOLLOW SYSTEM
     // ======================================================
 
+    /**
+     * Fa sì che l'utente [followerId] segua l'utente [followedId].
+     *
+     * @param followerId ID di chi segue.
+     * @param followedId ID di chi viene seguito.
+     * @param onResult Callback con esito (true = successo).
+     */
     fun followUser(followerId: String, followedId: String, onResult: (Boolean) -> Unit) {
         val docId = "${followerId}_$followedId"
         val data = mapOf(
@@ -390,6 +511,13 @@ class ProfileViewModel : ViewModel() {
             .addOnFailureListener { onResult(false) }
     }
 
+    /**
+     * Rimuove il follow da [followerId] verso [followedId].
+     *
+     * @param followerId ID di chi smette di seguire.
+     * @param followedId ID di chi non viene più seguito.
+     * @param onResult Callback con esito.
+     */
     fun unfollowUser(followerId: String, followedId: String, onResult: (Boolean) -> Unit) {
         val docId = "${followerId}_$followedId"
         db.collection(FOLLOWS).document(docId)
@@ -398,6 +526,12 @@ class ProfileViewModel : ViewModel() {
             .addOnFailureListener { onResult(false) }
     }
 
+    /**
+     * Carica in tempo reale la lista dei follower di un utente (observabile tramite [followersList]).
+     * Il listener Firestore viene automaticamente gestito e rimosso con [cleanupListeners].
+     *
+     * @param userId ID dell'utente di cui caricare i follower.
+     */
     fun loadFollowers(userId: String) {
         _isLoadingFollowers.value = true
         val listener = db.collection(FOLLOWS)
@@ -414,9 +548,14 @@ class ProfileViewModel : ViewModel() {
                     _isLoadingFollowers.value = false
                 }
             }
-        listeners.add(listener)  // ← Aggiunge il listener alla lista
+        listeners.add(listener)
     }
 
+    /**
+     * Carica in tempo reale la lista degli utenti seguiti da un utente (observabile tramite [followingList]).
+     *
+     * @param userId ID dell'utente di cui caricare i seguiti.
+     */
     fun loadFollowing(userId: String) {
         _isLoadingFollowing.value = true
         val listener = db.collection(FOLLOWS)
@@ -433,9 +572,16 @@ class ProfileViewModel : ViewModel() {
                     _isLoadingFollowing.value = false
                 }
             }
-        listeners.add(listener)  // ← Aggiunge il listener alla lista
+        listeners.add(listener)
     }
 
+    /**
+     * Carica i dettagli (username, foto) di una lista di ID utente.
+     * Gestisce anche il caso di fallimento di una singola query, continuando con le altre.
+     *
+     * @param userIds Lista di ID utente.
+     * @param onResult Callback con la lista di [FollowUser] ottenuta.
+     */
     private fun loadUsersDetails(
         userIds: List<String>,
         onResult: (List<FollowUser>) -> Unit
@@ -446,22 +592,48 @@ class ProfileViewModel : ViewModel() {
             return
         }
 
+        var completedQueries = 0
         userIds.forEach { uid ->
             db.collection(USERS).document(uid).get()
                 .addOnSuccessListener { doc ->
-                    result.add(
-                        FollowUser(
-                            userId = uid,
-                            username = doc.getString(FIELD_USERNAME) ?: "Utente",
-                            profileImageUrl = doc.getString(FIELD_PROFILE_IMAGE)
-                                ?: DEFAULT_PROFILE_IMAGE
+                    synchronized(result) {
+                        result.add(
+                            FollowUser(
+                                userId = uid,
+                                username = doc.getString(FIELD_USERNAME) ?: "Utente",
+                                profileImageUrl = doc.getString(FIELD_PROFILE_IMAGE) ?: DEFAULT_PROFILE_IMAGE
+                            )
                         )
-                    )
-                    if (result.size == userIds.size) onResult(result)
+                        completedQueries++
+                        if (completedQueries == userIds.size) {
+                            onResult(result.toList())
+                        }
+                    }
+                }
+                .addOnFailureListener {
+                    // In caso di errore, aggiungi comunque un utente con dati di fallback
+                    synchronized(result) {
+                        result.add(
+                            FollowUser(
+                                userId = uid,
+                                username = "Utente",
+                                profileImageUrl = DEFAULT_PROFILE_IMAGE
+                            )
+                        )
+                        completedQueries++
+                        if (completedQueries == userIds.size) {
+                            onResult(result.toList())
+                        }
+                    }
                 }
         }
     }
 
+    /**
+     * Recupera la lista degli ID degli utenti seguiti dall'utente corrente.
+     *
+     * @param onResult Callback con lista di ID.
+     */
     fun getFollowedUserIds(onResult: (List<String>) -> Unit) {
         val currentUserId = auth.currentUser?.uid ?: run {
             onResult(emptyList())
@@ -480,6 +652,12 @@ class ProfileViewModel : ViewModel() {
             }
     }
 
+    /**
+     * Restituisce il numero di follower di un utente.
+     *
+     * @param userId ID dell'utente.
+     * @param onResult Callback con il conteggio.
+     */
     fun getFollowerCount(userId: String, onResult: (Int) -> Unit) {
         db.collection(FOLLOWS)
             .whereEqualTo(FIELD_FOLLOWED_ID, userId)
@@ -492,6 +670,12 @@ class ProfileViewModel : ViewModel() {
             }
     }
 
+    /**
+     * Restituisce il numero di utenti seguiti da un utente.
+     *
+     * @param userId ID dell'utente.
+     * @param onResult Callback con il conteggio.
+     */
     fun getFollowingCount(userId: String, onResult: (Int) -> Unit) {
         db.collection(FOLLOWS)
             .whereEqualTo(FIELD_FOLLOWER_ID, userId)
@@ -504,6 +688,13 @@ class ProfileViewModel : ViewModel() {
             }
     }
 
+    /**
+     * Verifica se l'utente [currentUserId] segue l'utente [targetUserId].
+     *
+     * @param currentUserId ID dell'utente loggato (follower potenziale).
+     * @param targetUserId ID dell'utente target.
+     * @param onResult Callback con esito booleano.
+     */
     fun isFollowing(currentUserId: String, targetUserId: String, onResult: (Boolean) -> Unit) {
         val docId = "${currentUserId}_$targetUserId"
         db.collection(FOLLOWS)
@@ -521,6 +712,13 @@ class ProfileViewModel : ViewModel() {
     // PASSWORD
     // ======================================================
 
+    /**
+     * Cambia la password dell'utente corrente dopo aver verificato quella attuale.
+     *
+     * @param currentPassword Password attuale (per reautenticazione).
+     * @param newPassword Nuova password.
+     * @param onResult Callback (successo, messaggioErrore).
+     */
     fun changePassword(
         currentPassword: String,
         newPassword: String,
@@ -548,10 +746,10 @@ class ProfileViewModel : ViewModel() {
     }
 
     /**
-     * Recupera lo username di un utente dato il suo ID.
+     * Recupera lo username di un utente dato il suo ID (callback).
      *
-     * @param userId ID dell'utente da cercare.
-     * @param onResult Callback con lo username trovato, o "Utente" come fallback.
+     * @param userId ID dell'utente.
+     * @param onResult Callback con lo username trovato, o `"Utente"` come fallback.
      */
     fun getUsernameById(userId: String, onResult: (String) -> Unit) {
         db.collection("users").document(userId)

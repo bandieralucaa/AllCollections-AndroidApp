@@ -27,18 +27,21 @@ import org.koin.androidx.compose.koinViewModel
 /**
  * Schermata per aggiungere un nuovo oggetto a una collezione.
  *
- * Permette di inserire una descrizione testuale e selezionare un'immagine
- * dalla galleria. Il bottone "Aggiungi oggetto" è abilitato solo quando
- * entrambi i campi sono valorizzati. Al salvataggio:
- * 1. Carica l'immagine su Cloudinary.
- * 2. Salva i metadati dell'oggetto su Firestore.
- * 3. Invia notifiche push agli utenti che hanno messo like alla collezione.
- * 4. Naviga al dettaglio della collezione.
+ * Permette di:
+ * 1. Inserire una descrizione testuale (obbligatoria).
+ * 2. Selezionare un'immagine dalla galleria (obbligatoria).
+ * 3. Al tap su "Aggiungi oggetto":
+ *    - Carica l'immagine su Cloudinary.
+ *    - Salva i metadati dell'oggetto su Firestore.
+ *    - Invia notifiche push agli utenti che hanno messo like alla collezione.
+ *    - Naviga al dettaglio della collezione.
  *
- * @param navController NavController per la navigazione.
+ * @param navController Controller per la navigazione.
  * @param collectionId ID della collezione a cui aggiungere l'oggetto.
- * @param viewModel ViewModel che gestisce l'upload e il salvataggio.
- * @param notificationViewModel ViewModel usato per inviare notifiche ai follower.
+ * @param viewModel ViewModel delle collezioni (gestisce upload e salvataggio).
+ * @param notificationViewModel ViewModel per inviare notifiche ai follower/liker.
+ *
+ * @see CollectionViewModel.addItem
  */
 @Composable
 fun AddCollectionObjectScreen(
@@ -54,6 +57,7 @@ fun AddCollectionObjectScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
+    // Launcher per selezionare un'immagine dalla galleria
     val imagePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -73,13 +77,16 @@ fun AddCollectionObjectScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Campo descrizione (obbligatorio)
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
                 label = { Text("Descrizione") },
-                modifier = Modifier.fillMaxWidth(0.9f)
+                modifier = Modifier.fillMaxWidth(0.9f),
+                enabled = !isUploading
             )
 
+            // Pulsante per selezionare l'immagine
             Button(
                 onClick = { imagePickerLauncher.launch("image/*") },
                 enabled = !isUploading,
@@ -89,10 +96,11 @@ fun AddCollectionObjectScreen(
                 Text(text = if (isUploading) "Caricamento in corso..." else "Scegli immagine")
             }
 
-            // Anteprima dell'immagine selezionata
+            // Anteprima dell'immagine selezionata (se presente)
             selectedImageUri?.let { uri ->
                 Spacer(modifier = Modifier.height(12.dp))
                 if (isUploading) {
+                    // Indicatore di caricamento durante l'upload
                     CircularProgressIndicator()
                     Text("Caricamento immagine in corso...", modifier = Modifier.padding(top = 4.dp))
                 } else {
@@ -110,7 +118,7 @@ fun AddCollectionObjectScreen(
                 }
             }
 
-            // Abilitato solo se l'immagine è selezionata, la descrizione non è vuota e non si sta caricando
+            // Pulsante di invio (abilitato solo se tutti i campi sono validi)
             Button(
                 enabled = selectedImageUri != null && description.isNotBlank() && !isUploading,
                 onClick = {
@@ -125,12 +133,14 @@ fun AddCollectionObjectScreen(
                             coroutineScope.launch {
                                 isUploading = false
                                 if (success) {
+                                    // Reset dei campi e navigazione al dettaglio della collezione
                                     description = ""
                                     selectedImageUri = null
                                     navController.navigate(
                                         Screens.CollectionDetailScreen.createRoute(collectionId)
                                     ) {
-                                        popUpTo(Screens.MyCollectionsScreen.route) { inclusive = false }
+                                        // Rimuove questa schermata dalla back stack
+                                        popUpTo(Screens.AddCollectionObjectScreen.route) { inclusive = true }
                                         launchSingleTop = true
                                     }
                                 } else {

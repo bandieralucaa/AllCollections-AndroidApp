@@ -36,24 +36,25 @@ import org.koin.androidx.compose.koinViewModel
 /**
  * Schermata di dettaglio di una collezione.
  *
- * Contenuto principale:
- * - **[CollectionHeader]**: copertina con nome, categoria, statistiche (oggetti, commenti, like)
- *   e menu owner (modifica/elimina). Il tap sulla copertina apre la visualizzazione fullscreen.
- * - **[ItemsCarousel]**: carosello orizzontale degli oggetti con swipe/frecce. Per ogni oggetto
- *   mostra immagine, descrizione, commenti dell'oggetto e pulsanti modifica/elimina (solo owner).
- * - **[CommentsSection]**: commenti della collezione con possibilità di aggiungere, modificare
- *   ed eliminare commenti.
+ * Questa schermata mostra tutti i dettagli di una collezione: header con copertina,
+ * statistiche (numero oggetti, commenti, like), un carosello degli oggetti,
+ * e una sezione commenti. Supporta anche la navigazione diretta a un oggetto specifico
+ * tramite `itemId` (usato quando si apre una notifica di commento su un oggetto).
  *
- * La navigazione da notifica (`itemId` non null) fa scorrere automaticamente il carosello
- * all'oggetto corrispondente al primo caricamento degli items.
+ * La schermata gestisce:
+ * - Eliminazione della collezione (solo owner) con conferma
+ * - Eliminazione di un oggetto (solo owner)
+ * - Like / conteggio like / lista likers (solo owner)
+ * - Visualizzazione fullscreen dell'immagine della collezione o di un oggetto
+ * - Commenti sulla collezione e sui singoli oggetti
+ * - Aggiornamenti in tempo reale di commenti e like
  *
- * @param navController NavController per la navigazione.
+ * @param navController Controller per la navigazione.
  * @param collectionId ID della collezione da visualizzare.
- * @param itemId ID opzionale dell'oggetto a cui scorrere automaticamente il carosello.
- *   Usato quando si naviga da una notifica di commento su un oggetto.
- * @param viewModel ViewModel che gestisce items, commenti, like e operazioni sulla collezione.
- * @param profileViewModel ViewModel per recuperare dati utente (username, foto profilo).
- * @param notificationViewModel ViewModel per inviare notifiche ai destinatari.
+ * @param itemId ID opzionale dell'oggetto a cui scorrere automaticamente (da notifica).
+ * @param viewModel ViewModel delle collezioni (iniettato con Koin).
+ * @param profileViewModel ViewModel del profilo (per dati utente).
+ * @param notificationViewModel ViewModel delle notifiche (per inviare notifiche a destinatari).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,6 +70,7 @@ fun CollectionDetailScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Stato UI locale
     var fullscreenImageUrl by remember { mutableStateOf<String?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showDeleteItemDialog by remember { mutableStateOf(false) }
@@ -87,12 +89,12 @@ fun CollectionDetailScreen(
     var isLoading by remember { mutableStateOf(true) }
     var comments by remember { mutableStateOf<List<Comment>>(emptyList()) }
 
-    // Mappe username/foto condivise tra commenti collezione e commenti oggetti
+    // Mappe condivise tra commenti della collezione e commenti degli oggetti
     val usernames = remember { mutableStateMapOf<String, String>() }
     val userPhotos = remember { mutableStateMapOf<String, String>() }
     var itemComments by remember { mutableStateOf<List<Comment>>(emptyList()) }
 
-    // Ascolta eventi one-shot del ViewModel (eliminazione collezione, errori)
+    // Ascolta eventi one-shot (eliminazione collezione, errori)
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
@@ -110,7 +112,7 @@ fun CollectionDetailScreen(
         }
     }
 
-    // Carica collezione, oggetti e conteggio like al primo accesso
+    // Carica collezione, oggetti e conteggio like all'avvio
     LaunchedEffect(collectionId) {
         isLoading = true
         viewModel.getCollectionById(
@@ -135,7 +137,7 @@ fun CollectionDetailScreen(
         }
     }
 
-    // Osserva i commenti dell'oggetto corrente nel carosello in tempo reale
+    // Osserva i commenti dell'oggetto corrente nel carosello
     LaunchedEffect(itemsList.size, currentItemIndex) {
         val currentItemId = itemsList.getOrNull(currentItemIndex)?.id ?: return@LaunchedEffect
         itemComments = emptyList()
@@ -147,12 +149,12 @@ fun CollectionDetailScreen(
         }
     }
 
-    // Mantiene l'indice del carosello nei bounds validi se gli items cambiano
+    // Mantiene l'indice del carosello nei bounds validi
     LaunchedEffect(itemsList.size) {
         currentItemIndex = currentItemIndex.coerceIn(0, (itemsList.size - 1).coerceAtLeast(0))
     }
 
-    // Se arriva un itemId dalla notifica, salta all'indice corrispondente una sola volta
+    // Se arriva un itemId da una notifica, scorre automaticamente all'oggetto corrispondente
     LaunchedEffect(itemsList) {
         if (itemId != null && !initialItemIndexApplied && itemsList.isNotEmpty()) {
             val index = itemsList.indexOfFirst { it.id == itemId }
@@ -163,7 +165,7 @@ fun CollectionDetailScreen(
         }
     }
 
-    // ─────────── Dialog eliminazione collezione ───────────
+    // ─────────── Dialog di conferma eliminazione collezione ───────────
     collection?.let { col ->
         if (showDeleteDialog) {
             AlertDialog(
@@ -184,7 +186,7 @@ fun CollectionDetailScreen(
         }
     }
 
-    // ─────────── Dialog eliminazione oggetto ───────────
+    // ─────────── Dialog di conferma eliminazione oggetto ───────────
     if (showDeleteItemDialog && itemToDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteItemDialog = false; itemToDelete = null },
@@ -206,7 +208,7 @@ fun CollectionDetailScreen(
         )
     }
 
-    // ─────────── Dialog lista likers (solo owner) ───────────
+    // ─────────── Dialog lista likers (visibile solo per l'owner) ───────────
     if (showLikersDialog) {
         AlertDialog(
             onDismissRequest = { showLikersDialog = false },
@@ -265,9 +267,9 @@ fun CollectionDetailScreen(
         )
     }
 
+    // Scaffold principale
     Scaffold(
         topBar = {
-            // Nasconde la TopBar quando è attiva la visualizzazione fullscreen
             if (fullscreenImageUrl == null) {
                 MyTopBar(navController = navController, title = "")
             }
@@ -275,7 +277,7 @@ fun CollectionDetailScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
 
-        // Stato di caricamento
+        // Stato di caricamento iniziale
         if (isLoading) {
             Box(
                 modifier = Modifier.fillMaxSize().padding(padding),
@@ -337,6 +339,7 @@ fun CollectionDetailScreen(
                     }
                 )
 
+                // Menu a tendina per owner (modifica / elimina collezione)
                 DropdownMenu(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false }
@@ -363,7 +366,7 @@ fun CollectionDetailScreen(
                 }
             }
 
-            // Stato vuoto oggetti
+            // Messaggio se la collezione è vuota
             if (itemsList.isEmpty()) {
                 item {
                     Box(
@@ -377,7 +380,7 @@ fun CollectionDetailScreen(
                     }
                 }
             } else {
-                // Carosello oggetti
+                // Carosello degli oggetti
                 item {
                     ItemsCarousel(
                         items = itemsList,
@@ -445,7 +448,7 @@ fun CollectionDetailScreen(
             }
         }
 
-        // Visualizzazione fullscreen immagine (overlay sopra la LazyColumn)
+        // Overlay fullscreen per l'immagine (copertina o oggetto)
         fullscreenImageUrl?.let { url ->
             Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
                 AsyncImage(
@@ -470,16 +473,16 @@ fun CollectionDetailScreen(
 }
 
 /**
- * Carica username e foto profilo di un utente e li inserisce nelle mappe condivise.
+ * Carica username e foto profilo di un utente e li memorizza nelle mappe condivise.
  *
- * Esegue le chiamate solo se i dati non sono già presenti nella mappa,
- * evitando query duplicate a Firestore per lo stesso userId nella stessa schermata.
+ * Le mappe [usernames] e [userPhotos] vengono popolate solo se l'ID utente non è già presente,
+ * evitando chiamate ripetute a Firestore per lo stesso utente durante la vita della schermata.
  *
  * @param userId ID dell'utente di cui caricare i dati.
- * @param viewModel Usato per recuperare lo username.
- * @param profileViewModel Usato per recuperare l'URL della foto profilo.
- * @param usernames Mappa mutabile `userId → username` da popolare.
- * @param userPhotos Mappa mutabile `userId → URL foto profilo` da popolare.
+ * @param viewModel ViewModel delle collezioni (per recuperare username).
+ * @param profileViewModel ViewModel del profilo (per recuperare foto profilo).
+ * @param usernames Mappa mutabile `userId -> username` da aggiornare.
+ * @param userPhotos Mappa mutabile `userId -> URL foto` da aggiornare.
  */
 private fun loadUserData(
     userId: String,

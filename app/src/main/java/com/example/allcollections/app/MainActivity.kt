@@ -25,20 +25,31 @@ import com.google.firebase.auth.FirebaseAuth
 import org.koin.androidx.compose.koinViewModel
 
 /**
- * Activity principale e unica dell'app AllCollections (single-Activity architecture).
+ * Activity principale e unica dell'app AllCollections (architettura single-Activity).
  *
- * Responsabilità principali:
- * - Inizializza Firebase tramite [FirebaseApp.initializeApp].
- * - Determina la destinazione di partenza ([Screens.HomeScreen] o [Screens.LoginScreen])
+ * L'app utilizza una singola Activity con navigazione Compose gestita da [AppNavigation].
+ *
+ * ### Responsabilità principali
+ * - Inizializza Firebase tramite [FirebaseApp.initializeApp] all'avvio.
+ * - Determina la schermata iniziale ([Screens.HomeScreen] o [Screens.LoginScreen])
  *   in base allo stato di autenticazione di [FirebaseAuth].
- * - Applica il tema dell'app (light/dark/system) leggendo lo stato da [ThemeViewModel].
- * - Gestisce la navigazione da notifica push sia a **cold start** (via [onCreate])
- *   sia con l'app già in foreground/background (via [onNewIntent]).
+ * - Applica il tema dinamico (chiaro/scuro/sistema) leggendo lo stato da [ThemeViewModel].
+ * - Gestisce la navigazione da notifica push in due scenari:
+ *   - **Cold start** (app non in esecuzione) – i dati della notifica vengono processati in [onCreate].
+ *   - **Foreground/background** (app già in esecuzione) – i dati vengono processati in [onNewIntent].
  *
- * Il grafo di navigazione completo è delegato ad [AppNavigation].
+ * @see AppNavigation
+ * @see NotificationData
  */
 class MainActivity : ComponentActivity() {
 
+    /**
+     * Chiamata alla creazione dell'Activity. Qui avviene l'inizializzazione di Firebase,
+     * la configurazione del tema e della navigazione, e la gestione della notifica
+     * in caso di avvio da cold start.
+     *
+     * @param savedInstanceState Stato salvato dell'istanza (non utilizzato).
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         FirebaseApp.initializeApp(this)
@@ -49,23 +60,24 @@ class MainActivity : ComponentActivity() {
             val notificationViewModel: NotificationViewModel = koinViewModel()
             val themeState by themeViewModel.state.collectAsState()
 
-            // Dati della notifica in attesa di essere processata per la navigazione.
-            // È uno State per triggerare il LaunchedEffect appena viene valorizzato.
+            // Dati della notifica in attesa di essere processati (da cold start)
             var pendingNotificationNavigation by remember { mutableStateOf<NotificationData?>(null) }
 
-            // Controlla se l'app è stata aperta tramite tap su una notifica push (cold start)
+            // Controlla se l'app è stata aperta tramite tap su una notifica (cold start)
             LaunchedEffect(Unit) {
                 checkNotificationIntent(intent)?.let { data ->
                     pendingNotificationNavigation = data
                 }
             }
 
+            // Determina la destinazione iniziale in base all'autenticazione
             val startDestination = if (FirebaseAuth.getInstance().currentUser != null) {
                 Screens.HomeScreen.route
             } else {
                 Screens.LoginScreen.route
             }
 
+            // Applica il tema (supporta modalità sistema, scuro, chiaro)
             AllCollectionsTheme(
                 darkTheme = when (themeState.theme) {
                     ThemeMode.Dark -> true
@@ -77,8 +89,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // Naviga alla destinazione della notifica non appena il NavController
-                    // è pronto e pendingNotificationNavigation viene valorizzato
+                    // Naviga alla destinazione della notifica appena il NavController è pronto
                     LaunchedEffect(pendingNotificationNavigation) {
                         pendingNotificationNavigation?.let { data ->
                             navigateFromNotification(data, navController)
@@ -100,20 +111,19 @@ class MainActivity : ComponentActivity() {
 
     /**
      * Chiamato quando l'app è già in esecuzione (foreground o background) e arriva
-     * un nuovo Intent — tipicamente un tap su una notifica push FCM.
+     * un nuovo Intent, tipicamente da un tap su una notifica push FCM.
      *
-     * Aggiorna l'[intent] dell'Activity con quello nuovo in modo che
-     * [checkNotificationIntent] possa elaborare i dati corretti, e ricrea il
-     * contenuto Compose per triggerare il [LaunchedEffect] di navigazione.
+     * Aggiorna l'[Intent] corrente e ricrea il contenuto Compose per triggerare
+     * la navigazione tramite [LaunchedEffect].
      *
-     * @param intent Il nuovo [Intent] ricevuto dal sistema.
+     * @param intent Il nuovo Intent ricevuto dal sistema (contiene i dati della notifica).
      */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
 
-        // Ricrea il contenuto Compose così che il LaunchedEffect
-        // su pendingNotificationNavigation venga ri-eseguito con i nuovi dati
+        // Ricrea il contenuto Compose per eseguire nuovamente il LaunchedEffect
+        // che processa pendingNotificationNavigation
         setContent {
             val navController = rememberNavController()
             val themeViewModel: ThemeViewModel = koinViewModel()
@@ -167,13 +177,13 @@ class MainActivity : ComponentActivity() {
     /**
      * Estrae i dati di navigazione da un [Intent] di notifica push FCM.
      *
-     * FCM inserisce i dati del payload nei [Bundle.extras] dell'Intent con nomi
-     * che possono variare leggermente (es. `"collectionId"` o `"collection_id"`),
-     * quindi vengono verificati entrambi i formati per robustezza.
+     * FCM inserisce i dati nel [Bundle.extras] dell'Intent. I nomi delle chiavi
+     * possono variare (es. `"collectionId"` o `"collection_id"`), quindi la funzione
+     * controlla entrambe le varianti per robustezza.
      *
-     * @param intent L'[Intent] da cui estrarre i dati; può essere `null`.
+     * @param intent L'Intent da cui estrarre i dati (può essere `null`).
      * @return Un [NotificationData] con i campi valorizzati se l'Intent contiene
-     *   almeno un dato di navigazione, altrimenti `null`.
+     *         almeno un dato di navigazione significativo, altrimenti `null`.
      */
     private fun checkNotificationIntent(intent: Intent?): NotificationData? {
         return intent?.extras?.let { extras ->
@@ -189,7 +199,7 @@ class MainActivity : ComponentActivity() {
                         "itemId=$itemId, userId=$userId"
             )
 
-            // Restituisce NotificationData solo se è presente almeno un campo rilevante
+            // Restituisce NotificationData solo se c'è almeno un campo utile
             if (type != null || collectionId != null || itemId != null || userId != null) {
                 NotificationData(type, collectionId, itemId, collectionName, userId)
             } else null
@@ -197,13 +207,15 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Naviga alla schermata corretta in base al tipo di notifica ricevuta.
+     * Naviga alla schermata appropriata in base al tipo di notifica ricevuta.
      *
-     * | Tipo notifica           | Destinazione                                  |
-     * |-------------------------|-----------------------------------------------|
-     * | `"follow"`              | Profilo pubblico dell'utente che ha seguito   |
-     * | `"comment"`, `"new_comment"` | Dettaglio della collezione commentata    |
-     * | Altro / non specificato | Schermata notifiche                           |
+     * ### Regole di navigazione
+     * - `"follow"` → profilo pubblico dell'utente che ha seguito.
+     * - `"comment"`, `"new_comment"` → dettaglio della collezione commentata.
+     * - Altro / non specificato → schermata notifiche.
+     *
+     * Se i dati necessari per la navigazione sono assenti (es. userId per follow,
+     * collectionId per comment), viene navigato a [Screens.HomeScreen] come fallback.
      *
      * @param data Dati estratti dall'Intent della notifica.
      * @param navController Controller per eseguire la navigazione.

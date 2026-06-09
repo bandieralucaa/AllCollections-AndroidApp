@@ -16,11 +16,14 @@ import com.example.allcollections.data.model.UserData
 /**
  * Card per la visualizzazione di un utente nei risultati di ricerca.
  *
- * Mostra foto profilo, nome completo e username. Il badge circolare a destra
- * è un placeholder per il contatore delle collezioni (attualmente fisso a "0").
+ * Mostra:
+ * - Foto profilo (circolare, con placeholder se assente)
+ * - Nome e cognome
+ * - Username (con @)
+ * - Badge circolare a destra (placeholder per conteggio collezioni, attualmente fisso a "0")
  *
- * @param user Dati dell'utente da visualizzare.
- * @param onClick Callback invocato al tap sulla card.
+ * @param user Dati dell'utente da visualizzare (nome, cognome, username, foto profilo).
+ * @param onClick Callback invocato al tap sulla card (es. navigazione al profilo pubblico).
  */
 @Composable
 fun UserSearchCard(
@@ -40,9 +43,10 @@ fun UserSearchCard(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Foto profilo (placeholder se vuota)
             AsyncImage(
-                model = user.profileImageUrl,
-                contentDescription = null,
+                model = user.profileImageUrl.ifEmpty { null },
+                contentDescription = "Foto profilo di ${user.username}",
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape),
@@ -51,12 +55,12 @@ fun UserSearchCard(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // User info
+            // Informazioni utente (nome, cognome, username)
             Column(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = "${user.name} ${user.surname}",
+                    text = "${user.name} ${user.surname}".trim(),
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
@@ -66,6 +70,7 @@ fun UserSearchCard(
                 )
             }
 
+            // Badge per conteggio collezioni (attualmente placeholder)
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,

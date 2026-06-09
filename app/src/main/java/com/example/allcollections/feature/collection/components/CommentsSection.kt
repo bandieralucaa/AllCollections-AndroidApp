@@ -18,11 +18,26 @@ import com.example.allcollections.data.model.Comment
 import com.example.allcollections.feature.comment.CommentItem
 
 /**
- * Sezione commenti della collezione.
+ * Sezione commenti della collezione, collassabile.
  *
- * Mostra i commenti della collezione con possibilità di aggiungere,
- * modificare ed eliminare commenti. La sezione è collassabile tramite
- * il relativo header cliccabile.
+ * Mostra:
+ * - Header con icona, titolo "Commenti (n)" e freccia per espandere/collassare.
+ * - Lista dei commenti (in [LazyColumn] con altezza massima di 400dp).
+ * - Messaggio "Nessun commento" se la lista è vuota.
+ * - Campo di input per aggiungere un nuovo commento (solo se [currentUserId] non è null).
+ * - Dialog di conferma per l'eliminazione di un commento.
+ * - Dialog per la modifica di un commento (con campo di testo precompilato).
+ *
+ * @param comments Lista dei commenti della collezione (già arricchita con username? No, le mappe separatamente).
+ * @param usernames Mappa `userId -> username` per i commenti (per visualizzare l'autore).
+ * @param userPhotos Mappa `userId -> URL foto profilo` per i commenti.
+ * @param currentUserId ID dell'utente corrente (se null, non mostra il campo di input).
+ * @param showComments Se `true`, mostra il contenuto espanso della sezione.
+ * @param onToggleComments Callback per espandere/collassare la sezione.
+ * @param onAddComment Callback per aggiungere un commento (riceve il testo).
+ * @param onDeleteComment Callback per eliminare un commento (riceve il commento).
+ * @param onEditComment Callback per modificare un commento (riceve commento e nuovo testo).
+ * @param navController Controller per la navigazione ai profili pubblici (passato a [CommentItem]).
  */
 @Composable
 fun CommentsSection(
@@ -37,18 +52,27 @@ fun CommentsSection(
     onEditComment: (Comment, String) -> Unit,
     navController: NavController
 ) {
+    // Stato per il nuovo commento
     var newComment by remember { mutableStateOf("") }
+
+    // Stato per il dialog di eliminazione
     var commentToDelete by remember { mutableStateOf<Comment?>(null) }
+
+    // Stato per il dialog di modifica
     var commentToEdit by remember { mutableStateOf<Comment?>(null) }
     var editText by remember { mutableStateOf("") }
 
+    // ─────────── Dialog di conferma eliminazione ───────────
     commentToDelete?.let { comment ->
         AlertDialog(
             onDismissRequest = { commentToDelete = null },
             title = { Text("Elimina commento") },
             text = { Text("Sei sicuro di voler eliminare questo commento?") },
             confirmButton = {
-                TextButton(onClick = { onDeleteComment(comment); commentToDelete = null }) {
+                TextButton(onClick = {
+                    onDeleteComment(comment)
+                    commentToDelete = null
+                }) {
                     Text("Elimina", color = MaterialTheme.colorScheme.error)
                 }
             },
@@ -58,6 +82,7 @@ fun CommentsSection(
         )
     }
 
+    // ─────────── Dialog di modifica commento ───────────
     commentToEdit?.let { comment ->
         AlertDialog(
             onDismissRequest = { commentToEdit = null },
@@ -85,6 +110,7 @@ fun CommentsSection(
         )
     }
 
+    // ─────────── Card principale della sezione commenti ───────────
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -95,6 +121,7 @@ fun CommentsSection(
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // Header cliccabile per espandere/collassare
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -110,13 +137,15 @@ fun CommentsSection(
                 }
                 Icon(
                     if (showComments) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = null
+                    contentDescription = if (showComments) "Comprimi commenti" else "Espandi commenti"
                 )
             }
 
+            // Contenuto espanso
             if (showComments) {
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
 
+                // Lista vuota
                 if (comments.isEmpty()) {
                     Box(
                         modifier = Modifier
@@ -132,6 +161,7 @@ fun CommentsSection(
                         )
                     }
                 } else {
+                    // Lista dei commenti con altezza massima di 400dp
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -151,6 +181,7 @@ fun CommentsSection(
                     }
                 }
 
+                // Campo per aggiungere un nuovo commento (solo se l'utente è autenticato)
                 if (currentUserId != null) {
                     Row(
                         modifier = Modifier
@@ -179,7 +210,7 @@ fun CommentsSection(
                         ) {
                             Icon(
                                 Icons.Default.Send,
-                                contentDescription = "Invia",
+                                contentDescription = "Invia commento",
                                 modifier = Modifier.size(20.dp)
                             )
                         }

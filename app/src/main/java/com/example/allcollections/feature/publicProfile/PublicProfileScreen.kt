@@ -33,13 +33,20 @@ import org.koin.androidx.compose.koinViewModel
 /**
  * Schermata del profilo pubblico di un altro utente.
  *
- * Mostra foto profilo, username, bio, contatore follower, pulsanti "Segui/Seguito"
- * e "Messaggia" e la lista delle collezioni dell'utente con supporto like.
- * La navigazione follow/unfollow aggiorna il profilo in tempo reale e invia
- * la notifica push al destinatario.
+ * Mostra:
+ * - Foto profilo, username, biografia, conteggio follower
+ * - Pulsanti "Segui/Seguito" e "Messaggia"
+ * - Lista delle collezioni pubbliche dell'utente con supporto like (solo se l'utente loggato non è il proprietario)
+ *
+ * La navigazione follow/unfollow aggiorna il profilo in tempo reale e invia una notifica push
+ * al destinatario tramite [NotificationViewModel.sendFollowNotification].
  *
  * @param userId ID dell'utente di cui visualizzare il profilo.
- * @param navController NavController per la navigazione.
+ * @param navController Controller per la navigazione.
+ *
+ * @see ProfileViewModel
+ * @see CollectionViewModel
+ * @see NotificationViewModel
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +58,7 @@ fun PublicProfileScreen(
     val collectionVM: CollectionViewModel = koinViewModel()
     val notificationVM: NotificationViewModel = koinViewModel()
 
+    // Stato UI locale
     var username by remember { mutableStateOf("Utente") }
     var bio by remember { mutableStateOf("") }
     var profileImageUrl by remember { mutableStateOf<String?>(null) }
@@ -61,17 +69,25 @@ fun PublicProfileScreen(
 
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
-    // Like state per ogni collezione
+    // Mappe per lo stato like delle collezioni (aggiornamento ottimistico)
     val likedMap = remember { mutableStateMapOf<String, Boolean>() }
     val likesCountMap = remember { mutableStateMapOf<String, Int>() }
 
+    /**
+     * Carica lo stato like e il conteggio like per una lista di collezioni.
+     */
     fun loadLikesForCollections(collections: List<UserCollection>) {
         collections.forEach { collection ->
-            collectionVM.hasLiked(collection.id) { likedMap[collection.id] = it }
-            collectionVM.getLikesCount(collection.id) { likesCountMap[collection.id] = it }
+            if (!likedMap.containsKey(collection.id)) {
+                collectionVM.hasLiked(collection.id) { likedMap[collection.id] = it }
+                collectionVM.getLikesCount(collection.id) { likesCountMap[collection.id] = it }
+            }
         }
     }
 
+    /**
+     * Aggiorna tutti i dati del profilo pubblico.
+     */
     fun refreshProfile() {
         profileVM.getUserProfilePhoto(userId) { profileImageUrl = it }
         collectionVM.getUsernameById(userId) { username = it }
@@ -83,6 +99,7 @@ fun PublicProfileScreen(
         profileVM.getFollowerCount(userId) { followerCount = it }
     }
 
+    // Caricamento iniziale dei dati
     LaunchedEffect(userId) {
         refreshProfile()
         profileVM.getUserBio(userId) { bio = it }
@@ -94,26 +111,42 @@ fun PublicProfileScreen(
         }
     ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Foto profilo
             item {
-                AnimatedVisibility(visible = profileImageUrl != null, enter = fadeIn(), exit = fadeOut()) {
+                AnimatedVisibility(
+                    visible = profileImageUrl != null,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
                     AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current).data(profileImageUrl).crossfade(true).build(),
-                        contentDescription = "Foto profilo",
-                        modifier = Modifier.size(100.dp).clip(MaterialTheme.shapes.medium)
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(profileImageUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Foto profilo di $username",
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(MaterialTheme.shapes.medium)
                     )
                 }
             }
 
             // Username
-            item { Text(username, style = MaterialTheme.typography.titleMedium) }
+            item {
+                Text(
+                    text = username,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
 
-            // Bio
+            // Biografia
             if (bio.isNotBlank()) {
                 item {
                     Text(
@@ -127,14 +160,22 @@ fun PublicProfileScreen(
             }
 
             // Conteggio follower
-            item { Text("Follower: $followerCount") }
+            item {
+                Text(
+                    text = "Follower: $followerCount",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
 
             // Pulsanti Segui e Messaggia
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // Pulsante Segui/Seguito
                     Button(
                         onClick = {
                             if (isFollowing) {
@@ -158,65 +199,96 @@ fun PublicProfileScreen(
                         enabled = !isFollowLoading
                     ) {
                         if (isFollowLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp
+                            )
                         } else {
                             Text(if (isFollowing) "Seguito" else "Segui")
                         }
                     }
 
+                    // Pulsante Messaggia
                     Button(
-                        onClick = { navController.navigate(Screens.ChatScreen.createRoute(userId)) },
+                        onClick = {
+                            navController.navigate(Screens.ChatScreen.createRoute(userId))
+                        },
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary
+                        )
                     ) {
                         Text("Messaggia")
                     }
                 }
             }
 
-            // Lista collezioni
+            // Lista delle collezioni dell'utente
             items(userCollections.size) { index ->
                 val collection = userCollections[index]
                 val hasLiked = likedMap[collection.id] ?: false
                 val likesCount = likesCountMap[collection.id] ?: 0
 
                 Card(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable {
-                        navController.navigate(Screens.CollectionDetailScreen.collectionDetailRoute(collection.id))
-                    }
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .clickable {
+                            navController.navigate(
+                                Screens.CollectionDetailScreen.collectionDetailRoute(collection.id)
+                            )
+                        }
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Foto collezione a sinistra
-                        AnimatedVisibility(visible = collection.collectionImageUrl != null, enter = fadeIn(), exit = fadeOut()) {
+                        // Immagine di copertina della collezione (opzionale)
+                        AnimatedVisibility(
+                            visible = collection.collectionImageUrl?.isNotBlank() == true,
+                            enter = fadeIn(),
+                            exit = fadeOut()
+                        ) {
                             AsyncImage(
                                 model = collection.collectionImageUrl,
-                                contentDescription = "Immagine collezione",
-                                modifier = Modifier.size(64.dp).clip(MaterialTheme.shapes.medium)
+                                contentDescription = "Immagine collezione ${collection.name}",
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(MaterialTheme.shapes.medium),
+                                alignment = Alignment.Center
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                        }
+
+                        // Nome e categoria
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = collection.name,
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            Text(
+                                text = collection.category ?: "Senza categoria",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        // Nome e categoria al centro
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(collection.name, style = MaterialTheme.typography.titleSmall)
-                            Text(collection.category ?: "", style = MaterialTheme.typography.bodySmall)
-                        }
-
-                        // Cuoricino + conteggio a destra (solo se non sono il proprietario)
+                        // Like button (solo se l'utente loggato non è il proprietario della collezione)
                         if (currentUserId != userId) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                                 modifier = Modifier.clickable {
                                     if (hasLiked) {
+                                        // Rimuovi like (aggiornamento ottimistico)
                                         likedMap[collection.id] = false
                                         likesCountMap[collection.id] = (likesCount - 1).coerceAtLeast(0)
                                         collectionVM.unlikeCollection(collection.id)
                                     } else {
+                                        // Aggiungi like
                                         likedMap[collection.id] = true
                                         likesCountMap[collection.id] = likesCount + 1
                                         collectionVM.likeCollection(collection.id, notificationVM)
@@ -232,7 +304,7 @@ fun PublicProfileScreen(
                                 }
                                 Icon(
                                     imageVector = if (hasLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                    contentDescription = "Like",
+                                    contentDescription = if (hasLiked) "Rimuovi like" else "Metti like",
                                     tint = if (hasLiked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp)
                                 )

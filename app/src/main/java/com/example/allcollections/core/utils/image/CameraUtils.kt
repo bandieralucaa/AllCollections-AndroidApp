@@ -14,37 +14,52 @@ import java.io.File
  * Contratto per un launcher della fotocamera che gestisce la cattura di un'immagine.
  *
  * Ottenuto tramite [rememberCameraLauncher]; non istanziare direttamente.
+ *
+ * @property capturedImageUri URI temporaneo del file immagine che verrà scritto dalla fotocamera.
+ * @property snackbarHostState Host state per mostrare snackbar in caso di errore o annullamento.
  */
 interface CameraLauncher {
-    /** URI temporaneo del file immagine che verrà scritto dalla fotocamera. */
     val capturedImageUri: Uri
-
-    /** Host state per mostrare snackbar in caso di errore o annullamento. */
     val snackbarHostState: SnackbarHostState
-
-    /** Avvia l'intent della fotocamera per acquisire un'immagine. */
     fun captureImage()
 }
 
 /**
  * Composable che crea e ricorda un [CameraLauncher] per la cattura di immagini.
  *
- * Crea un file temporaneo `.jpg` nella cache esterna e ne espone l'URI tramite
- * [FileProvider]. Non richiede il permesso `WRITE_EXTERNAL_STORAGE` perché l'app
- * ha `minSdk >= 29` (Android 10+), dove lo scoped storage è gestito automaticamente.
+ * Questa funzione gestisce l'intero flusso di acquisizione di un'immagine dalla fotocamera:
+ * - Crea un file temporaneo `.jpg` nella cache esterna dell'app.
+ * - Configura un [FileProvider] per condividere l'URI con l'app fotocamera.
+ * - Lancia l'intent della fotocamera tramite [rememberLauncherForActivityResult].
+ * - Al successo, restituisce l'URI dell'immagine catturata.
+ * - In caso di annullamento o errore, mostra una snackbar tramite lo stato fornito.
  *
- * In caso di annullamento o errore della fotocamera, viene mostrata una [Snackbar]
- * tramite [SnackbarHostState].
+ * ### Requisiti di permessi
+ * Non richiede il permesso `WRITE_EXTERNAL_STORAGE` perché l'app ha `minSdk >= 29` (Android 10+),
+ * dove lo scoped storage è gestito automaticamente. Il file viene salvato nella cache esterna
+ * dell'app, accessibile solo all'app stessa.
  *
- * **Utilizzo:**
- * ```kotlin
- * val camera = rememberCameraLauncher { uri -> viewModel.onImageCaptured(uri) }
- * Button(onClick = { camera.captureImage() }) { Text("Scatta foto") }
- * SnackbarHost(camera.snackbarHostState)
+ * ### Utilizzo tipico
  * ```
+ * val camera = rememberCameraLauncher { uri ->
+ *     viewModel.updateProfileImage(uri)
+ * }
+ *
+ * Button(onClick = { camera.captureImage() }) {
+ *     Text("Scatta foto")
+ * }
+ *
+ * SnackbarHost(hostState = camera.snackbarHostState)
+ * ```
+ *
+ * **Attenzione:** Assicurati di aver dichiarato il [FileProvider] nel `AndroidManifest.xml`
+ * e una risorsa `file_paths.xml` adeguata, altrimenti l'app crasha.
  *
  * @param onImageCaptured Callback invocato con l'[Uri] dell'immagine catturata con successo.
  * @return Un [CameraLauncher] pronto all'uso.
+ *
+ * @see androidx.activity.compose.rememberLauncherForActivityResult
+ * @see FileProvider
  */
 @Composable
 fun rememberCameraLauncher(
@@ -54,23 +69,30 @@ fun rememberCameraLauncher(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    // Crea un file temporaneo univoco nella cache esterna dell'app
+    // Il nome "tmp_image" verrà automaticamente reso unico da createTempFile
     val imageUri: Uri = remember {
         val file = File.createTempFile("tmp_image", ".jpg", context.externalCacheDir)
+        // Ottiene l'URI tramite FileProvider per rendere il file accessibile alla fotocamera
         FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
     }
 
+    // Launcher per l'intent della fotocamera
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success) {
+            // Foto scattata con successo → invoca il callback
             onImageCaptured(imageUri)
         } else {
+            // Annullato o errore → mostra snackbar
             scope.launch {
                 snackbarHostState.showSnackbar("Acquisizione immagine annullata o fallita")
             }
         }
     }
 
+    // Restituisce l'implementazione di CameraLauncher
     return object : CameraLauncher {
         override val capturedImageUri: Uri = imageUri
         override val snackbarHostState: SnackbarHostState = snackbarHostState

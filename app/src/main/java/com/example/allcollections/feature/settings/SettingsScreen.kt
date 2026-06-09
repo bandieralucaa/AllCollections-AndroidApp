@@ -22,14 +22,30 @@ import com.example.allcollections.feature.profile.ProfileViewModel
 /**
  * Schermata delle impostazioni dell'app.
  *
- * Mostra una lista cliccabile di voci di impostazione: modifica profilo, password,
- * foto, bio, tema e logout. Il logout arresta i listener attivi ([NotificationViewModel.stopObserving],
- * [ProfileViewModel.cleanupListeners]) prima di eseguire il sign-out Firebase,
- * evitando errori di permessi Firestore su utente non autenticato.
+ * Mostra una lista verticale di voci cliccabili che permettono di accedere a:
+ * - Modifica profilo (dati anagrafici)
+ * - Modifica password
+ * - Cambio immagine profilo
+ * - Modifica biografia
+ * - Cambio tema (chiaro/scuro/sistema)
+ * - Logout
  *
- * @param navController NavController per la navigazione alle sotto-schermate.
- * @param viewModel ViewModel del profilo, usato per logout e recupero userId.
- * @param notificationViewModel ViewModel notifiche, usato per fermare i listener al logout.
+ * ### Logout
+ * Al logout vengono eseguiti i seguenti passaggi nell'ordine:
+ * 1. [NotificationViewModel.stopObserving] – ferma l'ascolto delle notifiche in tempo reale.
+ * 2. [ProfileViewModel.cleanupListeners] – rimuove i listener Firestore attivi (follow, ecc.).
+ * 3. [ProfileViewModel.logout] – esegue il sign‑out da Firebase Auth.
+ * 4. Navigazione a [Screens.LoginScreen] con reset completo della back stack (`popUpTo(0)`).
+ *
+ * Questa sequenza previene errori di permessi Firestore (accesso con utente nullo)
+ * dopo il logout.
+ *
+ * @param navController Controller per la navigazione alle sottoschermate.
+ * @param viewModel ViewModel del profilo (per logout, cleanup listener, userId).
+ * @param notificationViewModel ViewModel delle notifiche (per fermare i listener al logout).
+ *
+ * @see ProfileViewModel
+ * @see NotificationViewModel
  */
 @Composable
 fun SettingsScreen(
@@ -42,6 +58,7 @@ fun SettingsScreen(
 
     val currentUserId = viewModel.getCurrentUserId()
 
+    // Lista delle voci di impostazione: (testo, azione)
     val settingsItems = listOf<Pair<String, () -> Unit>>(
         "Modifica profilo" to { navController.navigate(Screens.EditProfileScreen.route) },
         "Modifica password" to { navController.navigate(Screens.EditPasswordScreen.route) },
@@ -58,11 +75,12 @@ fun SettingsScreen(
         "Modifica bio" to { navController.navigate(Screens.EditBioScreen.route) },
         "Cambia tema" to { navController.navigate(Screens.ChooseThemeScreen.route) },
         "Logout" to {
+            // Ordine critico: prima ferma i listener, poi logout, infine naviga
             notificationViewModel.stopObserving()
             viewModel.cleanupListeners()
             viewModel.logout()
             navController.navigate(Screens.LoginScreen.route) {
-                popUpTo(0) { inclusive = true }
+                popUpTo(0) { inclusive = true } // Resetta completamente la back stack
             }
         }
     )
@@ -90,6 +108,15 @@ fun SettingsScreen(
     }
 }
 
+/**
+ * Riga cliccabile per una singola voce di impostazione.
+ *
+ * Mostra il testo su tutta la larghezza, con padding verticale e orizzontale.
+ * Al tap esegue l'azione associata.
+ *
+ * @param setting Testo della voce (es. "Modifica profilo").
+ * @param onClick Callback invocato al tap sull'elemento.
+ */
 @Composable
 fun ClickableSettingItem(
     setting: String,

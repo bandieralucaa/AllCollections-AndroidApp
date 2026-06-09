@@ -1,6 +1,5 @@
 package com.example.allcollections.feature.collection.components
 
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
@@ -21,11 +20,32 @@ import com.example.allcollections.data.model.CollectionItem
 import com.example.allcollections.data.model.Comment
 
 /**
- * Carosello degli oggetti di una collezione.
+ * Carosello orizzontale degli oggetti di una collezione.
  *
- * Permette di scorrere gli oggetti tramite frecce laterali o swipe orizzontale.
- * Mostra l'indice corrente, i dot di navigazione in basso e delega il rendering
- * del singolo oggetto a [CarouselItemCard].
+ * Questo componente permette di navigare tra gli oggetti di una collezione
+ * tramite:
+ * - Frecce laterali sinistra/destra
+ * - Swipe orizzontale (drag) sul contenuto dell'oggetto
+ * - Indicatori a pallini (dot) che mostrano la posizione corrente
+ *
+ * L'oggetto corrente viene visualizzato tramite [CarouselItemCard], che gestisce
+ * la visualizzazione dei dettagli, commenti e azioni di modifica/eliminazione.
+ *
+ * @param items Lista degli oggetti della collezione.
+ * @param currentIndex Indice corrente (0‑based) dell'oggetto visualizzato.
+ * @param onIndexChange Callback invocato quando l'utente passa a un altro oggetto.
+ * @param isOwner Se l'utente corrente è il proprietario della collezione (abilita modifica/eliminazione).
+ * @param onEdit Callback per modificare l'oggetto corrente.
+ * @param onDelete Callback per eliminare l'oggetto corrente.
+ * @param onImageClick Callback quando si clicca sull'immagine dell'oggetto (per fullscreen).
+ * @param itemComments Lista dei commenti relativi all'oggetto corrente.
+ * @param usernames Mappa `userId -> username` per i commenti.
+ * @param userPhotos Mappa `userId -> URL foto profilo` per i commenti.
+ * @param currentUserId ID dell'utente corrente (per verificare se può modificare/eliminare commenti).
+ * @param onAddItemComment Callback per aggiungere un commento all'oggetto corrente.
+ * @param onDeleteItemComment Callback per eliminare un commento.
+ * @param onEditItemComment Callback per modificare un commento (commento, nuovo testo).
+ * @param navController NavController per la navigazione verso i profili pubblici.
  */
 @Composable
 fun ItemsCarousel(
@@ -45,8 +65,10 @@ fun ItemsCarousel(
     onEditItemComment: (Comment, String) -> Unit,
     navController: NavController
 ) {
+    // Se non ci sono oggetti, non mostrare nulla
     if (items.isEmpty()) return
 
+    // Assicura che l'indice corrente sia valido
     val safeIndex = currentIndex.coerceIn(0, items.lastIndex)
     val currentItem = items[safeIndex]
 
@@ -54,27 +76,32 @@ fun ItemsCarousel(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxWidth()
     ) {
-
+        // Indicatore di posizione testuale (es. "Oggetto 2 di 5")
         Text(
             text = "Oggetto ${safeIndex + 1} di ${items.size}",
             style = MaterialTheme.typography.labelLarge,
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
+        // Box che contiene la card dell'oggetto + le frecce laterali
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .pointerInput(Unit) {
+                    // Rileva swipe orizzontale per cambiare oggetto
                     detectHorizontalDragGestures { change, dragAmount ->
                         change.consume()
                         if (dragAmount > 0) {
+                            // Swipe verso destra → oggetto precedente
                             if (safeIndex > 0) onIndexChange(safeIndex - 1)
                         } else {
+                            // Swipe verso sinistra → oggetto successivo
                             if (safeIndex < items.lastIndex) onIndexChange(safeIndex + 1)
                         }
                     }
                 }
         ) {
+            // Card principale dell'oggetto corrente
             CarouselItemCard(
                 item = currentItem,
                 isOwner = isOwner,
@@ -91,6 +118,7 @@ fun ItemsCarousel(
                 navController = navController
             )
 
+            // Pulsante freccia sinistra (oggetto precedente)
             IconButton(
                 onClick = { if (safeIndex > 0) onIndexChange(safeIndex - 1) },
                 enabled = safeIndex > 0,
@@ -106,6 +134,7 @@ fun ItemsCarousel(
                 )
             }
 
+            // Pulsante freccia destra (oggetto successivo)
             IconButton(
                 onClick = { if (safeIndex < items.lastIndex) onIndexChange(safeIndex + 1) },
                 enabled = safeIndex < items.lastIndex,
@@ -122,6 +151,7 @@ fun ItemsCarousel(
             }
         }
 
+        // Indicatori a pallini (dot) per la posizione
         Row(
             modifier = Modifier
                 .fillMaxWidth()

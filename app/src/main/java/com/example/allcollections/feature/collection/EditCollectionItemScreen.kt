@@ -10,28 +10,34 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clip
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.data.model.CollectionItem
 import kotlinx.coroutines.launch
 
 /**
  * Schermata per la modifica di un oggetto di una collezione.
  *
- * Permette di aggiornare la descrizione e/o sostituire l'immagine dell'oggetto.
- * - Se viene selezionata solo una nuova immagine → upload Cloudinary + aggiornamento completo.
- * - Se viene modificata solo la descrizione → aggiornamento solo del campo testuale.
+ * Permette di aggiornare:
+ * - Descrizione (campo testuale)
+ * - Immagine (sostituzione con una nuova dalla galleria)
  *
- * @param navController NavController per la navigazione.
+ * Le modifiche possono essere applicate singolarmente o insieme:
+ * - Se si seleziona una nuova immagine + si modifica la descrizione → viene chiamato
+ *   [uploadItemImageAndUpdate] (upload Cloudinary + aggiornamento completo).
+ * - Se si modifica solo la descrizione → viene chiamato [updateItemDescription].
+ *
+ * @param navController Controller per la navigazione.
  * @param collectionId ID della collezione contenente l'oggetto.
  * @param itemId ID dell'oggetto da modificare.
- * @param viewModel ViewModel che gestisce il recupero e l'aggiornamento dell'oggetto.
+ * @param viewModel ViewModel delle collezioni (gestisce le operazioni).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,11 +57,14 @@ fun EditCollectionItemScreen(
 
     val scrollState = rememberScrollState()
 
+    // Launcher per selezionare una nuova immagine dalla galleria
     val imageLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
-    ) { uri -> selectedImageUri = uri }
+    ) { uri ->
+        if (uri != null) selectedImageUri = uri
+    }
 
-    // Carica i dati correnti dell'oggetto al primo avvio
+    // Carica i dati correnti dell'oggetto all'avvio
     LaunchedEffect(itemId) {
         viewModel.getItemById(
             collectionId,
@@ -72,7 +81,7 @@ fun EditCollectionItemScreen(
 
     item?.let { currentItem ->
         Scaffold(
-            topBar = { TopAppBar(title = { Text("Modifica oggetto") }) },
+            topBar = { MyTopBar(navController = navController, title = "Modifica oggetto") },
             snackbarHost = { SnackbarHost(snackbarHostState) }
         ) { padding ->
             Column(
@@ -84,16 +93,18 @@ fun EditCollectionItemScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Campo descrizione
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
                     label = { Text("Descrizione") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isSaving
                 )
 
                 Text("Immagine attuale:", style = MaterialTheme.typography.labelMedium)
 
-                // Mostra l'anteprima dell'immagine nuova (se selezionata) o quella corrente
+                // Anteprima immagine (nuova se selezionata, altrimenti quella corrente)
                 AsyncImage(
                     model = selectedImageUri ?: currentItem.imageUrl,
                     contentDescription = "Anteprima immagine oggetto",
@@ -115,11 +126,14 @@ fun EditCollectionItemScreen(
 
                 Spacer(Modifier.height(24.dp))
 
+                // Pulsante di salvataggio
                 Button(
                     onClick = {
+                        if (isSaving) return@Button
                         isSaving = true
+
                         if (selectedImageUri != null) {
-                            // Upload nuova immagine + aggiornamento descrizione
+                            // Upload nuova immagine + aggiornamento descrizione (entrambi)
                             viewModel.uploadItemImageAndUpdate(
                                 collectionId,
                                 itemId,
@@ -127,27 +141,38 @@ fun EditCollectionItemScreen(
                                 description,
                                 onSuccess = {
                                     isSaving = false
-                                    scope.launch { snackbarHostState.showSnackbar("Modifica completata") }
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Modifica completata")
+                                    }
                                     navController.popBackStack()
                                 },
                                 onFailure = { error ->
                                     isSaving = false
-                                    scope.launch { snackbarHostState.showSnackbar("Errore: $error") }
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Errore: $error")
+                                    }
                                 }
                             )
                         } else {
-                            // Solo aggiornamento descrizione
-                            scope.launch {
-                                try {
-                                    viewModel.updateItemDescription(collectionId, itemId, description)
+                            // Solo aggiornamento della descrizione
+                            viewModel.updateItemDescription(
+                                collectionId,
+                                itemId,
+                                description,
+                                onSuccess = {
                                     isSaving = false
-                                    snackbarHostState.showSnackbar("Descrizione aggiornata")
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Descrizione aggiornata")
+                                    }
                                     navController.popBackStack()
-                                } catch (e: Exception) {
+                                },
+                                onFailure = { error ->
                                     isSaving = false
-                                    snackbarHostState.showSnackbar("Errore aggiornamento")
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Errore: $error")
+                                    }
                                 }
-                            }
+                            )
                         }
                     },
                     enabled = !isSaving,

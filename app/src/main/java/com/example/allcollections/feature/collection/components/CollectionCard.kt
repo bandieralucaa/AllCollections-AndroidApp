@@ -22,28 +22,27 @@ import com.example.allcollections.data.model.CollectionCardLayout
 import com.example.allcollections.data.model.UserCollection
 import com.google.firebase.auth.FirebaseAuth
 
-
 /**
  * Card per la visualizzazione di una collezione.
  *
- * Funge da dispatcher tra i due layout disponibili:
+ * Supporta due layout:
  * - [CollectionCardLayout.Horizontal]: usato nella lista delle proprie collezioni,
- *   mostra immagine + nome + categoria affiancati e un menu modifica/elimina.
- * - [CollectionCardLayout.Vertical]: usato nella home e nella ricerca,
- *   mostra nome, username, immagine e pulsante like.
+ *   mostra immagine + nome + categoria affiancati e un menu contestuale (modifica/elimina).
+ * - [CollectionCardLayout.Vertical]: usato nella home feed e nella ricerca,
+ *   mostra nome, username, immagine e pulsante like (con contatore).
  *
  * @param collection Collezione da visualizzare.
- * @param layoutType Layout della card. Default = Horizontal.
- * @param showMenu Mostra il menu contestuale (modifica/elimina). Solo per Horizontal.
+ * @param layoutType Layout della card (default = Horizontal).
+ * @param showMenu Se `true`, mostra il menu contestuale (modifica/elimina). Solo per Horizontal.
  * @param onEdit Callback per la modifica della collezione.
- * @param onDelete Callback per l'eliminazione della collezione.
- * @param onCardClick Callback invocato con l'ID collezione quando si tocca la card.
- * @param onUsernameClick Callback invocato con lo userId quando si tocca l'username di un altro utente.
- * @param onMyProfileClick Callback invocato quando si tocca il proprio username ("Tu").
- * @param hasLiked Indica se l'utente corrente ha già messo like a questa collezione.
- * @param likesCount Numero totale di like sulla collezione.
- * @param onLikeClick Callback per il pulsante like. Se null il pulsante non viene mostrato.
- * @param modifier Modifier opzionale per personalizzare il layout esterno.
+ * @param onDelete Callback per l'eliminazione.
+ * @param onCardClick Callback con l'ID della collezione al tap sulla card.
+ * @param onUsernameClick Callback con l'userId al tap sull'username di un altro utente.
+ * @param onMyProfileClick Callback per navigare al proprio profilo (quando si clicca su "Tu").
+ * @param hasLiked Indica se l'utente corrente ha già messo like.
+ * @param likesCount Numero totale di like.
+ * @param onLikeClick Callback per il pulsante like (se null, il pulsante non viene mostrato).
+ * @param modifier Modificatore esterno.
  */
 @Composable
 fun CollectionCard(
@@ -85,9 +84,18 @@ fun CollectionCard(
 /**
  * Layout orizzontale della card collezione.
  *
- * Mostra immagine a sinistra (se presente), nome e categoria a destra,
- * e un menu a tre puntini per modificare o eliminare se [showMenu] è true.
- * Usato principalmente nella schermata "Le mie collezioni".
+ * Utilizzato principalmente in "Le mie collezioni". Mostra:
+ * - Immagine di copertina (opzionale, se presente)
+ * - Nome della collezione
+ * - Categoria
+ * - Menu a tre puntini per modifica/elimina (se showMenu = true)
+ *
+ * @param collection Collezione da visualizzare.
+ * @param showMenu Se `true`, mostra il menu contestuale.
+ * @param onEdit Callback per modifica.
+ * @param onDelete Callback per eliminazione.
+ * @param onCardClick Callback al tap sulla card (riceve l'ID collezione).
+ * @param modifier Modificatore per la card.
  */
 @Composable
 private fun HorizontalCollectionCard(
@@ -112,6 +120,7 @@ private fun HorizontalCollectionCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Immagine di copertina (se disponibile)
             collection.collectionImageUrl?.takeIf { it.isNotBlank() }?.let { imageUrl ->
                 AsyncImage(
                     model = imageUrl,
@@ -124,8 +133,12 @@ private fun HorizontalCollectionCard(
                 Spacer(modifier = Modifier.width(16.dp))
             }
 
+            // Nome e categoria
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = collection.name, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = collection.name,
+                    style = MaterialTheme.typography.titleMedium
+                )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = collection.category,
@@ -135,13 +148,20 @@ private fun HorizontalCollectionCard(
                 )
             }
 
+            // Menu a tre puntini (solo se showMenu è true)
             if (showMenu) {
                 var expanded by remember { mutableStateOf(false) }
                 Box {
                     IconButton(onClick = { expanded = true }) {
-                        Icon(Icons.Default.MoreHoriz, contentDescription = "Opzioni collezione")
+                        Icon(
+                            Icons.Default.MoreHoriz,
+                            contentDescription = "Opzioni collezione"
+                        )
                     }
-                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
                         DropdownMenuItem(
                             text = { Text("Modifica") },
                             onClick = { expanded = false; onEdit() }
@@ -160,10 +180,20 @@ private fun HorizontalCollectionCard(
 /**
  * Layout verticale della card collezione.
  *
- * Mostra nell'ordine: nome (cliccabile), username dell'autore (con distinzione
- * tra utente corrente e altri), immagine di copertina e pulsante like con contatore.
- * Il like è visibile solo se l'utente non è il proprietario e [onLikeClick] non è null.
- * Usato nella home feed e nella schermata di ricerca.
+ * Utilizzato nella home feed e nella schermata di ricerca. Mostra:
+ * - Nome della collezione
+ * - Username del proprietario (con distinzione tra utente corrente e altri)
+ * - Immagine di copertina (placeholder se assente)
+ * - Pulsante like con contatore (solo se l'utente non è il proprietario e onLikeClick non null)
+ *
+ * @param collection Collezione da visualizzare.
+ * @param onCardClick Callback al tap sulla card (riceve ID).
+ * @param onUsernameClick Callback al tap sull'username di un altro utente (riceve userId).
+ * @param onMyProfileClick Callback al tap su "Tu" (profilo proprio).
+ * @param hasLiked `true` se l'utente corrente ha messo like.
+ * @param likesCount Conteggio like.
+ * @param onLikeClick Callback per il like (se null, il pulsante non viene mostrato).
+ * @param modifier Modificatore per la card.
  */
 @Composable
 private fun VerticalCollectionCard(
@@ -187,6 +217,7 @@ private fun VerticalCollectionCard(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Nome della collezione (cliccabile)
             Text(
                 text = collection.name,
                 style = MaterialTheme.typography.titleMedium,
@@ -197,6 +228,7 @@ private fun VerticalCollectionCard(
                     .clickable { onCardClick(collection.id) }
             )
 
+            // Username del proprietario (cliccabile)
             if (collection.username.isNotBlank()) {
                 val isCurrentUser = currentUserId == collection.iduser
                 Text(
@@ -216,6 +248,7 @@ private fun VerticalCollectionCard(
                 )
             }
 
+            // Immagine di copertina (cliccabile per dettaglio)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -245,6 +278,7 @@ private fun VerticalCollectionCard(
                 }
             }
 
+            // Like button (solo se non è il proprietario e la callback esiste)
             if (!isOwner && onLikeClick != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

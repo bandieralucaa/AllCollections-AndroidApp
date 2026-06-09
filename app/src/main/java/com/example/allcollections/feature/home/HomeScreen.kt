@@ -10,13 +10,7 @@ import androidx.navigation.NavController
 import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.data.model.UserCollection
 import com.example.allcollections.feature.collection.CollectionViewModel
-import com.example.allcollections.feature.home.components.CollectionsGrid
-import com.example.allcollections.feature.home.components.EmptyView
-import com.example.allcollections.feature.home.components.FilterButton
-import com.example.allcollections.feature.home.components.FilterDialog
-import com.example.allcollections.feature.home.components.LoadingView
-import com.example.allcollections.feature.home.components.loadAllCollections
-import com.example.allcollections.feature.home.components.loadFollowedCollections
+import com.example.allcollections.feature.home.components.*
 import com.example.allcollections.feature.notification.presentation.NotificationViewModel
 import com.example.allcollections.feature.profile.ProfileViewModel
 import com.google.firebase.auth.ktx.auth
@@ -24,32 +18,23 @@ import com.google.firebase.ktx.Firebase
 import org.koin.androidx.compose.koinViewModel
 
 /**
- * Schermata principale dell'app.
+ * Schermata principale dell'app (feed delle collezioni pubbliche).
  *
- * Mostra le collezioni pubbliche in una griglia a due colonne, con supporto
- * per tre filtri: tutte, solo utenti seguiti, solo con like. Gestisce
- * il caricamento, lo stato vuoto e le interazioni like in tempo reale.
- */
-
-/**
- * Schermata principale dell'app (feed collezioni pubbliche).
+ * Mostra una griglia a due colonne di collezioni, con supporto a tre filtri:
+ * - [HomeFilter.All] – tutte le collezioni pubbliche (escluse quelle dell'utente corrente).
+ * - [HomeFilter.Followed] – solo collezioni create da utenti che l'utente corrente segue.
+ * - [HomeFilter.Liked] – solo collezioni a cui l'utente corrente ha messo like.
  *
- * Mostra le collezioni in una griglia a due colonne con tre filtri selezionabili:
- * - [HomeFilter.All] — tutte le collezioni (escluse le proprie).
- * - [HomeFilter.Followed] — solo collezioni di utenti seguiti.
- * - [HomeFilter.Liked] — solo collezioni a cui si è messo like.
+ * I like sono gestiti ottimisticamente:
+ * - L'UI aggiorna immediatamente lo stato (like/dislike e contatore).
+ * - La richiesta a Firestore avviene in background.
+ * - Se il filtro attivo è [HomeFilter.Liked] e l'utente rimuove un like, la collezione
+ *   scompare automaticamente dalla lista.
  *
- * I like vengono aggiornati ottimisticamente (UI immediata, Firestore in background).
- * Se il filtro è [HomeFilter.Liked] e si rimuove un like, la collezione scompare dalla lista.
- *
- * @param navController NavController per la navigazione.
- * @param collectionViewModel ViewModel per like e caricamento collezioni.
+ * @param navController Controller per la navigazione verso i dettagli delle collezioni.
+ * @param collectionViewModel ViewModel per operazioni su collezioni (like, caricamento).
  * @param profileViewModel ViewModel per recuperare gli ID degli utenti seguiti.
  */
-
-/** Filtri disponibili per la lista delle collezioni nella HomeScreen. */
-enum class HomeFilter { All, Followed, Liked }
-
 @Composable
 fun HomeScreen(
     navController: NavController,
@@ -67,9 +52,14 @@ fun HomeScreen(
     var filteredCollections by remember { mutableStateOf(emptyList<UserCollection>()) }
     var isLoading by remember { mutableStateOf(true) }
 
+    // Mappe per mantenere stato like e conteggi (aggiornamento ottimistico)
     val likedMap = remember { mutableStateMapOf<String, Boolean>() }
     val likesCountMap = remember { mutableStateMapOf<String, Int>() }
 
+    /**
+     * Carica lo stato like e il conteggio like per una lista di collezioni.
+     * Se i dati sono già presenti nelle mappe, evita di ricaricarli.
+     */
     fun loadLikesForCollections(collections: List<UserCollection>) {
         collections.forEach { collection ->
             if (!likedMap.containsKey(collection.id)) {
@@ -79,11 +69,13 @@ fun HomeScreen(
         }
     }
 
+    // Ricarica le collezioni ogni volta che cambia il filtro o l'utente corrente
     LaunchedEffect(activeFilter, currentUserId) {
         isLoading = true
         when (activeFilter) {
             HomeFilter.Followed -> {
                 if (currentUserId != null) {
+                    // Carica le collezioni degli utenti seguiti (esclude quelle dell'utente stesso)
                     loadFollowedCollections(profileViewModel, collectionViewModel) { collections ->
                         filteredCollections = collections.filter { it.iduser != currentUserId }
                         loadLikesForCollections(filteredCollections)
@@ -96,6 +88,7 @@ fun HomeScreen(
             }
             HomeFilter.Liked -> {
                 if (currentUserId != null) {
+                    // Carica le collezioni a cui l'utente ha messo like
                     collectionViewModel.getLikedCollections { collections ->
                         filteredCollections = collections
                         loadLikesForCollections(filteredCollections)
@@ -107,6 +100,7 @@ fun HomeScreen(
                 }
             }
             HomeFilter.All -> {
+                // Carica tutte le collezioni pubbliche, escludendo quelle dell'utente
                 loadAllCollections(collectionViewModel) { collections ->
                     filteredCollections = if (currentUserId != null) {
                         collections.filter { it.iduser != currentUserId }
@@ -140,6 +134,7 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // Dialog per la selezione del filtro
             if (showFilterDialog) {
                 FilterDialog(
                     activeFilter = activeFilter,
@@ -160,6 +155,7 @@ fun HomeScreen(
                     likesCountMap = likesCountMap,
                     onLikeClick = { collection ->
                         val wasLiked = likedMap[collection.id] ?: false
+                        // Aggiornamento ottimistico UI
                         if (wasLiked) {
                             likedMap[collection.id] = false
                             likesCountMap[collection.id] = (likesCountMap[collection.id] ?: 1) - 1
@@ -169,6 +165,7 @@ fun HomeScreen(
                             likesCountMap[collection.id] = (likesCountMap[collection.id] ?: 0) + 1
                             collectionViewModel.likeCollection(collection.id, notificationViewModel)
                         }
+                        // Se il filtro è "Liked" e l'utente ha rimosso il like, rimuovi la collezione dalla lista
                         if (activeFilter == HomeFilter.Liked && wasLiked) {
                             filteredCollections = filteredCollections.filter { it.id != collection.id }
                         }
@@ -176,6 +173,7 @@ fun HomeScreen(
                 )
             }
 
+            // Contatore in basso (solo se ci sono risultati)
             if (!isLoading && filteredCollections.isNotEmpty()) {
                 Text(
                     text = "Mostrando ${filteredCollections.size} collezioni",
@@ -188,4 +186,16 @@ fun HomeScreen(
             }
         }
     }
+}
+
+/**
+ * Filtri disponibili per la lista delle collezioni nella [HomeScreen].
+ */
+enum class HomeFilter {
+    /** Tutte le collezioni pubbliche (escluse le proprie). */
+    All,
+    /** Solo collezioni di utenti seguiti. */
+    Followed,
+    /** Solo collezioni a cui l'utente ha messo like. */
+    Liked
 }

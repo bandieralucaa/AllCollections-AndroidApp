@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -32,9 +31,18 @@ import kotlinx.coroutines.launch
 /**
  * Schermata per la selezione e il caricamento della foto profilo.
  *
- * Permette di scegliere un'immagine dalla galleria o scattarla con la
- * fotocamera, gestendo i relativi permessi. Usata sia durante la
- * registrazione che per la modifica del profilo esistente.
+ * Permette all'utente di scegliere un'immagine dalla galleria o scattarla con la
+ * fotocamera, gestendo i relativi permessi (Android 13+ inclusi).
+ *
+ * ### Flussi
+ * - **Registrazione** (`isRegistration = true`): dopo il caricamento, logout automatico
+ *   e navigazione al login (per evitare dati inconsistenti).
+ * - **Modifica profilo** (`isRegistration = false`): dopo il salvataggio, torna indietro.
+ *
+ * @param navController Controller per la navigazione.
+ * @param userId ID dell'utente a cui associare la foto.
+ * @param profileViewModel ViewModel del profilo (upload e salvataggio URL).
+ * @param isRegistration Se `true`, proviene dal flusso di registrazione.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,25 +52,29 @@ fun PhotoProfileScreen(
     profileViewModel: ProfileViewModel,
     isRegistration: Boolean
 ) {
-
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(false) }
 
+    // Launcher per la galleria
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         selectedImageUri = uri
     }
 
+    // Launcher per la fotocamera (tramite utility)
     val cameraLauncher = rememberCameraLauncher { uri ->
         selectedImageUri = uri
     }
 
+    // Permessi fotocamera
     val cameraPermission = rememberPermission(Manifest.permission.CAMERA)
 
+    // Permessi galleria (differenziati per Android 13+)
     val galleryPermission = rememberPermission(
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             Manifest.permission.READ_MEDIA_IMAGES
@@ -71,17 +83,18 @@ fun PhotoProfileScreen(
         }
     )
 
-    fun showRationaleSnackbar(message: String, onAction: () -> Unit) {
+    // Mostra snackbar esplicativa per permesso negato (non permanente)
+    fun showRationaleSnackbar(message: String) {
         scope.launch {
             snackbarHostState.showSnackbar(
                 message = message,
                 actionLabel = "OK",
-                duration = SnackbarDuration.Long
+                duration = SnackbarDuration.Short
             )
         }
-        onAction()
     }
 
+    // Mostra snackbar che invita ad andare nelle impostazioni (permesso negato permanentemente)
     fun showGoToSettingsSnackbar() {
         scope.launch {
             val result = snackbarHostState.showSnackbar(
@@ -99,30 +112,33 @@ fun PhotoProfileScreen(
         }
     }
 
+    // Gestisce il tap su "Galleria" in base allo stato del permesso
     fun handleGalleryClick() {
         when (galleryPermission.status) {
             PermissionStatus.Granted -> galleryLauncher.launch("image/*")
-            PermissionStatus.Denied -> showRationaleSnackbar(
-                "Permesso galleria necessario"
-            ) { galleryPermission.launchPermissionRequest() }
-
+            PermissionStatus.Denied -> {
+                showRationaleSnackbar("Permesso galleria necessario per selezionare un'immagine")
+                galleryPermission.launchPermissionRequest()
+            }
             PermissionStatus.Unknown -> galleryPermission.launchPermissionRequest()
             PermissionStatus.PermanentlyDenied -> showGoToSettingsSnackbar()
         }
     }
 
+    // Gestisce il tap su "Fotocamera" in base allo stato del permesso
     fun handleCameraClick() {
         when (cameraPermission.status) {
             PermissionStatus.Granted -> cameraLauncher.captureImage()
-            PermissionStatus.Denied -> showRationaleSnackbar(
-                "Permesso fotocamera necessario"
-            ) { cameraPermission.launchPermissionRequest() }
-
+            PermissionStatus.Denied -> {
+                showRationaleSnackbar("Permesso fotocamera necessario per scattare una foto")
+                cameraPermission.launchPermissionRequest()
+            }
             PermissionStatus.Unknown -> cameraPermission.launchPermissionRequest()
             PermissionStatus.PermanentlyDenied -> showGoToSettingsSnackbar()
         }
     }
 
+    // Carica l'immagine su Cloudinary e salva l'URL su Firestore
     fun uploadProfileImage() {
         val uri = selectedImageUri ?: return
         isLoading = true
@@ -130,23 +146,20 @@ fun PhotoProfileScreen(
         profileViewModel.uploadProfileImage(
             imageUri = uri,
             onSuccess = { imageUrl ->
-
                 profileViewModel.saveProfileImageUrl(
                     userId = userId,
                     imageUrl = imageUrl,
                     onSuccess = {
                         isLoading = false
-
-                        Toast.makeText(
+                        // Feedback utente (Toast breve, può essere sostituito con Snackbar)
+                        android.widget.Toast.makeText(
                             context,
-                            if (isRegistration)
-                                "Registrazione completata!"
-                            else
-                                "Foto aggiornata!",
-                            Toast.LENGTH_LONG
+                            if (isRegistration) "Registrazione completata!" else "Foto aggiornata!",
+                            android.widget.Toast.LENGTH_LONG
                         ).show()
 
                         if (isRegistration) {
+                            // Durante la registrazione, effettua il logout per evitare dati inconsistenti
                             profileViewModel.logout()
                             navController.navigate(Screens.LoginScreen.route) {
                                 popUpTo(navController.graph.startDestinationId) {
@@ -160,13 +173,13 @@ fun PhotoProfileScreen(
                     },
                     onFailure = { error ->
                         isLoading = false
-                        Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
                     }
                 )
             },
             onFailure = { error ->
                 isLoading = false
-                Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
             }
         )
     }
@@ -174,7 +187,6 @@ fun PhotoProfileScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -183,18 +195,16 @@ fun PhotoProfileScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-
+            // Titolo dinamico
             Text(
-                text = if (isRegistration)
-                    "Scegli foto profilo"
-                else
-                    "Cambia foto profilo",
+                text = if (isRegistration) "Scegli foto profilo" else "Cambia foto profilo",
                 fontSize = 22.sp,
                 style = MaterialTheme.typography.titleMedium
             )
 
             Spacer(Modifier.height(32.dp))
 
+            // Anteprima immagine profilo (circolare)
             Card(
                 shape = CircleShape,
                 elevation = CardDefaults.cardElevation(6.dp),
@@ -210,13 +220,13 @@ fun PhotoProfileScreen(
                                 .data(selectedImageUri)
                                 .crossfade(true)
                                 .build(),
-                            contentDescription = "Foto profilo",
+                            contentDescription = "Anteprima foto profilo",
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Default.Person,
-                            contentDescription = null,
+                            contentDescription = "Icona profilo predefinita",
                             modifier = Modifier.size(64.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -226,30 +236,33 @@ fun PhotoProfileScreen(
 
             Spacer(Modifier.height(32.dp))
 
+            // Stato: nessuna immagine selezionata
             if (selectedImageUri == null) {
-
+                // Pulsante galleria
                 Button(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { handleGalleryClick() }
                 ) {
-                    Icon(Icons.Default.PhotoLibrary, null)
+                    Icon(Icons.Default.PhotoLibrary, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text("Galleria")
                 }
 
                 Spacer(Modifier.height(12.dp))
 
+                // Pulsante fotocamera
                 OutlinedButton(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { handleCameraClick() }
                 ) {
-                    Icon(Icons.Default.PhotoCamera, null)
+                    Icon(Icons.Default.PhotoCamera, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text("Fotocamera")
                 }
 
                 Spacer(Modifier.height(24.dp))
 
+                // Pulsante Salta / Annulla
                 TextButton(
                     onClick = {
                         if (isRegistration) {
@@ -266,9 +279,8 @@ fun PhotoProfileScreen(
                 ) {
                     Text(if (isRegistration) "Salta" else "Annulla")
                 }
-
             } else {
-
+                // Stato: immagine selezionata, attesa upload
                 if (isLoading) {
                     CircularProgressIndicator()
                     Spacer(Modifier.height(16.dp))

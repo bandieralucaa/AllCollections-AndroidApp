@@ -38,7 +38,12 @@ import java.util.concurrent.CancellationException
  * Espone lo stato UI tramite [StateFlow] e gli eventi one-shot (eliminazione,
  * errori) tramite [SharedFlow] per evitare che vengano riosservati
  * alla ricomposizione.
+ *
+ * @see CollectionUiState
+ * @see CreateCollectionState
+ * @see CollectionEvent
  */
+@Suppress("TooManyFunctions")
 class CollectionViewModel : ViewModel() {
 
     private val db: FirebaseFirestore = Firebase.firestore
@@ -57,6 +62,10 @@ class CollectionViewModel : ViewModel() {
     }
 
     private val _events = MutableSharedFlow<CollectionEvent>()
+    /**
+     * Flusso di eventi one-shot per la UI.
+     * Usare [SharedFlow] per evitare la riemissione su configurazione change.
+     */
     val events: SharedFlow<CollectionEvent> = _events.asSharedFlow()
 
     /** Handler globale per eccezioni non gestite nei coroutine del ViewModel. */
@@ -67,21 +76,26 @@ class CollectionViewModel : ViewModel() {
     }
 
     private val _uiState = MutableStateFlow(CollectionUiState())
-
-    /** Stato UI per le schermate collezioni (loading, error, lista collections e items). */
+    /**
+     * Stato UI per le schermate collezioni (loading, error, lista collections e items).
+     */
     val uiState: StateFlow<CollectionUiState> = _uiState.asStateFlow()
 
     private val _createCollectionState = MutableStateFlow(CreateCollectionState())
-
-    /** Stato UI per il flusso di creazione di una nuova collezione. */
+    /**
+     * Stato UI per il flusso di creazione di una nuova collezione.
+     */
     val createCollectionState: StateFlow<CreateCollectionState> = _createCollectionState.asStateFlow()
 
     // ────────── COLLECTIONS ──────────
 
     /**
-     * Carica tutte le collezioni dell'utente [userId] da Firestore.
+     * Carica tutte le collezioni di un utente da Firestore.
+     *
+     * Aggiorna [uiState] con la lista delle collezioni.
      *
      * @param userId ID dell'utente di cui caricare le collezioni.
+     * @see loadUserCollections
      */
     fun loadUserCollections(userId: String) = viewModelScope.launch(exceptionHandler) {
         _uiState.update { it.copy(isLoading = true, error = null) }
@@ -100,9 +114,9 @@ class CollectionViewModel : ViewModel() {
      * Al successo aggiorna [createCollectionState] con l'ID della collezione creata,
      * triggerando la navigazione alla schermata di aggiunta immagine.
      *
-     * @param name Nome della collezione.
-     * @param category Categoria della collezione.
-     * @param description Descrizione della collezione (opzionale).
+     * @param name Nome della collezione (obbligatorio, non vuoto).
+     * @param category Categoria della collezione (es. "Fumetti", "Monete").
+     * @param description Descrizione della collezione (opzionale, può essere vuota).
      */
     fun saveCollection(name: String, category: String, description: String) = viewModelScope.launch(exceptionHandler) {
         val userId = auth.currentUser?.uid ?: run {
@@ -122,6 +136,7 @@ class CollectionViewModel : ViewModel() {
             )
             val result = db.collection("collections").add(collectionData).await()
             _createCollectionState.update { it.copy(isLoading = false, createdCollectionId = result.id) }
+            // Ricarica la lista delle collezioni dell'utente
             launch { loadUserCollections(userId) }
         } catch (e: Exception) {
             _createCollectionState.update { it.copy(isLoading = false, error = "Errore salvataggio collezione: ${e.message}") }
@@ -209,6 +224,7 @@ class CollectionViewModel : ViewModel() {
      * e poi cancellata fisicamente da Firestore su un dispatcher IO.
      *
      * @param collectionId ID della collezione da eliminare.
+     * @see CollectionEvent.CollectionDeleted evento emesso al successo.
      */
     fun deleteCollection(collectionId: String) = viewModelScope.launch(exceptionHandler) {
         launch {
@@ -285,7 +301,12 @@ class CollectionViewModel : ViewModel() {
         }
     }
 
-    /** Recupera lo username di un utente in modo sospeso (per uso interno). */
+    /**
+     * Recupera lo username di un utente in modo sospeso (uso interno).
+     *
+     * @param userId ID dell'utente.
+     * @return Username o "Utente" come fallback.
+     */
     private suspend fun getUsernameByIdSync(userId: String): String {
         return try {
             val doc = db.collection("users").document(userId).get().await()
@@ -333,6 +354,10 @@ class CollectionViewModel : ViewModel() {
     /**
      * Invia notifiche push a tutti gli utenti che hanno messo like alla collezione.
      * Esclude l'utente corrente.
+     *
+     * @param collectionId ID della collezione.
+     * @param collectionName Nome della collezione.
+     * @param notificationViewModel ViewModel per inviare le notifiche.
      */
     private fun notifyLikers(
         collectionId: String,
@@ -579,7 +604,7 @@ class CollectionViewModel : ViewModel() {
     /**
      * Aggiunge un commento alla collezione e invia una notifica al proprietario.
      *
-     * @param comment Commento da aggiungere (con [Comment.itemId] vuoto).
+     * @param comment Commento da aggiungere (con [Comment.itemId] vuoto o null).
      * @param notificationViewModel ViewModel per inviare la notifica al proprietario.
      */
     fun addComment(comment: Comment, notificationViewModel: NotificationViewModel) {
@@ -714,7 +739,7 @@ class CollectionViewModel : ViewModel() {
     }.flowOn(Dispatchers.IO)
 
     /**
-     * Recupera lo username di un utente dato il suo ID.
+     * Recupera lo username di un utente dato il suo ID (callback asincrona).
      *
      * @param userId ID dell'utente.
      * @param onResult Callback con lo username trovato, o `"Utente"` come fallback.

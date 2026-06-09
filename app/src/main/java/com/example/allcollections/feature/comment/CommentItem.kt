@@ -21,12 +21,20 @@ import com.example.allcollections.data.model.Comment
 import com.google.firebase.auth.FirebaseAuth
 
 /**
- * Composable per la visualizzazione di un singolo commento.
+ * Componente per la visualizzazione di un singolo commento.
  *
- * Mostra foto profilo, username e testo del commento. Se il commento
- * appartiene all'utente corrente mostra un menu contestuale per
- * modificarlo o eliminarlo. Il tap su foto e username naviga al
- * profilo dell'autore.
+ * Mostra:
+ * - Foto profilo dell'autore (cliccabile per navigare al profilo)
+ * - Username (cliccabile per navigare al profilo)
+ * - Testo del commento
+ * - Menu contestuale (modifica/elimina) se il commento appartiene all'utente corrente
+ *
+ * @param comment Il commento da visualizzare.
+ * @param username Nome utente dell'autore (se null, mostra l'userId come fallback).
+ * @param photoUrl URL della foto profilo dell'autore (opzionale).
+ * @param navController Controller per la navigazione.
+ * @param onDelete Callback opzionale per eliminare il commento.
+ * @param onEdit Callback opzionale per modificare il commento.
  */
 @Composable
 fun CommentItem(
@@ -47,6 +55,7 @@ fun CommentItem(
             .padding(vertical = 8.dp),
         verticalAlignment = androidx.compose.ui.Alignment.Top
     ) {
+        // Foto profilo (cliccabile)
         AsyncImage(
             model = photoUrl,
             contentDescription = "Foto profilo",
@@ -65,6 +74,7 @@ fun CommentItem(
 
         Spacer(modifier = Modifier.width(12.dp))
 
+        // Contenuto testuale: username + commento
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = if (currentUserId == comment.userId) "Tu" else (username ?: comment.userId),
@@ -76,6 +86,7 @@ fun CommentItem(
                 },
                 modifier = Modifier.clickable {
                     if (isMyComment) {
+                        // Naviga al proprio profilo con reset della back stack per evitare loop
                         navController.navigate(Screens.ProfileScreen.route) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
@@ -96,6 +107,7 @@ fun CommentItem(
             )
         }
 
+        // Menu contestuale (solo per i commenti dell'utente corrente e se ci sono callback)
         if (isMyComment && (onDelete != null || onEdit != null)) {
             Box {
                 IconButton(
@@ -104,7 +116,7 @@ fun CommentItem(
                 ) {
                     Icon(
                         Icons.Default.MoreVert,
-                        contentDescription = "Opzioni",
+                        contentDescription = "Opzioni commento",
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -116,14 +128,20 @@ fun CommentItem(
                         DropdownMenuItem(
                             text = { Text("Modifica") },
                             onClick = { showMenu = false; it(comment) },
-                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = "Modifica commento") }
                         )
                     }
                     onDelete?.let {
                         DropdownMenuItem(
                             text = { Text("Elimina", color = MaterialTheme.colorScheme.error) },
                             onClick = { showMenu = false; it(comment) },
-                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Elimina commento",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
                         )
                     }
                 }

@@ -5,12 +5,15 @@ import com.google.firebase.Timestamp
 /**
  * Modello dati per un messaggio in una conversazione privata 1-1.
  *
- * @property id ID univoco del documento Firestore.
+ * Utilizzato nella funzionalità di chat in tempo reale. I messaggi sono archiviati
+ * come sottocollezione di ogni documento chat in Firestore.
+ *
+ * @property id ID univoco del documento Firestore (vuoto prima del salvataggio).
  * @property senderId ID dell'utente che ha inviato il messaggio.
  * @property receiverId ID dell'utente destinatario.
  * @property text Contenuto testuale del messaggio.
  * @property timestamp Data e ora di invio (Firebase Timestamp).
- * @property read `true` se il destinatario ha già letto il messaggio.
+ * @property read `true` se il destinatario ha già letto il messaggio (usato per badge non letti).
  */
 data class ChatMessage(
     val id: String = "",
@@ -21,12 +24,12 @@ data class ChatMessage(
     val read: Boolean = false
 ) {
     companion object {
-
         /**
          * Crea un nuovo messaggio pronto per il salvataggio su Firestore.
          *
-         * Il campo [id] viene lasciato vuoto perché sarà assegnato da Firestore al momento
-         * della scrittura. Il messaggio viene creato come non letto ([read] = `false`).
+         * Il campo [id] viene lasciato vuoto perché sarà assegnato automaticamente
+         * da Firestore al momento dell'inserimento. Il messaggio viene creato
+         * come non letto ([read] = `false`).
          *
          * @param senderId ID dell'utente mittente.
          * @param receiverId ID dell'utente destinatario.

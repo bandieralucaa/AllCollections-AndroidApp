@@ -6,12 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,25 +22,30 @@ import com.example.allcollections.data.model.Comment
 import com.example.allcollections.feature.comment.CommentItem
 
 /**
- * Card di un singolo oggetto all'interno del carosello della collezione.
+ * Card di un singolo oggetto all'interno del carosello della collezione (ItemsCarousel).
  *
- * Mostra l'immagine dell'oggetto (cliccabile per la visualizzazione fullscreen),
- * la sua descrizione e la sezione commenti dedicata all'oggetto.
- * Se l'utente è il proprietario mostra i pulsanti per modificare ed eliminare.
+ * Mostra:
+ * - Immagine dell'oggetto (cliccabile per fullscreen)
+ * - Descrizione testuale
+ * - Pulsanti "Modifica" ed "Elimina" (visibili solo per il proprietario della collezione)
+ * - Sezione commenti dedicata all'oggetto (espandibile/collassabile)
+ * - Campo per aggiungere un nuovo commento (solo se l'utente è autenticato)
+ *
+ * I commenti dell'oggetto sono gestiti separatamente dai commenti della collezione.
  *
  * @param item Oggetto della collezione da visualizzare.
  * @param isOwner Indica se l'utente corrente è il proprietario della collezione.
- * @param onEdit Callback invocato quando si preme il pulsante di modifica.
- * @param onDelete Callback invocato quando si preme il pulsante di eliminazione.
- * @param onImageClick Callback invocato con l'URL dell'immagine per la visualizzazione fullscreen.
+ * @param onEdit Callback per la modifica dell'oggetto.
+ * @param onDelete Callback per l'eliminazione dell'oggetto.
+ * @param onImageClick Callback per visualizzare l'immagine in fullscreen (riceve URL).
  * @param itemComments Lista dei commenti relativi a questo oggetto.
- * @param usernames Mappa userId → username per la visualizzazione dei commenti.
- * @param userPhotos Mappa userId → URL foto profilo per la visualizzazione dei commenti.
- * @param currentUserId ID dell'utente attualmente loggato, null se non autenticato.
- * @param onAddItemComment Callback invocato con il testo del nuovo commento da aggiungere.
- * @param onDeleteItemComment Callback invocato con il commento da eliminare.
- * @param onEditItemComment Callback invocato con il commento da modificare e il nuovo testo.
- * @param navController NavController per la navigazione ai profili utente dai commenti.
+ * @param usernames Mappa `userId -> username` per visualizzare l'autore dei commenti.
+ * @param userPhotos Mappa `userId -> URL foto profilo` per i commenti.
+ * @param currentUserId ID dell'utente corrente (se null, il campo commento non è visibile).
+ * @param onAddItemComment Callback per aggiungere un commento all'oggetto (riceve testo).
+ * @param onDeleteItemComment Callback per eliminare un commento (riceve il commento).
+ * @param onEditItemComment Callback per modificare un commento (riceve commento e nuovo testo).
+ * @param navController Controller per navigazione ai profili pubblici dai commenti.
  */
 @Composable
 fun CarouselItemCard(
@@ -69,7 +69,7 @@ fun CarouselItemCard(
     var commentToEdit by remember { mutableStateOf<Comment?>(null) }
     var editText by remember { mutableStateOf("") }
 
-    // ─────────── Dialog eliminazione commento ───────────
+    // Dialog di conferma eliminazione commento
     commentToDelete?.let { comment ->
         AlertDialog(
             onDismissRequest = { commentToDelete = null },
@@ -89,7 +89,7 @@ fun CarouselItemCard(
         )
     }
 
-    // ─────────── Dialog modifica commento ───────────
+    // Dialog di modifica commento
     commentToEdit?.let { comment ->
         AlertDialog(
             onDismissRequest = { commentToEdit = null },
@@ -125,8 +125,7 @@ fun CarouselItemCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column {
-
-            // ─────────── Immagine ───────────
+            // Immagine dell'oggetto (o placeholder)
             if (item.imageUrl.isNotBlank()) {
                 AsyncImage(
                     model = item.imageUrl,
@@ -156,8 +155,7 @@ fun CarouselItemCard(
             }
 
             Column(modifier = Modifier.padding(16.dp)) {
-
-                // ─────────── Descrizione ───────────
+                // Descrizione dell'oggetto
                 if (item.description.isNotBlank()) {
                     Text(
                         text = item.description,
@@ -173,7 +171,7 @@ fun CarouselItemCard(
                     )
                 }
 
-                // ─────────── Pulsanti Owner ───────────
+                // Pulsanti Modifica/Elimina (solo per il proprietario)
                 if (isOwner) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(
@@ -187,7 +185,7 @@ fun CarouselItemCard(
                         ) {
                             Icon(
                                 Icons.Default.Edit,
-                                contentDescription = null,
+                                contentDescription = "Modifica oggetto",
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -203,7 +201,7 @@ fun CarouselItemCard(
                         ) {
                             Icon(
                                 Icons.Default.Delete,
-                                contentDescription = null,
+                                contentDescription = "Elimina oggetto",
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -216,7 +214,7 @@ fun CarouselItemCard(
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // ─────────── Header commenti oggetto ───────────
+                // Header commenti oggetto (espandibile/collassabile)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -231,15 +229,14 @@ fun CarouselItemCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Icon(
-                        imageVector = if (showItemComments)
-                            Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        imageVector = if (showItemComments) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                         contentDescription = if (showItemComments) "Comprimi" else "Espandi",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
                 }
 
-                // ─────────── Lista commenti oggetto ───────────
+                // Lista commenti oggetto
                 if (showItemComments) {
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -280,7 +277,7 @@ fun CarouselItemCard(
                         }
                     }
 
-                    // ─────────── Campo nuovo commento ───────────
+                    // Campo per aggiungere un nuovo commento (solo se autenticato)
                     if (currentUserId != null) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(

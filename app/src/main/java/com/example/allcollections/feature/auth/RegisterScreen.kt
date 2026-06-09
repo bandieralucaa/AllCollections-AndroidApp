@@ -23,20 +23,32 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 /**
- * Schermata di registrazione.
+ * Schermata di registrazione nuovo utente.
  *
- * Raccoglie i dati dell'utente (nome, cognome, genere, data di nascita,
- * email, username e password) ed esegue le seguenti validazioni:
- * - Campi obbligatori non vuoti
- * - Età minima 18 anni
- * - Corrispondenza tra password e conferma password
- * - Unicità dello username su Firestore (query asincrona)
+ * Raccoglie tutti i dati necessari per la creazione di un account:
+ * - Nome, cognome, genere, data di nascita
+ * - Email, username, password (con conferma)
  *
- * Al successo crea l'account su Firebase Authentication, salva i dati
- * su Firestore e invia l'email di verifica, quindi naviga a [VerifyEmailScreen].
+### Validazioni eseguite (in ordine)
+ * 1. **Campi obbligatori** – nessuno deve essere vuoto.
+ * 2. **Età minima** – l'utente deve avere almeno 18 anni (confronto con data odierna).
+ * 3. **Password corrispondente** – `password` e `confirmPassword` devono coincidere.
+ * 4. **Unicità username** – verifica asincrona su Firestore tramite [ProfileViewModel.isUsernameTaken].
+ *
+### Flusso di registrazione
+ * - Creazione account su Firebase Authentication tramite [ProfileViewModel.registerUser].
+ * - Salvataggio dati profilo su Firestore ([ProfileViewModel.saveUserData]).
+ * - Invio email di verifica ([ProfileViewModel.sendEmailVerification]).
+ * - Navigazione a [VerifyEmailScreen] con reset della back stack.
+ *
+ * In caso di errore in qualsiasi fase, viene mostrato un messaggio tramite snackbar.
  *
  * @param navController Controller per la navigazione tra schermate.
- * @param profileViewModel ViewModel usato per registrazione, salvataggio dati e verifica username.
+ * @param profileViewModel ViewModel per operazioni di registrazione e verifica username.
+ *
+ * @see ProfileViewModel
+ * @see DatePickerField
+ * @see GenderSelector
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,7 +57,7 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    // ─────────── Campi utente ───────────
+    // Stato dei campi del modulo
     var name by remember { mutableStateOf("") }
     var surname by remember { mutableStateOf("") }
     var dateOfBirth by remember { mutableStateOf(LocalDate.now()) }
@@ -62,8 +74,8 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
     var isRegistering by remember { mutableStateOf(false) }
 
     /**
-     * Aggiorna [passwordsMatch] al cambio di uno dei due campi password
-     * e mostra l'errore solo se l'utente ha già scritto nella conferma.
+     * Aggiorna lo stato di corrispondenza delle password e mostra l'errore
+     * solo se l'utente ha già iniziato a scrivere nella conferma.
      */
     fun updatePasswordsMatch() {
         passwordsMatch = password == confirmPassword
@@ -92,7 +104,7 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
             ) {
                 val textFieldWidth = Modifier.fillMaxWidth(0.85f)
 
-                // ─────────── Nome e Cognome ───────────
+                // Nome e Cognome
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -110,12 +122,12 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                 )
 
-                // ─────────── Genere ───────────
+                // Genere (dropdown)
                 GenderSelector(selectedGender = gender, modifier = textFieldWidth) {
                     gender = it
                 }
 
-                // ─────────── Data di nascita ───────────
+                // Data di nascita (DatePicker)
                 DatePickerField(
                     selectedDate = dateOfBirth,
                     modifier = textFieldWidth,
@@ -133,7 +145,7 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                     )
                 }
 
-                // ─────────── Email ───────────
+                // Email
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
@@ -146,7 +158,7 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                     )
                 )
 
-                // ─────────── Username ───────────
+                // Username
                 OutlinedTextField(
                     value = username,
                     onValueChange = { username = it },
@@ -156,7 +168,7 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                 )
 
-                // ─────────── Password ───────────
+                // Password (con toggle visibilità)
                 OutlinedTextField(
                     value = password,
                     onValueChange = {
@@ -182,7 +194,7 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                     isError = showPasswordError
                 )
 
-                // ─────────── Conferma Password ───────────
+                // Conferma password (con toggle visibilità)
                 OutlinedTextField(
                     value = confirmPassword,
                     onValueChange = {
@@ -219,7 +231,7 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // ─────────── Bottone Registrati ───────────
+                // Pulsante di registrazione (disabilitato durante l'operazione)
                 Button(
                     onClick = {
                         if (isRegistering) return@Button
@@ -284,7 +296,7 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                                                         snackbarHostState.showSnackbar("Errore invio verifica: $error")
                                                     }
                                                 }
-                                                // Naviga alla schermata verifica anche se l'invio fallisce
+                                                // Naviga alla schermata di verifica email
                                                 navController.navigate(Screens.VerifyEmailScreen.route) {
                                                     popUpTo(Screens.RegisterScreen.route) { inclusive = true }
                                                 }

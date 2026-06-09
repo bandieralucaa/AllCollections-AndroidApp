@@ -18,15 +18,20 @@ import com.example.allcollections.core.theme.ThemeMode
 import com.example.allcollections.core.theme.ThemeState
 
 /**
- * Schermata per la selezione del tema dell'app.
+ * Schermata per la selezione del tema dell'app (chiaro, scuro, sistema).
  *
- * Mostra i tre temi disponibili ([ThemeMode]) come radio button selezionabili.
- * Usa `selectableGroup` per l'accessibilità e rispetta la semantica corretta
- * per i screen reader con `Role.RadioButton`.
+ * Mostra i tre temi disponibili ([ThemeMode.Light], [ThemeMode.Dark], [ThemeMode.System])
+ * come radio button selezionabili. L'opzione attualmente attiva è evidenziata.
  *
- * @param state Stato corrente del tema con il valore attivo.
- * @param onThemeSelected Callback invocato quando l'utente seleziona un tema.
- * @param navController NavController per tornare indietro.
+ * Utilizza [selectableGroup] per l'accessibilità e rispetta la semantica corretta
+ * per i screen reader con [Role.RadioButton].
+ *
+ * @param state Stato corrente del tema (contiene il valore attivo).
+ * @param onThemeSelected Callback invocato quando l'utente seleziona un tema (salva su DataStore).
+ * @param navController Controller per la navigazione (usato per tornare indietro dalla top bar).
+ *
+ * @see ThemeMode
+ * @see ThemeState
  */
 @Composable
 fun ChooseTheme(
@@ -43,7 +48,7 @@ fun ChooseTheme(
     ) { innerPadding ->
         Column(
             modifier = Modifier
-                .selectableGroup()
+                .selectableGroup() // Raggruppa i radio button per accessibilità
                 .fillMaxSize()
                 .verticalScroll(scrollState)
                 .padding(innerPadding)
@@ -51,6 +56,7 @@ fun ChooseTheme(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Mostra un'opzione per ogni tema disponibile
             ThemeMode.entries.forEach { theme ->
                 Row(
                     modifier = Modifier
@@ -64,12 +70,14 @@ fun ChooseTheme(
                         .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Radio button (non cliccabile direttamente per non duplicare l'azione)
                     RadioButton(
                         selected = (theme == state.theme),
-                        onClick = null
+                        onClick = null // La selezione è gestita dalla Row
                     )
+                    // Descrizione del tema (es. "Chiaro", "Scuro", "Sistema")
                     Text(
-                        text = theme.toString(),
+                        text = theme.description,
                         style = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier.padding(start = 16.dp)
                     )

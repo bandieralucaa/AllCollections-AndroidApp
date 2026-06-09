@@ -20,10 +20,28 @@ import coil.compose.AsyncImage
 /**
  * Header della schermata di dettaglio collezione.
  *
- * Mostra la copertina con nome e categoria in overlay, le statistiche
- * (oggetti, commenti, like) e il bottone per aggiungere un oggetto.
- * Se l'utente è il proprietario mostra il menu contestuale per
- * modificare o eliminare la collezione.
+ * Questo componente visualizza la parte superiore della schermata [CollectionDetailScreen],
+ * includendo:
+ * - Immagine di copertina (o placeholder con gradiente e icona)
+ * - Overlay scuro per migliorare la leggibilità del testo
+ * - Nome e categoria della collezione in sovrimpressione
+ * - Statistiche (numero di oggetti, commenti, like) in alto a destra
+ * - Pulsante menu (solo owner) in alto a sinistra
+ * - Descrizione della collezione (se presente) in una card sottostante
+ * - Pulsante "Aggiungi oggetto" (solo owner)
+ *
+ * Il conteggio dei like è cliccabile solo per il proprietario, e apre il dialog
+ * con la lista degli utenti che hanno messo like.
+ *
+ * @param collection La collezione da visualizzare (nome, categoria, descrizione, immagine).
+ * @param itemsCount Numero di oggetti nella collezione.
+ * @param commentsCount Numero di commenti sulla collezione.
+ * @param likesCount Numero di like ricevuti dalla collezione.
+ * @param isOwner Se l'utente corrente è il proprietario (abilita menu e pulsante aggiungi oggetto).
+ * @param onAddObjectClick Callback per aggiungere un nuovo oggetto alla collezione.
+ * @param onImageClick Callback per visualizzare l'immagine di copertina in fullscreen.
+ * @param onMenuClick Callback per aprire il menu contestuale (modifica/elimina collezione).
+ * @param onLikesCountClick Callback per visualizzare la lista dei likers (solo owner). Default vuoto.
  */
 @Composable
 fun CollectionHeader(
@@ -38,22 +56,25 @@ fun CollectionHeader(
     onLikesCountClick: () -> Unit = {}
 ) {
     Column {
+        // ─────────── Banner superiore con immagine di copertina (o placeholder) ───────────
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(240.dp)
                 .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
         ) {
+            // Immagine di copertina (se disponibile)
             if (!collection.collectionImageUrl.isNullOrBlank()) {
                 AsyncImage(
                     model = collection.collectionImageUrl,
-                    contentDescription = null,
+                    contentDescription = "Immagine di copertina della collezione ${collection.name}",
                     modifier = Modifier
                         .fillMaxSize()
                         .clickable { collection.collectionImageUrl?.let { onImageClick(it) } },
                     contentScale = ContentScale.Crop
                 )
             } else {
+                // Placeholder con gradiente e icona
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -69,15 +90,17 @@ fun CollectionHeader(
                 ) {
                     Icon(
                         Icons.Default.Collections,
-                        contentDescription = null,
+                        contentDescription = "Icona placeholder collezione",
                         modifier = Modifier.size(80.dp),
                         tint = Color.White.copy(alpha = 0.5f)
                     )
                 }
             }
 
+            // Overlay scuro per migliorare la leggibilità del testo
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)))
 
+            // Nome e categoria in basso a sinistra
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -95,6 +118,7 @@ fun CollectionHeader(
                 )
             }
 
+            // Statistiche (oggetti, commenti, like) in alto a destra
             Row(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -104,30 +128,34 @@ fun CollectionHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Conteggio oggetti
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(Icons.Default.Collections, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                    Icon(Icons.Default.Collections, contentDescription = "Numero oggetti", modifier = Modifier.size(18.dp), tint = Color.White)
                     Text(text = itemsCount.toString(), color = Color.White, style = MaterialTheme.typography.labelLarge)
                 }
+                // Conteggio commenti
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                    Icon(Icons.Default.Chat, contentDescription = "Numero commenti", modifier = Modifier.size(18.dp), tint = Color.White)
                     Text(text = commentsCount.toString(), color = Color.White, style = MaterialTheme.typography.labelLarge)
                 }
+                // Conteggio like (cliccabile solo per owner)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = if (isOwner) Modifier.clickable { onLikesCountClick() } else Modifier
                 ) {
-                    Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                    Icon(Icons.Default.Favorite, contentDescription = "Numero like", modifier = Modifier.size(18.dp), tint = Color.White)
                     Text(text = likesCount.toString(), color = Color.White, style = MaterialTheme.typography.labelLarge)
                 }
             }
 
+            // Pulsante menu (solo owner) in alto a sinistra
             if (isOwner) {
                 Box(
                     modifier = Modifier
@@ -135,12 +163,13 @@ fun CollectionHeader(
                         .padding(16.dp)
                 ) {
                     IconButton(onClick = onMenuClick) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Opzioni", tint = Color.White)
+                        Icon(Icons.Default.MoreVert, contentDescription = "Opzioni collezione", tint = Color.White)
                     }
                 }
             }
         }
 
+        // ─────────── Card della descrizione (se presente) ───────────
         if (!collection.description.isNullOrBlank()) {
             Card(
                 modifier = Modifier
@@ -159,6 +188,7 @@ fun CollectionHeader(
             }
         }
 
+        // ─────────── Pulsante "Aggiungi oggetto" (solo owner) ───────────
         if (isOwner) {
             Button(
                 onClick = onAddObjectClick,
@@ -167,7 +197,7 @@ fun CollectionHeader(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Add, contentDescription = "Aggiungi oggetto", modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Aggiungi oggetto")
             }
