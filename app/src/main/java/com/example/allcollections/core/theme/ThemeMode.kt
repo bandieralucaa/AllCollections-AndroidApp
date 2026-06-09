@@ -33,9 +33,9 @@ enum class ThemeMode {
      */
     val description: String
         get() = when (this) {
-            Light -> "Tema chiaro per ambienti luminosi"
-            Dark -> "Tema scuro per ridurre l'affaticamento degli occhi"
-            System -> "Segue le impostazioni tema del tuo dispositivo"
+            Light -> "Tema chiaro"
+            Dark -> "Tema scuro"
+            System -> "Tema predefinito di sistema"
         }
 
     companion object {
