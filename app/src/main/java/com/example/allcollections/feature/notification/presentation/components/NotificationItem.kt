@@ -132,11 +132,14 @@ private fun NotificationAvatar(notification: Notification) {
         else -> MaterialTheme.colorScheme.primary
     }
 
+    // Salva il sender in una variabile locale per evitare problemi di smart cast
+    val sender = notification.sender
+
     // Se la notifica non è di sistema e il mittente ha una foto profilo, la mostra
-    if (!notification.isSystem && notification.sender?.profileImageUrl?.isNotBlank() == true) {
+    if (!notification.isSystem && sender?.profileImageUrl?.isNotBlank() == true) {
         AsyncImage(
-            model = notification.sender.profileImageUrl,
-            contentDescription = "Foto profilo di ${notification.sender?.username}",
+            model = sender.profileImageUrl,
+            contentDescription = "Foto profilo di ${sender.username}",
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape),
@@ -172,11 +175,14 @@ private fun NotificationAvatar(notification: Notification) {
  */
 @Composable
 private fun NotificationContent(notification: Notification) {
+    // Salva il sender in una variabile locale
+    val sender = notification.sender
+
     // Nome del mittente (formattato)
     val senderName = when {
         notification.isSystem -> "All Collections"
-        notification.sender?.username?.isNotBlank() == true -> "@${notification.sender.username}"
-        notification.sender?.name?.isNotBlank() == true -> "${notification.sender.name} ${notification.sender.surname}"
+        sender?.username?.isNotBlank() == true -> "@${sender.username}"
+        sender?.name?.isNotBlank() == true -> "${sender.name} ${sender.surname}"
         else -> "Utente"
     }
 

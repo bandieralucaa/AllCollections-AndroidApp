@@ -132,7 +132,6 @@ fun ProfileScreen(navController: NavController) {
                 else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(0.8f)
-                // TODO: aggiungere .clickable { navController.navigate(Screens.EditBioScreen.route) }
             )
 
             Spacer(Modifier.height(24.dp))

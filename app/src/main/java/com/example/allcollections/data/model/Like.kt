@@ -14,12 +14,15 @@ import com.google.firebase.firestore.PropertyName
  * @property timestamp Data e ora del like.
  */
 data class Like(
-    @get:PropertyName("userId") @set:PropertyName("userId")
+    @get:PropertyName("userId")
+    @set:PropertyName("userId")
     var userId: String = "",
 
-    @get:PropertyName("collectionId") @set:PropertyName("collectionId")
+    @get:PropertyName("collectionId")
+    @set:PropertyName("collectionId")
     var collectionId: String = "",
 
-    @get:PropertyName("timestamp") @set:PropertyName("timestamp")
+    @get:PropertyName("timestamp")
+    @set:PropertyName("timestamp")
     var timestamp: Timestamp = Timestamp.now()
 )
