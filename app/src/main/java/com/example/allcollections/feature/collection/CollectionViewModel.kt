@@ -10,9 +10,11 @@ import com.example.allcollections.data.model.CollectionItem
 import com.example.allcollections.data.model.CollectionUiState
 import com.example.allcollections.data.model.Comment
 import com.example.allcollections.data.model.CreateCollectionState
+import com.example.allcollections.data.model.Like
 import com.example.allcollections.data.model.UserCollection
 import com.example.allcollections.data.model.UserData
 import com.example.allcollections.feature.notification.presentation.NotificationViewModel
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -768,13 +770,16 @@ class CollectionViewModel : ViewModel() {
      * @param collectionId ID della collezione.
      * @param notificationViewModel ViewModel per la notifica al proprietario.
      */
-    fun likeCollection(collectionId: String, notificationViewModel: NotificationViewModel) = viewModelScope.launch(exceptionHandler) {
+    fun likeCollection(collectionId: String, notificationViewModel: NotificationViewModel) = viewModelScope.launch {
         val currentUid = auth.currentUser?.uid ?: return@launch
         val docId = "${currentUid}_$collectionId"
+        val like = Like(
+            userId = currentUid,
+            collectionId = collectionId,
+            timestamp = Timestamp.now()
+        )
         try {
-            db.collection("likes").document(docId).set(
-                mapOf("userId" to currentUid, "collectionId" to collectionId, "timestamp" to FieldValue.serverTimestamp())
-            ).await()
+            db.collection("likes").document(docId).set(like).await()
             val collDoc = db.collection("collections").document(collectionId).get().await()
             val recipientId = collDoc.getString("iduser")
             val collectionName = collDoc.getString("name") ?: ""
@@ -795,7 +800,7 @@ class CollectionViewModel : ViewModel() {
      *
      * @param collectionId ID della collezione da cui rimuovere il like.
      */
-    fun unlikeCollection(collectionId: String) = viewModelScope.launch(exceptionHandler) {
+    fun unlikeCollection(collectionId: String) = viewModelScope.launch {
         val currentUid = auth.currentUser?.uid ?: return@launch
         val docId = "${currentUid}_$collectionId"
         try {
@@ -840,7 +845,8 @@ class CollectionViewModel : ViewModel() {
         val currentUid = auth.currentUser?.uid ?: run { onSuccess(emptyList()); return@launch }
         try {
             val likesSnapshot = db.collection("likes").whereEqualTo("userId", currentUid).get().await()
-            val collectionIds = likesSnapshot.documents.mapNotNull { it.getString("collectionId") }
+            val likes = likesSnapshot.documents.mapNotNull { it.toObject(Like::class.java) }
+            val collectionIds = likes.map { it.collectionId }
             if (collectionIds.isEmpty()) { onSuccess(emptyList()); return@launch }
             val collections = collectionIds.mapNotNull { collectionId ->
                 val doc = db.collection("collections").document(collectionId).get().await()
@@ -864,8 +870,10 @@ class CollectionViewModel : ViewModel() {
         try {
             val likesSnapshot = db.collection("likes")
                 .whereEqualTo("collectionId", collectionId)
-                .get().await()
-            val userIds = likesSnapshot.documents.mapNotNull { it.getString("userId") }
+                .get()
+                .await()
+            val likes = likesSnapshot.documents.mapNotNull { it.toObject(Like::class.java) }
+            val userIds = likes.map { it.userId }
             if (userIds.isEmpty()) { onSuccess(emptyList()); return@launch }
             val users = userIds.mapNotNull { userId ->
                 val doc = db.collection("users").document(userId).get().await()

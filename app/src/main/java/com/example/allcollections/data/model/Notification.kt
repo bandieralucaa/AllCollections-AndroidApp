@@ -2,6 +2,7 @@ package com.example.allcollections.data.model
 
 import com.example.allcollections.core.utils.time.formatRelativeTime
 import com.example.allcollections.feature.notification.domain.NotificationType
+import com.google.firebase.firestore.PropertyName
 import java.util.Date
 
 /**
@@ -21,14 +22,37 @@ import java.util.Date
  * @property sender Dati dell'utente mittente; `null` per notifiche di sistema o se non ancora caricato.
  */
 data class Notification(
-    val id: String = "",
-    val recipientId: String = "",
-    val senderId: String = "",
-    val type: NotificationType = NotificationType.GENERAL,
-    val timestamp: Date = Date(),
-    val read: Boolean = false,
-    val data: NotificationPayload = NotificationPayload(),
-    val sender: UserData? = null
+    @get:PropertyName("id")
+    @set:PropertyName("id")
+    var id: String = "",
+
+    @get:PropertyName("recipientId")
+    @set:PropertyName("recipientId")
+    var recipientId: String = "",
+
+    @get:PropertyName("senderId")
+    @set:PropertyName("senderId")
+    var senderId: String = "",
+
+    @get:PropertyName("type")
+    @set:PropertyName("type")
+    var type: NotificationType = NotificationType.GENERAL,
+
+    @get:PropertyName("timestamp")
+    @set:PropertyName("timestamp")
+    var timestamp: Date = Date(),
+
+    @get:PropertyName("read")
+    @set:PropertyName("read")
+    var read: Boolean = false,
+
+    @get:PropertyName("data")
+    @set:PropertyName("data")
+    var data: NotificationPayload = NotificationPayload(),
+
+    @get:PropertyName("sender")
+    @set:PropertyName("sender")
+    var sender: UserData? = null
 ) {
     /** `true` se la notifica è di sistema (es. notifica di benvenuto), `false` se generata da un utente. */
     val isSystem: Boolean get() = senderId == "system"

@@ -1,5 +1,6 @@
 package com.example.allcollections.data.model
 
+import com.google.firebase.firestore.PropertyName
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
 
@@ -28,15 +29,41 @@ import java.time.format.DateTimeParseException
  * @see dateOfBirthAsLocalDate per la conversione a [LocalDate]
  */
 data class UserData(
-    val userId: String = "",
-    val name: String = "",
-    val surname: String = "",
-    val dateOfBirth: String = "",
-    val email: String = "",
-    val gender: String = "",
-    val username: String = "",
-    val profileImageUrl: String = "",
-    val bio: String = ""
+    @get:PropertyName("userId")
+    @set:PropertyName("userId")
+    var userId: String = "",
+
+    @get:PropertyName("name")
+    @set:PropertyName("name")
+    var name: String = "",
+
+    @get:PropertyName("surname")
+    @set:PropertyName("surname")
+    var surname: String = "",
+
+    @get:PropertyName("dateOfBirth")
+    @set:PropertyName("dateOfBirth")
+    var dateOfBirth: String = "",
+
+    @get:PropertyName("email")
+    @set:PropertyName("email")
+    var email: String = "",
+
+    @get:PropertyName("gender")
+    @set:PropertyName("gender")
+    var gender: String = "",
+
+    @get:PropertyName("username")
+    @set:PropertyName("username")
+    var username: String = "",
+
+    @get:PropertyName("profileImageUrl")
+    @set:PropertyName("profileImageUrl")
+    var profileImageUrl: String = "",
+
+    @get:PropertyName("bio")
+    @set:PropertyName("bio")
+    var bio: String = ""
 ) {
     /**
      * Rappresentazione calendariale della data di nascita.

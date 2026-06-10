@@ -9,8 +9,10 @@ import androidx.lifecycle.viewModelScope
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
+import com.example.allcollections.data.model.Follow
 import com.example.allcollections.data.model.FollowUser
 import com.example.allcollections.data.model.UserData
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -493,20 +495,19 @@ class ProfileViewModel : ViewModel() {
 
     /**
      * Fa sì che l'utente [followerId] segua l'utente [followedId].
-     *
      * @param followerId ID di chi segue.
      * @param followedId ID di chi viene seguito.
      * @param onResult Callback con esito (true = successo).
      */
     fun followUser(followerId: String, followedId: String, onResult: (Boolean) -> Unit) {
         val docId = "${followerId}_$followedId"
-        val data = mapOf(
-            FIELD_FOLLOWER_ID to followerId,
-            FIELD_FOLLOWED_ID to followedId
+        val follow = Follow(
+            followerId = followerId,
+            followedId = followedId,
+            timestamp = Timestamp.now()
         )
-
         db.collection(FOLLOWS).document(docId)
-            .set(data)
+            .set(follow)
             .addOnSuccessListener { onResult(true) }
             .addOnFailureListener { onResult(false) }
     }
@@ -542,8 +543,9 @@ class ProfileViewModel : ViewModel() {
                     _isLoadingFollowers.value = false
                     return@addSnapshotListener
                 }
-                val list = docs?.documents?.mapNotNull { it.getString(FIELD_FOLLOWER_ID) } ?: emptyList()
-                loadUsersDetails(list) { users ->
+                val follows = docs?.documents?.mapNotNull { it.toObject(Follow::class.java) } ?: emptyList()
+                val followerIds = follows.map { it.followerId }
+                loadUsersDetails(followerIds) { users ->
                     _followersList.value = users
                     _isLoadingFollowers.value = false
                 }
@@ -566,8 +568,9 @@ class ProfileViewModel : ViewModel() {
                     _isLoadingFollowing.value = false
                     return@addSnapshotListener
                 }
-                val list = docs?.documents?.mapNotNull { it.getString(FIELD_FOLLOWED_ID) } ?: emptyList()
-                loadUsersDetails(list) { users ->
+                val follows = docs?.documents?.mapNotNull { it.toObject(Follow::class.java) } ?: emptyList()
+                val followedIds = follows.map { it.followedId }
+                loadUsersDetails(followedIds) { users ->
                     _followingList.value = users
                     _isLoadingFollowing.value = false
                 }
@@ -631,7 +634,6 @@ class ProfileViewModel : ViewModel() {
 
     /**
      * Recupera la lista degli ID degli utenti seguiti dall'utente corrente.
-     *
      * @param onResult Callback con lista di ID.
      */
     fun getFollowedUserIds(onResult: (List<String>) -> Unit) {
@@ -639,17 +641,15 @@ class ProfileViewModel : ViewModel() {
             onResult(emptyList())
             return
         }
-
         db.collection(FOLLOWS)
             .whereEqualTo(FIELD_FOLLOWER_ID, currentUserId)
             .get()
             .addOnSuccessListener { docs ->
-                val followedIds = docs.documents.mapNotNull { it.getString(FIELD_FOLLOWED_ID) }
+                val follows = docs.documents.mapNotNull { it.toObject(Follow::class.java) }
+                val followedIds = follows.map { it.followedId }
                 onResult(followedIds)
             }
-            .addOnFailureListener {
-                onResult(emptyList())
-            }
+            .addOnFailureListener { onResult(emptyList()) }
     }
 
     /**
@@ -662,12 +662,8 @@ class ProfileViewModel : ViewModel() {
         db.collection(FOLLOWS)
             .whereEqualTo(FIELD_FOLLOWED_ID, userId)
             .get()
-            .addOnSuccessListener { docs ->
-                onResult(docs.size())
-            }
-            .addOnFailureListener {
-                onResult(0)
-            }
+            .addOnSuccessListener { docs -> onResult(docs.size()) }
+            .addOnFailureListener { onResult(0) }
     }
 
     /**
@@ -680,12 +676,8 @@ class ProfileViewModel : ViewModel() {
         db.collection(FOLLOWS)
             .whereEqualTo(FIELD_FOLLOWER_ID, userId)
             .get()
-            .addOnSuccessListener { docs ->
-                onResult(docs.size())
-            }
-            .addOnFailureListener {
-                onResult(0)
-            }
+            .addOnSuccessListener { docs -> onResult(docs.size()) }
+            .addOnFailureListener { onResult(0) }
     }
 
     /**
@@ -700,12 +692,8 @@ class ProfileViewModel : ViewModel() {
         db.collection(FOLLOWS)
             .document(docId)
             .get()
-            .addOnSuccessListener { doc ->
-                onResult(doc.exists())
-            }
-            .addOnFailureListener {
-                onResult(false)
-            }
+            .addOnSuccessListener { doc -> onResult(doc.exists()) }
+            .addOnFailureListener { onResult(false) }
     }
 
     // ======================================================

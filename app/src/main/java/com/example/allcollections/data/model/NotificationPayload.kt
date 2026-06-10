@@ -1,5 +1,7 @@
 package com.example.allcollections.data.model
 
+import com.google.firebase.firestore.PropertyName
+
 /**
  * Payload dei dati contestuali di una notifica salvata su Firestore.
  *
@@ -16,11 +18,31 @@ package com.example.allcollections.data.model
  * @property pushMessage Corpo della notifica push inviata via FCM.
  */
 data class NotificationPayload(
-    val collectionId: String? = null,
-    val collectionName: String? = null,
-    val itemId: String? = null,
-    val itemDescription: String? = null,
-    val commentText: String? = null,
-    val pushTitle: String? = null,
-    val pushMessage: String? = null
+    @get:PropertyName("collectionId")
+    @set:PropertyName("collectionId")
+    var collectionId: String? = null,
+
+    @get:PropertyName("collectionName")
+    @set:PropertyName("collectionName")
+    var collectionName: String? = null,
+
+    @get:PropertyName("itemId")
+    @set:PropertyName("itemId")
+    var itemId: String? = null,
+
+    @get:PropertyName("itemDescription")
+    @set:PropertyName("itemDescription")
+    var itemDescription: String? = null,
+
+    @get:PropertyName("commentText")
+    @set:PropertyName("commentText")
+    var commentText: String? = null,
+
+    @get:PropertyName("pushTitle")
+    @set:PropertyName("pushTitle")
+    var pushTitle: String? = null,
+
+    @get:PropertyName("pushMessage")
+    @set:PropertyName("pushMessage")
+    var pushMessage: String? = null
 )

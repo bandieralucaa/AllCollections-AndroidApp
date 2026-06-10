@@ -1,6 +1,7 @@
 package com.example.allcollections.data.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.PropertyName
 
 /**
  * Modello dati per un commento su una collezione o su un singolo oggetto.
@@ -28,13 +29,33 @@ import com.google.firebase.Timestamp
  * @see createForItem per commenti a un oggetto
  */
 data class Comment(
-    val id: String = "",
-    val collectionId: String = "",
-    val itemId: String = "",
-    val userId: String = "",
-    val text: String = "",
-    val timestamp: Timestamp = Timestamp.now(),
-    val username: String = ""
+    @get:PropertyName("id")
+    @set:PropertyName("id")
+    var id: String = "",
+
+    @get:PropertyName("collectionId")
+    @set:PropertyName("collectionId")
+    var collectionId: String = "",
+
+    @get:PropertyName("itemId")
+    @set:PropertyName("itemId")
+    var itemId: String = "",
+
+    @get:PropertyName("userId")
+    @set:PropertyName("userId")
+    var userId: String = "",
+
+    @get:PropertyName("text")
+    @set:PropertyName("text")
+    var text: String = "",
+
+    @get:PropertyName("timestamp")
+    @set:PropertyName("timestamp")
+    var timestamp: Timestamp = Timestamp.now(),
+
+    @get:PropertyName("username")
+    @set:PropertyName("username")
+    var username: String = ""
 ) {
     companion object {
         /**

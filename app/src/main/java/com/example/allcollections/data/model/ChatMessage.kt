@@ -1,6 +1,7 @@
 package com.example.allcollections.data.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.PropertyName
 
 /**
  * Modello dati per un messaggio in una conversazione privata 1-1.
@@ -16,12 +17,29 @@ import com.google.firebase.Timestamp
  * @property read `true` se il destinatario ha già letto il messaggio (usato per badge non letti).
  */
 data class ChatMessage(
-    val id: String = "",
-    val senderId: String = "",
-    val receiverId: String = "",
-    val text: String = "",
-    val timestamp: Timestamp = Timestamp.now(),
-    val read: Boolean = false
+    @get:PropertyName("id")
+    @set:PropertyName("id")
+    var id: String = "",
+
+    @get:PropertyName("senderId")
+    @set:PropertyName("senderId")
+    var senderId: String = "",
+
+    @get:PropertyName("receiverId")
+    @set:PropertyName("receiverId")
+    var receiverId: String = "",
+
+    @get:PropertyName("text")
+    @set:PropertyName("text")
+    var text: String = "",
+
+    @get:PropertyName("timestamp")
+    @set:PropertyName("timestamp")
+    var timestamp: Timestamp = Timestamp.now(),
+
+    @get:PropertyName("read")
+    @set:PropertyName("read")
+    var read: Boolean = false
 ) {
     companion object {
         /**

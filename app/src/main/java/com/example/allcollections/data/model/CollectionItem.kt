@@ -1,6 +1,7 @@
 package com.example.allcollections.data.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.PropertyName
 
 /**
  * Modello dati per un elemento (oggetto) all'interno di una collezione.
@@ -17,9 +18,23 @@ import com.google.firebase.Timestamp
  * @property publicId Public ID Cloudinary, usato per aggiornare o eliminare l'immagine.
  */
 data class CollectionItem(
-    val id: String = "",
-    val description: String = "",
-    val imageUrl: String = "",
-    val timestamp: Timestamp? = null,
-    val publicId: String? = null
+    @get:PropertyName("id")
+    @set:PropertyName("id")
+    var id: String = "",
+
+    @get:PropertyName("description")
+    @set:PropertyName("description")
+    var description: String = "",
+
+    @get:PropertyName("imageUrl")
+    @set:PropertyName("imageUrl")
+    var imageUrl: String = "",
+
+    @get:PropertyName("timestamp")
+    @set:PropertyName("timestamp")
+    var timestamp: Timestamp? = null,
+
+    @get:PropertyName("publicId")
+    @set:PropertyName("publicId")
+    var publicId: String? = null
 )
