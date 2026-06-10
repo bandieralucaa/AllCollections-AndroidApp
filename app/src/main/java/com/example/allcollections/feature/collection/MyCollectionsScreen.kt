@@ -23,7 +23,6 @@ import com.example.allcollections.data.model.UserCollection
 import com.example.allcollections.feature.collection.components.CollectionCard
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
-import kotlinx.coroutines.launch
 
 /**
  * Schermata principale delle collezioni dell'utente corrente.
@@ -41,7 +40,6 @@ fun MyCollectionsScreen(
     viewModel: CollectionViewModel
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val scope = rememberCoroutineScope()
     var collectionToDelete by remember { mutableStateOf<UserCollection?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 

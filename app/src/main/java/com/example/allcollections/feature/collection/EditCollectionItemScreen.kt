@@ -21,7 +21,6 @@ import coil.compose.AsyncImage
 import com.example.allcollections.core.ui.ErrorText
 import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.data.model.CollectionItem
-import kotlinx.coroutines.launch
 
 /**
  * Schermata per la modifica di un oggetto di una collezione.
@@ -48,7 +47,6 @@ fun EditCollectionItemScreen(
     itemId: String,
     viewModel: CollectionViewModel
 ) {
-    val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
     var item by remember { mutableStateOf<CollectionItem?>(null) }

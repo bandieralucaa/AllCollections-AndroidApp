@@ -24,7 +24,7 @@ import com.example.allcollections.feature.chat.presentation.ChatViewModel
 import com.example.allcollections.feature.chat.presentation.ChatsListScreen
 import com.example.allcollections.feature.collection.*
 import com.example.allcollections.feature.home.HomeScreen
-import com.example.allcollections.feature.notification.NotificationsScreen
+import com.example.allcollections.feature.notification.presentation.NotificationsScreen
 import com.example.allcollections.feature.notification.presentation.NotificationViewModel
 import com.example.allcollections.feature.profile.*
 import com.example.allcollections.feature.publicProfile.PublicProfileScreen

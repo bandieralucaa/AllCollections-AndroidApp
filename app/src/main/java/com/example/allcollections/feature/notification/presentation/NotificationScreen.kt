@@ -1,4 +1,4 @@
-package com.example.allcollections.feature.notification
+package com.example.allcollections.feature.notification.presentation
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,7 +18,6 @@ import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.data.model.Notification
 import com.example.allcollections.feature.notification.presentation.components.NotificationItem
 import com.example.allcollections.feature.notification.domain.NotificationType
-import com.example.allcollections.feature.notification.presentation.NotificationViewModel
 import kotlinx.coroutines.launch
 
 /**
