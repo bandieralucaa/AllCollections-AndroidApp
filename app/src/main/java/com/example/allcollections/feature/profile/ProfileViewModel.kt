@@ -104,7 +104,7 @@ class ProfileViewModel : ViewModel() {
 
         /** URL dell'immagine profilo predefinita (Cloudinary). */
         const val DEFAULT_PROFILE_IMAGE =
-            "https://res.cloudinary.com/dqtr2napz/image/upload/v1758965362/default_image_profile_okdl8h.png"
+            "https://res.cloudinary.com/dqtr2napz/image/upload/v1781084965/profile-icon_hrobhm.png"
     }
 
     // ======================================================
