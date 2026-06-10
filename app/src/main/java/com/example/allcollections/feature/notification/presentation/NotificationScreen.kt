@@ -197,36 +197,38 @@ private fun handleNotificationClick(
     navController: NavController,
     viewModel: NotificationViewModel
 ) {
-    // Marca come letta se non lo è già
     if (!notification.read) viewModel.markAsRead(notification.id)
 
-    when (notification.type) {
+    val route = when (notification.type) {
         NotificationType.COMMENT -> {
             notification.data.collectionId?.let {
-                navController.navigate(Screens.CollectionDetailScreen.createRoute(it))
-            } ?: navController.navigate(Screens.NotificationsScreen.route)
+                Screens.CollectionDetailScreen.collectionDetailRoute(it)
+            } ?: Screens.NotificationsScreen.route
         }
         NotificationType.ITEM_COMMENT -> {
             val collId = notification.data.collectionId
             val itmId = notification.data.itemId
             when {
-                collId != null && itmId != null ->
-                    navController.navigate(Screens.CollectionDetailScreen.collectionDetailWithItemRoute(collId, itmId))
-                collId != null ->
-                    navController.navigate(Screens.CollectionDetailScreen.createRoute(collId))
-                else -> navController.navigate(Screens.NotificationsScreen.route)
+                collId != null && itmId != null -> Screens.CollectionDetailScreen.collectionDetailWithItemRoute(collId, itmId)
+                collId != null -> Screens.CollectionDetailScreen.collectionDetailRoute(collId)
+                else -> Screens.NotificationsScreen.route
             }
         }
         NotificationType.LIKE, NotificationType.NEW_ITEM -> {
             notification.data.collectionId?.let {
-                navController.navigate(Screens.CollectionDetailScreen.createRoute(it))
-            } ?: navController.navigate(Screens.HomeScreen.route)
+                Screens.CollectionDetailScreen.collectionDetailRoute(it)
+            } ?: Screens.HomeScreen.route
         }
         NotificationType.FOLLOW -> {
             notification.sender?.userId?.let {
-                navController.navigate(Screens.PublicProfileScreen.createRoute(it))
-            } ?: navController.navigate(Screens.HomeScreen.route)
+                Screens.PublicProfileScreen.createRoute(it)
+            } ?: Screens.HomeScreen.route
         }
-        else -> navController.navigate(Screens.HomeScreen.route)
+        else -> Screens.HomeScreen.route
+    }
+
+    navController.navigate(route) {
+        popUpTo(Screens.HomeScreen.route) { inclusive = false }
+        launchSingleTop = true
     }
 }

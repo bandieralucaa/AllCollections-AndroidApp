@@ -164,12 +164,8 @@ fun PhotoProfileScreen(
                         ).show()
 
                         if (isRegistration) {
-                            // Durante la registrazione, effettua il logout per evitare dati inconsistenti
-                            profileViewModel.logout()
-                            navController.navigate(Screens.LoginScreen.route) {
-                                popUpTo(navController.graph.startDestinationId) {
-                                    inclusive = true
-                                }
+                            navController.navigate(Screens.HomeScreen.route) {
+                                popUpTo(Screens.LoginScreen.route) { inclusive = true }
                                 launchSingleTop = true
                             }
                         } else {
@@ -271,11 +267,10 @@ fun PhotoProfileScreen(
                 TextButton(
                     onClick = {
                         if (isRegistration) {
-                            profileViewModel.logout()
-                            navController.navigate(Screens.LoginScreen.route) {
-                                popUpTo(navController.graph.startDestinationId) {
-                                    inclusive = true
-                                }
+                            // Salta la scelta della foto e vai alla Home (utente già loggato)
+                            navController.navigate(Screens.HomeScreen.route) {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                                launchSingleTop = true
                             }
                         } else {
                             navController.popBackStack()

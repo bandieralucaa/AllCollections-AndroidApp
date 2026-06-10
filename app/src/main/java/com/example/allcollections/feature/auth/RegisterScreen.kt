@@ -294,6 +294,7 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                                                 // Naviga alla schermata di verifica email
                                                 navController.navigate(Screens.VerifyEmailScreen.route) {
                                                     popUpTo(Screens.RegisterScreen.route) { inclusive = true }
+                                                    launchSingleTop = true
                                                 }
                                                 isRegistering = false
                                             }

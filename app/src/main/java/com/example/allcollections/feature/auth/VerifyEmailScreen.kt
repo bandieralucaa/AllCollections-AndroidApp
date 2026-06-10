@@ -73,9 +73,10 @@ fun VerifyEmailScreen(
                 if (success && profileViewModel.isEmailVerified()) {
                     currentUser?.uid?.let { userId ->
                         navController.navigate(
-                            Screens.PhotoProfileScreen.createRoute(userId, "true")
+                            Screens.PhotoProfileScreen.photoProfileRoute(userId, true)
                         ) {
                             popUpTo(Screens.VerifyEmailScreen.route) { inclusive = true }
+                            launchSingleTop = true
                         }
                     }
                 }

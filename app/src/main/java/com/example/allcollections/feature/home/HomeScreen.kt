@@ -1,12 +1,17 @@
 package com.example.allcollections.feature.home
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.modifier.ModifierLocalConsumer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.allcollections.core.navigation.Screens
 import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.data.model.UserCollection
 import com.example.allcollections.feature.collection.CollectionViewModel
@@ -42,13 +47,10 @@ fun HomeScreen(
     profileViewModel: ProfileViewModel
 ) {
     val notificationViewModel: NotificationViewModel = koinViewModel()
+    val currentUserId = Firebase.auth.currentUser?.uid
 
     var activeFilter by remember { mutableStateOf(HomeFilter.All) }
     var showFilterDialog by remember { mutableStateOf(false) }
-    val snackbarHostState = remember { SnackbarHostState() }
-
-    val currentUserId = Firebase.auth.currentUser?.uid
-
     var filteredCollections by remember { mutableStateOf(emptyList<UserCollection>()) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -127,50 +129,57 @@ fun HomeScreen(
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { navController.navigate(Screens.AddCollectionScreen.route) }
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Crea nuova collezione")
+            }
+        }
     ) { paddingValues ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Dialog per la selezione del filtro
-            if (showFilterDialog) {
-                FilterDialog(
-                    activeFilter = activeFilter,
-                    onDismiss = { showFilterDialog = false },
-                    onSelectAll = { activeFilter = HomeFilter.All; showFilterDialog = false },
-                    onSelectFollowed = { activeFilter = HomeFilter.Followed; showFilterDialog = false },
-                    onSelectLiked = { activeFilter = HomeFilter.Liked; showFilterDialog = false }
-                )
-            }
+            Box(modifier = Modifier.weight(1f)) {
+                // Dialog per la selezione del filtro
+                if (showFilterDialog) {
+                    FilterDialog(
+                        activeFilter = activeFilter,
+                        onDismiss = { showFilterDialog = false },
+                        onSelectAll = { activeFilter = HomeFilter.All; showFilterDialog = false },
+                        onSelectFollowed = { activeFilter = HomeFilter.Followed; showFilterDialog = false },
+                        onSelectLiked = { activeFilter = HomeFilter.Liked; showFilterDialog = false }
+                    )
+                }
 
-            when {
-                isLoading -> LoadingView()
-                filteredCollections.isEmpty() -> EmptyView(activeFilter, currentUserId)
-                else -> CollectionsGrid(
-                    collections = filteredCollections,
-                    navController = navController,
-                    likedMap = likedMap,
-                    likesCountMap = likesCountMap,
-                    onLikeClick = { collection ->
-                        val wasLiked = likedMap[collection.id] ?: false
-                        // Aggiornamento ottimistico UI
-                        if (wasLiked) {
-                            likedMap[collection.id] = false
-                            likesCountMap[collection.id] = (likesCountMap[collection.id] ?: 1) - 1
-                            collectionViewModel.unlikeCollection(collection.id)
-                        } else {
-                            likedMap[collection.id] = true
-                            likesCountMap[collection.id] = (likesCountMap[collection.id] ?: 0) + 1
-                            collectionViewModel.likeCollection(collection.id, notificationViewModel)
+                when {
+                    isLoading -> LoadingView()
+                    filteredCollections.isEmpty() -> EmptyView(activeFilter, currentUserId)
+                    else -> CollectionsGrid(
+                        collections = filteredCollections,
+                        navController = navController,
+                        likedMap = likedMap,
+                        likesCountMap = likesCountMap,
+                        onLikeClick = { collection ->
+                            val wasLiked = likedMap[collection.id] ?: false
+                            if (wasLiked) {
+                                likedMap[collection.id] = false
+                                likesCountMap[collection.id] = (likesCountMap[collection.id] ?: 1) - 1
+                                collectionViewModel.unlikeCollection(collection.id)
+                            } else {
+                                likedMap[collection.id] = true
+                                likesCountMap[collection.id] = (likesCountMap[collection.id] ?: 0) + 1
+                                collectionViewModel.likeCollection(collection.id, notificationViewModel)
+                            }
+                            if (activeFilter == HomeFilter.Liked && wasLiked) {
+                                filteredCollections = filteredCollections.filter { it.id != collection.id }
+                            }
                         }
-                        // Se il filtro è "Liked" e l'utente ha rimosso il like, rimuovi la collezione dalla lista
-                        if (activeFilter == HomeFilter.Liked && wasLiked) {
-                            filteredCollections = filteredCollections.filter { it.id != collection.id }
-                        }
-                    }
-                )
+                    )
+                }
+
             }
 
             // Contatore in basso (solo se ci sono risultati)
@@ -179,8 +188,9 @@ fun HomeScreen(
                     text = "Mostrando ${filteredCollections.size} collezioni",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
                         .padding(bottom = 8.dp)
                 )
             }

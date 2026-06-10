@@ -149,13 +149,27 @@ private fun BottomNavBar(
             NavigationBarItem(
                 selected = selected,
                 onClick = {
-                    navController.navigate(item.screen.route) {
-                        // Pop up to the start destination of the graph to avoid building up a large stack
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
+                    if (selected) {
+                        when (item.screen) {
+                            Screens.ChatsListScreen -> navController.popBackStack(Screens.ChatsListScreen.route, inclusive = false)
+                            Screens.NotificationsScreen -> navController.popBackStack(Screens.NotificationsScreen.route, inclusive = false)
+                            Screens.ProfileScreen -> navController.popBackStack(Screens.ProfileScreen.route, inclusive = false)
+                            Screens.HomeScreen -> navController.popBackStack(Screens.HomeScreen.route, inclusive = false)
+                            Screens.SearchScreen -> navController.popBackStack(Screens.SearchScreen.route, inclusive = false)
+                            else -> {
+                                navController.navigate(item.screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
                         }
-                        launchSingleTop = true
-                        restoreState = true
+                    } else {
+                        navController.navigate(item.screen.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 },
                 icon = {
