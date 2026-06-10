@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.allcollections.core.navigation.Screens
+import com.example.allcollections.core.ui.ErrorText
 import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.feature.notification.presentation.NotificationViewModel
 import kotlinx.coroutines.launch
@@ -54,7 +55,7 @@ fun AddCollectionObjectScreen(
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var isUploading by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
-    val snackbarHostState = remember { SnackbarHostState() }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
     // Launcher per selezionare un'immagine dalla galleria
@@ -62,10 +63,10 @@ fun AddCollectionObjectScreen(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         selectedImageUri = uri
+        errorMessage = null
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = { MyTopBar(navController = navController) }
     ) { innerPadding ->
         Column(
@@ -124,6 +125,7 @@ fun AddCollectionObjectScreen(
                 onClick = {
                     selectedImageUri?.let { uri ->
                         isUploading = true
+                        errorMessage = null
                         viewModel.addItem(
                             collectionId = collectionId,
                             imageUri = uri,
@@ -144,7 +146,7 @@ fun AddCollectionObjectScreen(
                                         launchSingleTop = true
                                     }
                                 } else {
-                                    snackbarHostState.showSnackbar(error ?: "Errore durante l'upload")
+                                    errorMessage = error ?: "Errore durante l'upload"
                                 }
                             }
                         }
@@ -154,6 +156,13 @@ fun AddCollectionObjectScreen(
                 modifier = Modifier.fillMaxWidth(0.9f)
             ) {
                 Text("Aggiungi oggetto")
+            }
+
+            errorMessage?.let {
+                ErrorText(
+                    text = it,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
             }
         }
     }

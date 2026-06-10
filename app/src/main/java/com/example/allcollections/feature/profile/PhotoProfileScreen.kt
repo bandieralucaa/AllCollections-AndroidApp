@@ -23,6 +23,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.allcollections.core.navigation.Screens
+import com.example.allcollections.core.ui.ErrorText
 import com.example.allcollections.core.utils.image.rememberCameraLauncher
 import com.example.allcollections.core.utils.permissions.PermissionStatus
 import com.example.allcollections.core.utils.permissions.rememberPermission
@@ -58,17 +59,20 @@ fun PhotoProfileScreen(
 
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // Launcher per la galleria
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         selectedImageUri = uri
+        errorMessage = null
     }
 
     // Launcher per la fotocamera (tramite utility)
     val cameraLauncher = rememberCameraLauncher { uri ->
         selectedImageUri = uri
+        errorMessage = null
     }
 
     // Permessi fotocamera
@@ -142,6 +146,7 @@ fun PhotoProfileScreen(
     fun uploadProfileImage() {
         val uri = selectedImageUri ?: return
         isLoading = true
+        errorMessage = null
 
         profileViewModel.uploadProfileImage(
             imageUri = uri,
@@ -173,13 +178,13 @@ fun PhotoProfileScreen(
                     },
                     onFailure = { error ->
                         isLoading = false
-                        android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
+                        errorMessage = null
                     }
                 )
             },
             onFailure = { error ->
                 isLoading = false
-                android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
+                errorMessage = null
             }
         )
     }
@@ -302,6 +307,10 @@ fun PhotoProfileScreen(
                     onClick = { selectedImageUri = null }
                 ) {
                     Text("Scegli un'altra")
+                }
+
+                errorMessage?.let {
+                    ErrorText(text = it, modifier = Modifier.padding(top = 8.dp))
                 }
             }
         }

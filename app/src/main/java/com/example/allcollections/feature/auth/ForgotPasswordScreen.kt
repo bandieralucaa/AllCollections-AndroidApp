@@ -12,9 +12,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.allcollections.core.ui.ErrorText
 import com.example.allcollections.core.ui.MyTopBar
 import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
@@ -35,9 +35,9 @@ fun ForgotPasswordScreen(navController: NavController) {
 
     var email by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             MyTopBar(
                 navController = navController,
@@ -78,14 +78,27 @@ fun ForgotPasswordScreen(navController: NavController) {
 
                 Button(
                     onClick = {
-                        sendPasswordResetEmail(
-                            email = email,
-                            isLoading = isLoading,
-                            snackbarHostState = snackbarHostState,
-                            coroutineScope = coroutineScope,
-                            onLoadingChange = { isLoading = it },
-                            onSuccess = { navController.popBackStack() }
-                        )
+                        if (isLoading) return@Button
+                        if (email.isBlank()) {
+                            errorMessage = "Inserisci un'email"
+                            return@Button
+                        }
+                        isLoading = true
+                        FirebaseAuth.getInstance()
+                            .sendPasswordResetEmail(email.trim())
+                            .addOnCompleteListener { task ->
+                                isLoading = false
+                                if (task.isSuccessful) {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            "Email di recupero inviata! Controlla la tua casella di posta"
+                                        )
+                                    }
+                                    navController.popBackStack()
+                                } else {
+                                    errorMessage = task.exception?.message ?: "Errore durante l'invio"
+                                }
+                            }
                     },
                     modifier = Modifier.fillMaxWidth(0.8f),
                     enabled = !isLoading
@@ -103,58 +116,14 @@ fun ForgotPasswordScreen(navController: NavController) {
                 TextButton(onClick = { navController.popBackStack() }) {
                     Text("Torna al login")
                 }
-            }
-        }
-    }
-}
 
-/**
- * Invia l'email di reset password tramite Firebase Authentication.
- *
- * Valida che il campo email non sia vuoto prima di chiamare Firebase.
- * Mostra messaggi di esito tramite [SnackbarHostState]. In caso di
- * successo invoca [onSuccess] (tipicamente per tornare al login).
- *
- * @param email Indirizzo email inserito dall'utente.
- * @param isLoading Stato corrente del caricamento (usato per evitare doppi tap).
- * @param snackbarHostState Host per la visualizzazione dei messaggi snackbar.
- * @param coroutineScope Scope per il lancio delle coroutine di snackbar.
- * @param onLoadingChange Callback per aggiornare lo stato di caricamento.
- * @param onSuccess Callback invocato quando l'email è stata inviata con successo.
- */
-private fun sendPasswordResetEmail(
-    email: String,
-    isLoading: Boolean,
-    snackbarHostState: SnackbarHostState,
-    coroutineScope: CoroutineScope,
-    onLoadingChange: (Boolean) -> Unit,
-    onSuccess: () -> Unit
-) {
-    if (isLoading) return
-
-    if (email.isBlank()) {
-        coroutineScope.launch { snackbarHostState.showSnackbar("Inserisci un'email") }
-        return
-    }
-
-    onLoadingChange(true)
-    FirebaseAuth.getInstance()
-        .sendPasswordResetEmail(email.trim())
-        .addOnCompleteListener { task ->
-            onLoadingChange(false)
-            if (task.isSuccessful) {
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar(
-                        "Email di recupero inviata! Controlla la tua casella di posta"
-                    )
-                }
-                onSuccess()
-            } else {
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar(
-                        task.exception?.message ?: "Errore durante l'invio"
+                errorMessage?.let {
+                    ErrorText(
+                        text = it,
+                        modifier = Modifier.padding(top = 8.dp)
                     )
                 }
             }
         }
+    }
 }

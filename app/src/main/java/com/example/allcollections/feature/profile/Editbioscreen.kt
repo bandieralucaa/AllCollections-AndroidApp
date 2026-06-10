@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.allcollections.core.ui.ErrorText
 import com.example.allcollections.core.ui.MyTopBar
 
 /**
@@ -88,15 +89,6 @@ fun EditBioScreen(
                 }
             )
 
-            // Messaggio di errore (se presente)
-            errorMessage?.let {
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
             // Pulsante di salvataggio
             Button(
                 onClick = {
@@ -122,6 +114,13 @@ fun EditBioScreen(
                 } else {
                     Text("Salva")
                 }
+            }
+
+            errorMessage?.let {
+                ErrorText(
+                    text = it,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
             }
         }
     }

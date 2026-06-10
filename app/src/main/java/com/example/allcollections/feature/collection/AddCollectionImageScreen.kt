@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.allcollections.core.navigation.Screens
+import com.example.allcollections.core.ui.ErrorText
 import com.example.allcollections.core.ui.MyTopBar
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
@@ -50,14 +51,15 @@ fun AddCollectionImageScreen(
 ) {
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var isUploading by remember { mutableStateOf(false) }
-    val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // Launcher per selezionare un'immagine dalla galleria
     val galleryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         selectedImageUri = uri
+        errorMessage = null
     }
 
     // Avvia l'upload automaticamente appena viene selezionata un'immagine
@@ -79,9 +81,7 @@ fun AddCollectionImageScreen(
                 },
                 onFailure = { error ->
                     isUploading = false
-                    coroutineScope.launch {
-                        snackbarHostState.showSnackbar("Errore upload: $error")
-                    }
+                    errorMessage = error
                 }
             )
         }
@@ -91,7 +91,6 @@ fun AddCollectionImageScreen(
         topBar = {
             MyTopBar(navController = navController, title = "Aggiungi copertina collezione")
         },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -146,6 +145,10 @@ fun AddCollectionImageScreen(
                 modifier = Modifier.fillMaxWidth(0.8f)
             ) {
                 Text("Non ora", style = MaterialTheme.typography.bodyLarge)
+            }
+
+            errorMessage?.let {
+                ErrorText(text = it, modifier = Modifier.padding(top = 8.dp))
             }
         }
     }

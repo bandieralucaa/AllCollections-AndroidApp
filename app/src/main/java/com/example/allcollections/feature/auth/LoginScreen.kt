@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.allcollections.R
 import com.example.allcollections.core.navigation.Screens
+import com.example.allcollections.core.ui.ErrorText
 import com.example.allcollections.feature.profile.ProfileViewModel
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
@@ -201,9 +202,8 @@ fun LoginScreen(
             // Messaggio di errore (se presente)
             errorMessage?.let { msg ->
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(
+                ErrorText(
                     text = msg,
-                    color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium
                 )
             }

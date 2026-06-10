@@ -17,6 +17,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.allcollections.core.ui.ErrorText
 import com.example.allcollections.core.ui.MyTopBar
 import kotlinx.coroutines.delay
 
@@ -107,25 +108,19 @@ fun EditPasswordScreen(
                     // Pulsante di invio
                     Button(
                         onClick = {
-                            errorMessage = validatePasswords(
-                                currentPassword,
-                                newPassword,
-                                confirmPassword
-                            )
-
-                            if (errorMessage == null) {
-                                isSubmitting = true
-                                profileViewModel.changePassword(
-                                    currentPassword,
-                                    newPassword,
-                                ) { success, message ->
-                                    isSubmitting = false
-                                    if (success) {
-                                        successMessage = "Password aggiornata con successo"
-                                        errorMessage = null
-                                    } else {
-                                        errorMessage = message ?: "Errore sconosciuto"
-                                    }
+                            val validationError = validatePasswords(currentPassword, newPassword, confirmPassword)
+                            if (validationError != null) {
+                                errorMessage = validationError
+                                return@Button
+                            }
+                            isSubmitting = true
+                            profileViewModel.changePassword(currentPassword, newPassword) { success, message ->
+                                isSubmitting = false
+                                if (success) {
+                                    successMessage = "Password aggiornata con successo"
+                                    errorMessage = null
+                                } else {
+                                    errorMessage = message ?: "Errore sconosciuto"
                                 }
                             }
                         },
@@ -149,9 +144,9 @@ fun EditPasswordScreen(
                         enter = fadeIn(),
                         exit = fadeOut()
                     ) {
-                        Text(
+                        ErrorText(
                             text = errorMessage.orEmpty(),
-                            color = MaterialTheme.colorScheme.error
+                            modifier = Modifier.padding(top = 8.dp)
                         )
                     }
 

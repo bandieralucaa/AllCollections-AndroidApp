@@ -16,6 +16,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.example.allcollections.core.navigation.Screens
+import com.example.allcollections.core.ui.ErrorText
 import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.data.model.CollectionCardLayout
 import com.example.allcollections.data.model.UserCollection
@@ -40,9 +41,9 @@ fun MyCollectionsScreen(
     viewModel: CollectionViewModel
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var collectionToDelete by remember { mutableStateOf<UserCollection?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -69,16 +70,9 @@ fun MyCollectionsScreen(
                     }
                 }
                 is CollectionViewModel.CollectionEvent.Error -> {
-                    scope.launch { snackbarHostState.showSnackbar(event.message) }
+                    errorMessage = event.message
                 }
             }
-        }
-    }
-
-    // Mostra eventuali errori di stato tramite Snackbar
-    LaunchedEffect(uiState.error) {
-        uiState.error?.let {
-            scope.launch { snackbarHostState.showSnackbar(it) }
         }
     }
 
@@ -116,7 +110,6 @@ fun MyCollectionsScreen(
                 title = "Le Mie Collezioni"
             )
         },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { navController.navigate(Screens.AddCollectionScreen.route) }
@@ -187,6 +180,15 @@ fun MyCollectionsScreen(
                         }
                     }
                 }
+            }
+
+            errorMessage?.let {
+                ErrorText(
+                    text = it,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(16.dp)
+                )
             }
         }
     }

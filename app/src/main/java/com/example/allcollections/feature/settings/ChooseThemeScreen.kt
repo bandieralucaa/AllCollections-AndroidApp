@@ -40,10 +40,8 @@ fun ChooseTheme(
     navController: NavController
 ) {
     val scrollState = rememberScrollState()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = { MyTopBar(navController = navController, title = "Cambia tema") }
     ) { innerPadding ->
         Column(

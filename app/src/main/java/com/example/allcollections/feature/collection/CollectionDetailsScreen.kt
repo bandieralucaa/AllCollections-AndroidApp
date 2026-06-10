@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.allcollections.core.navigation.Screens
+import com.example.allcollections.core.ui.ErrorText
 import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.data.model.CollectionItem
 import com.example.allcollections.data.model.Comment
@@ -82,6 +83,7 @@ fun CollectionDetailScreen(
     var showLikersDialog by remember { mutableStateOf(false) }
     var likers by remember { mutableStateOf<List<UserData>>(emptyList()) }
     var initialItemIndexApplied by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val itemsList = uiState.items
     val currentUserId = profileViewModel.getCurrentUserId()
@@ -106,7 +108,7 @@ fun CollectionDetailScreen(
                     }
                 }
                 is CollectionViewModel.CollectionEvent.Error -> {
-                    scope.launch { snackbarHostState.showSnackbar(event.message) }
+                    errorMessage = event.message
                 }
             }
         }
@@ -115,12 +117,13 @@ fun CollectionDetailScreen(
     // Carica collezione, oggetti e conteggio like all'avvio
     LaunchedEffect(collectionId) {
         isLoading = true
+        errorMessage = null
         viewModel.getCollectionById(
             collectionId = collectionId,
             onSuccess = { collection = it; isLoading = false },
             onFailure = { error ->
                 isLoading = false
-                scope.launch { snackbarHostState.showSnackbar("Errore caricamento collezione: $error") }
+                errorMessage = error
             }
         )
         viewModel.loadItems(collectionId)
@@ -468,6 +471,10 @@ fun CollectionDetailScreen(
                     Icon(Icons.Default.ArrowBack, contentDescription = "Chiudi", tint = Color.White)
                 }
             }
+        }
+
+        errorMessage?.let {
+            ErrorText(text = it, modifier = Modifier.padding(16.dp))
         }
     }
 }

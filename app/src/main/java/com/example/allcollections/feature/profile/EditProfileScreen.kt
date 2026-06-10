@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.allcollections.core.ui.ErrorText
 import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.core.utils.input.DatePickerField
 import com.example.allcollections.core.utils.input.GenderSelector
@@ -50,6 +51,7 @@ fun EditProfileScreen(
     var email by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // Carica i dati dell'utente corrente
     LaunchedEffect(Unit) {
@@ -66,7 +68,6 @@ fun EditProfileScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             MyTopBar(
                 navController = navController,
@@ -155,9 +156,12 @@ fun EditProfileScreen(
                         onClick = {
                             // Validazione campi obbligatori
                             if (name.isBlank() || surname.isBlank() || email.isBlank() || username.isBlank()) {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Compila tutti i campi obbligatori")
-                                }
+                                errorMessage = "Compila tutti i campi obbligatori"
+                                return@Button
+                            }
+
+                            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                                errorMessage = "Inserisci un indirizzo email valido"
                                 return@Button
                             }
 
@@ -177,9 +181,7 @@ fun EditProfileScreen(
                                         snackbarHostState.showSnackbar("Profilo aggiornato")
                                         navController.popBackStack()
                                     } else {
-                                        snackbarHostState.showSnackbar(
-                                            error ?: "Errore aggiornamento profilo"
-                                        )
+                                        errorMessage = error ?: "Errore aggiornamento profilo"
                                     }
                                 }
                             }
@@ -194,6 +196,12 @@ fun EditProfileScreen(
                         } else {
                             Text("Salva modifiche")
                         }
+                    }
+                    errorMessage?.let {
+                        ErrorText(
+                            text = it,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
                     }
                 }
             }

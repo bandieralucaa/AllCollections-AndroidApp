@@ -13,6 +13,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.allcollections.core.navigation.Screens
+import com.example.allcollections.core.ui.ErrorText
 import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.feature.profile.ProfileViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -42,13 +43,14 @@ fun VerifyEmailScreen(
     profileViewModel: ProfileViewModel
 ) {
     val scrollState = rememberScrollState()
-    val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
     var isResending by remember { mutableStateOf(false) }
     var isChecking by remember { mutableStateOf(false) }
     var secondsRemaining by remember { mutableStateOf(60) }
     var canResend by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var successMessage by remember { mutableStateOf<String?>(null) }
 
     val currentUser = FirebaseAuth.getInstance().currentUser
     val userEmail = currentUser?.email ?: ""
@@ -82,7 +84,6 @@ fun VerifyEmailScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             MyTopBar(
                 navController = navController,
@@ -158,9 +159,7 @@ fun VerifyEmailScreen(
                                 }
                             }
                         } else {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Email non ancora verificata")
-                            }
+                            errorMessage = "Email non ancora verificata"
                         }
                     }
                 },
@@ -183,15 +182,11 @@ fun VerifyEmailScreen(
                     profileViewModel.sendEmailVerification { success, error ->
                         isResending = false
                         if (success) {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Email di verifica reinviata!")
-                            }
+                            successMessage = "Email di verifica reinviata!"
                             secondsRemaining = 60
                             canResend = false
                         } else {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Errore: ${error ?: "riprova più tardi"}")
-                            }
+                            errorMessage = error ?: "Errore durante l'invio"
                         }
                     }
                 },
@@ -226,6 +221,18 @@ fun VerifyEmailScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
+
+            errorMessage?.let {
+                ErrorText(text = it, modifier = Modifier.padding(top = 8.dp))
+            }
+
+            successMessage?.let {
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
         }
     }
 }

@@ -15,6 +15,7 @@ import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.allcollections.core.navigation.Screens
+import com.example.allcollections.core.ui.ErrorText
 import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.core.utils.input.DatePickerField
 import com.example.allcollections.core.utils.input.GenderSelector
@@ -54,7 +55,6 @@ import java.time.LocalDate
 @Composable
 fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewModel) {
     val scrollState = rememberScrollState()
-    val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
     // Stato dei campi del modulo
@@ -72,6 +72,7 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
     var showPasswordError by remember { mutableStateOf(false) }
     var showDateError by remember { mutableStateOf(false) }
     var isRegistering by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     /**
      * Aggiorna lo stato di corrispondenza delle password e mostra l'errore
@@ -85,7 +86,6 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = { MyTopBar(navController = navController) }
     ) { innerPadding ->
         Box(
@@ -137,9 +137,8 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                     showDateError = false
                 }
                 if (showDateError) {
-                    Text(
+                    ErrorText(
                         text = "Devi avere almeno 18 anni per registrarti",
-                        color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.fillMaxWidth(0.85f)
                     )
@@ -221,9 +220,8 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                 )
 
                 if (showPasswordError) {
-                    Text(
+                    ErrorText(
                         text = "Le password non coincidono",
-                        color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.fillMaxWidth(0.85f)
                     )
@@ -235,7 +233,6 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                 Button(
                     onClick = {
                         if (isRegistering) return@Button
-
                         coroutineScope.launch {
                             isRegistering = true
 
@@ -244,7 +241,7 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                                 username.isBlank() || password.isBlank() || confirmPassword.isBlank() ||
                                 gender.isBlank()
                             ) {
-                                snackbarHostState.showSnackbar("Compila tutti i campi")
+                                errorMessage = "Compila tutti i campi"
                                 isRegistering = false
                                 return@launch
                             }
@@ -252,7 +249,7 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                             // Step 2: Controllo età minima (18 anni)
                             val today = LocalDate.now()
                             if (dateOfBirth.plusYears(18).isAfter(today)) {
-                                snackbarHostState.showSnackbar("Devi avere almeno 18 anni per registrarti")
+                                errorMessage = "Devi avere almeno 18 anni per registrarti"
                                 showDateError = true
                                 isRegistering = false
                                 return@launch
@@ -261,7 +258,7 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
 
                             // Step 3: Controllo corrispondenza password
                             if (!passwordsMatch) {
-                                snackbarHostState.showSnackbar("Le password non coincidono")
+                                errorMessage = "Le password non coincidono"
                                 isRegistering = false
                                 return@launch
                             }
@@ -269,7 +266,7 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                             // Step 4: Controllo unicità username su Firestore
                             val usernameExists = profileViewModel.isUsernameTaken(username)
                             if (usernameExists) {
-                                snackbarHostState.showSnackbar("Username già in uso")
+                                errorMessage = "Username già in uso"
                                 isRegistering = false
                                 return@launch
                             }
@@ -292,9 +289,7 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                                             // Step 7: Invio email di verifica
                                             profileViewModel.sendEmailVerification { success, error ->
                                                 if (!success) {
-                                                    coroutineScope.launch {
-                                                        snackbarHostState.showSnackbar("Errore invio verifica: $error")
-                                                    }
+                                                    errorMessage = error ?: "Errore invio verifica email"
                                                 }
                                                 // Naviga alla schermata di verifica email
                                                 navController.navigate(Screens.VerifyEmailScreen.route) {
@@ -304,13 +299,13 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                                             }
                                         },
                                         onFailure = { msg ->
-                                            coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                            errorMessage = msg
                                             isRegistering = false
                                         }
                                     )
                                 },
                                 onFailure = { msg ->
-                                    coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+                                    errorMessage = msg
                                     isRegistering = false
                                 }
                             )
@@ -329,6 +324,13 @@ fun RegisterScreen(navController: NavController, profileViewModel: ProfileViewMo
                     } else {
                         Text("Registrati")
                     }
+                }
+
+                errorMessage?.let {
+                    ErrorText(
+                        text = it,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                 }
             }
         }

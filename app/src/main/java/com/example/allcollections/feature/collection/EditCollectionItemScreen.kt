@@ -18,6 +18,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.allcollections.core.ui.ErrorText
 import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.data.model.CollectionItem
 import kotlinx.coroutines.launch
@@ -48,20 +49,23 @@ fun EditCollectionItemScreen(
     viewModel: CollectionViewModel
 ) {
     val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val scrollState = rememberScrollState()
 
     var item by remember { mutableStateOf<CollectionItem?>(null) }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var description by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    val scrollState = rememberScrollState()
 
     // Launcher per selezionare una nuova immagine dalla galleria
     val imageLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri ->
-        if (uri != null) selectedImageUri = uri
+        if (uri != null) {
+            selectedImageUri = uri
+            errorMessage = null
+        }
     }
 
     // Carica i dati correnti dell'oggetto all'avvio
@@ -74,7 +78,7 @@ fun EditCollectionItemScreen(
                 description = it.description
             },
             onFailure = { error ->
-                scope.launch { snackbarHostState.showSnackbar("Errore caricamento: $error") }
+                errorMessage = error
             }
         )
     }
@@ -82,7 +86,6 @@ fun EditCollectionItemScreen(
     item?.let { currentItem ->
         Scaffold(
             topBar = { MyTopBar(navController = navController, title = "Modifica oggetto") },
-            snackbarHost = { SnackbarHost(snackbarHostState) }
         ) { padding ->
             Column(
                 modifier = Modifier
@@ -131,6 +134,7 @@ fun EditCollectionItemScreen(
                     onClick = {
                         if (isSaving) return@Button
                         isSaving = true
+                        errorMessage = null
 
                         if (selectedImageUri != null) {
                             // Upload nuova immagine + aggiornamento descrizione (entrambi)
@@ -141,16 +145,11 @@ fun EditCollectionItemScreen(
                                 description,
                                 onSuccess = {
                                     isSaving = false
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Modifica completata")
-                                    }
                                     navController.popBackStack()
                                 },
                                 onFailure = { error ->
                                     isSaving = false
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Errore: $error")
-                                    }
+                                    errorMessage = error
                                 }
                             )
                         } else {
@@ -161,16 +160,11 @@ fun EditCollectionItemScreen(
                                 description,
                                 onSuccess = {
                                     isSaving = false
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Descrizione aggiornata")
-                                    }
                                     navController.popBackStack()
                                 },
                                 onFailure = { error ->
                                     isSaving = false
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Errore: $error")
-                                    }
+                                    errorMessage = error
                                 }
                             )
                         }
@@ -189,6 +183,13 @@ fun EditCollectionItemScreen(
                     } else {
                         Text("Salva modifiche")
                     }
+                }
+
+                errorMessage?.let {
+                    ErrorText(
+                        text = it,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                 }
             }
         }

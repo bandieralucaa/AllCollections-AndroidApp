@@ -18,6 +18,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.core.navigation.Screens
+import com.example.allcollections.core.ui.ErrorText
 import com.example.allcollections.feature.collection.components.PRESET_CATEGORIES
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
@@ -60,9 +61,10 @@ fun AddCollectionScreen(
     var showCategoryDialog by remember { mutableStateOf(false) }
 
     val createState by viewModel.createCollectionState.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
 
     // Naviga alla schermata di aggiunta immagine non appena la collezione viene creata
     LaunchedEffect(createState.createdCollectionId) {
@@ -84,14 +86,11 @@ fun AddCollectionScreen(
     // Mostra gli errori di creazione tramite Snackbar
     LaunchedEffect(createState.error) {
         createState.error?.let { error ->
-            coroutineScope.launch {
-                snackbarHostState.showSnackbar(message = error, duration = SnackbarDuration.Short)
-            }
+            errorMessage = error
         }
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = { MyTopBar(navController = navController, title = "Nuova collezione") }
     ) { innerPadding ->
         Column(
@@ -109,7 +108,7 @@ fun AddCollectionScreen(
                 onValueChange = { name = it },
                 label = { Text("Nome *") },
                 isError = name.isEmpty() && createState.error != null,
-                supportingText = { if (name.isEmpty()) Text("Campo obbligatorio") },
+                supportingText = { if (name.isEmpty()) ErrorText("Campo obbligatorio") },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -151,10 +150,9 @@ fun AddCollectionScreen(
             }
 
             if (category.isEmpty() && createState.error != null) {
-                Text(
+                ErrorText(
                     text = "Seleziona una categoria",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(start = 16.dp, top = 4.dp)
@@ -218,7 +216,7 @@ fun AddCollectionScreen(
                     onValueChange = { category = it },
                     label = { Text("Scrivi la tua categoria...") },
                     isError = category.isEmpty() && createState.error != null,
-                    supportingText = { if (category.isEmpty()) Text("Campo obbligatorio") },
+                    supportingText = { if (category.isEmpty()) ErrorText("Campo obbligatorio") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -236,13 +234,9 @@ fun AddCollectionScreen(
             // Pulsante di invio
             Button(
                 onClick = {
+                    errorMessage = null
                     if (name.isBlank() || category.isBlank()) {
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar(
-                                message = "Compila tutti i campi obbligatori",
-                                duration = SnackbarDuration.Short
-                            )
-                        }
+                        errorMessage = "Compila tutti i campi obbligatori"
                         return@Button
                     }
                     viewModel.saveCollection(
@@ -275,6 +269,13 @@ fun AddCollectionScreen(
                     "Sto creando la tua collezione...",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            errorMessage?.let {
+                ErrorText(
+                    text = it,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
             }
         }

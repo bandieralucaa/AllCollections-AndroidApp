@@ -25,6 +25,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.allcollections.core.navigation.Screens
+import com.example.allcollections.core.ui.ErrorText
 import com.example.allcollections.core.ui.MyTopBar
 import com.example.allcollections.data.model.UserCollection
 import com.example.allcollections.feature.collection.components.PRESET_CATEGORIES
@@ -54,7 +55,6 @@ fun EditCollectionScreen(
     viewModel: CollectionViewModel
 ) {
     val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
     val scrollState = rememberScrollState()
 
     var collection by remember { mutableStateOf<UserCollection?>(null) }
@@ -63,6 +63,7 @@ fun EditCollectionScreen(
     var isCustomCategory by remember { mutableStateOf(false) }
     var showCategoryDialog by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // Launcher per selezionare un'immagine dalla galleria
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -88,7 +89,7 @@ fun EditCollectionScreen(
                 }
             },
             onFailure = { error ->
-                scope.launch { snackbarHostState.showSnackbar("Errore caricamento: $error") }
+                errorMessage = error
             }
         )
     }
@@ -100,7 +101,6 @@ fun EditCollectionScreen(
 
         Scaffold(
             topBar = { MyTopBar(navController = navController, title = "Modifica collezione") },
-            snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
         ) { padding ->
             Column(
                 modifier = Modifier
@@ -174,7 +174,6 @@ fun EditCollectionScreen(
                                     "Seleziona una categoria",
                                     style = MaterialTheme.typography.titleMedium
                                 )
-
                                 FlowRow(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -272,9 +271,8 @@ fun EditCollectionScreen(
                                         ),
                                         onSuccess = {},
                                         onFailure = { error ->
-                                            scope.launch {
-                                                snackbarHostState.showSnackbar("Errore salvataggio: $error")
-                                            }
+                                            errorMessage = error
+                                            isSaving = false
                                         }
                                     )
                                 }
@@ -286,24 +284,25 @@ fun EditCollectionScreen(
                                         newImageUri = selectedImageUri!!,
                                         onSuccess = {},
                                         onFailure = { error ->
-                                            scope.launch {
-                                                snackbarHostState.showSnackbar("Errore immagine: $error")
-                                            }
+                                            errorMessage = error
+                                            isSaving = false
                                         }
                                     )
                                 }
 
-                                // Naviga al dettaglio della collezione
-                                navController.navigate(Screens.CollectionDetailScreen.collectionDetailRoute(currentCollection.id)) {
-                                    popUpTo("edit_collection/${currentCollection.id}") { inclusive = true }
+                                if (errorMessage == null) {
+                                    navController.navigate(Screens.CollectionDetailScreen.collectionDetailRoute(currentCollection.id)) {
+                                        popUpTo("edit_collection/${currentCollection.id}") { inclusive = true }
+                                    }
+                                } else {
+                                    isSaving = false
                                 }
 
                             } catch (e: Exception) {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Errore imprevisto: ${e.message}")
-                                }
-                            } finally {
+                                errorMessage = "Errore imprevisto: ${e.message}"
                                 isSaving = false
+                            } finally {
+                                if (errorMessage == null) isSaving = false
                             }
                         }
                     },
@@ -327,6 +326,13 @@ fun EditCollectionScreen(
                     } else {
                         Text("Salva modifiche")
                     }
+                }
+
+                errorMessage?.let {
+                    ErrorText(
+                        text = it,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                 }
             }
         }
