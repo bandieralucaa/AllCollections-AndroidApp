@@ -7,6 +7,7 @@ import com.example.allcollections.data.model.Notification
 import com.example.allcollections.feature.notification.data.NotificationRepository
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
+import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -63,7 +64,6 @@ class NotificationViewModel(
      */
     private fun observeNotifications() {
         val currentUserId = userId ?: return
-
         notificationJob?.cancel()
         notificationJob = viewModelScope.launch {
             try {
@@ -72,8 +72,13 @@ class NotificationViewModel(
                     _notifications.value = enriched
                 }
             } catch (e: Exception) {
-                // Logga l'errore per debug, ma non blocca il ViewModel
-                Log.e("NotificationViewModel", "Errore durante osservazione notifiche: ${e.message}", e)
+                // Se è un errore di permessi, ignoriamo silenziosamente (dopo logout)
+                if (e is FirebaseFirestoreException &&
+                    e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    // Non fare nulla
+                } else {
+                    Log.e("NotificationViewModel", "Errore durante osservazione notifiche: ${e.message}", e)
+                }
             }
         }
     }

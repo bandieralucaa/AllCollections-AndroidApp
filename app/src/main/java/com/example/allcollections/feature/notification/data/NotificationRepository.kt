@@ -8,6 +8,7 @@ import com.example.allcollections.feature.notification.domain.NotificationType
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -48,12 +49,22 @@ class NotificationRepository(
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
+                    // Se l'errore è di permessi (tipicamente dopo logout), chiudi il flow silenziosamente
+                    if (error is FirebaseFirestoreException &&
+                        error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                        close()
+                        return@addSnapshotListener
+                    }
+                    // Altrimenti logga e chiudi con errore
                     Log.e("NotificationRepo", "Errore observeNotifications: ${error.message}", error)
                     close(error)
                     return@addSnapshotListener
                 }
 
-                if (snapshot == null) return@addSnapshotListener
+                if (snapshot == null) {
+                    close()
+                    return@addSnapshotListener
+                }
 
                 val notifications = snapshot.documents.mapNotNull { doc ->
                     mapToNotification(doc)

@@ -5,6 +5,7 @@ import com.example.allcollections.data.model.ChatPreview
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -79,12 +80,17 @@ class ChatRepository(
         val chatId = generateChatId(userId1, userId2)
         val chatRef = firestore.collection(CHATS_COLLECTION).document(chatId)
 
-        // Listener sui messaggi della chat
         val listener = chatRef
             .collection(MESSAGES_COLLECTION)
             .orderBy("timestamp", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
+                    // Se l'errore è di permessi (dopo logout), chiudi silenziosamente
+                    if (error is FirebaseFirestoreException &&
+                        error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                        close()
+                        return@addSnapshotListener
+                    }
                     close(error)
                     return@addSnapshotListener
                 }
@@ -258,6 +264,12 @@ class ChatRepository(
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
+                    // Se l'errore è di permessi (dopo logout), chiudi silenziosamente
+                    if (error is FirebaseFirestoreException &&
+                        error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                        close()
+                        return@addSnapshotListener
+                    }
                     close(error)
                     return@addSnapshotListener
                 }
